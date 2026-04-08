@@ -4,15 +4,20 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
 <meta name="theme-color" content="#0f172a"/>
+
+<meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="FinancesPro"/>
-<meta name="mobile-web-app-capable" content="yes"/>
-<meta name="application-name" content="FinancesPro"/>
+
+<link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkZpbmFuY2VzUHJvIiwKICAic2hvcnRfbmFtZSI6ICJGaW5hbmNlcyIsCiAgInN0YXJ0X3VybCI6ICIuIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMGYxNzJhIiwKICAidGhlbWVfY29sb3IiOiAiIzBmMTcyYSIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImRhdGE6aW1hZ2Uvc3ZnK3htbCw8c3ZnIHhtbG5zPSdodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2Zycgdmlld0JveD0nMCAwIDEwMCAxMDAnPjxyZWN0IHdpZHRoPScxMDAnIGhlaWdodD0nMTAwJyByeD0nMjAnIGZpbGw9JyUyMzBmMTcyYScvPjx0ZXh0IHk9Jy45ZW0nIGZvbnQtc2l6ZT0nODAnIHg9JzEwJz7wn5kQPC90ZXh0Pjwvc3ZnPiIsCiAgICAgICJzaXplcyI6ICI1MTJ4NTEyIiwKICAgICAgInR5cGUiOiAiaW1hZ2Uvc3ZnK3htbCIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXNrYWJsZSIKICAgIH0KICBdCn0=">
+
 <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230f172a'/><text y='.9em' font-size='80' x='10'>💰</text></svg>"/>
+
 <title>FinancesPro</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 <style>
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overscroll-behavior:none}
@@ -59,19 +64,17 @@
 <body>
 
 <div id="app">
-  <!-- Progress Bar -->
   <div class="progress-bar">
     <div class="progress-fill" id="progressFill" style="width:0%"></div>
   </div>
 
-  <!-- Header -->
   <div class="glass sticky top-1 z-30 mx-3 mt-2 rounded-2xl px-4 py-3 mb-4">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-3">
         <span style="font-size:24px">💰</span>
         <div>
           <p class="text-xs text-slate-400 leading-none">FinancesPro</p>
-          <p class="text-sm font-semibold text-slate-200 leading-tight" id="headerDate">Abril 2025</p>
+          <p class="text-sm font-semibold text-slate-200 leading-tight" id="headerDate">Abril 2026</p>
         </div>
       </div>
       <div class="flex items-center gap-2">
@@ -87,18 +90,16 @@
     </div>
   </div>
 
-  <!-- Month Navigation -->
   <div class="flex items-center justify-center gap-4 px-4 mb-4">
     <button onclick="changeMonth(-1)" class="nav-btn btn-secondary">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
     </button>
-    <span class="text-slate-200 font-semibold text-base min-w-[160px] text-center" id="monthLabel">Abril de 2025</span>
+    <span class="text-slate-200 font-semibold text-base min-w-[160px] text-center" id="monthLabel">Abril de 2026</span>
     <button onclick="changeMonth(1)" class="nav-btn btn-secondary">
       <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
     </button>
   </div>
 
-  <!-- Dashboard Cards -->
   <div class="grid grid-cols-3 gap-2 px-3 mb-4" id="dashCards">
     <div class="card p-3 animate-in">
       <p class="text-slate-400 text-xs mb-1 leading-none">Saldo</p>
@@ -117,7 +118,6 @@
     </div>
   </div>
 
-  <!-- Progress Summary -->
   <div class="mx-3 mb-4 total-bar rounded-2xl px-4 py-3 flex items-center justify-between">
     <div class="flex items-center gap-2">
       <svg width="16" height="16" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M22 12a10 10 0 11-20 0 10 10 0 0120 0z"/></svg>
@@ -126,18 +126,15 @@
     <span class="text-violet-400 text-sm font-bold" id="progressPct">0%</span>
   </div>
 
-  <!-- Items List -->
   <div class="px-3 pb-24" id="listContainer">
     <div class="card overflow-hidden" id="itemsList"></div>
   </div>
 </div>
 
-<!-- FAB -->
 <button class="fab" onclick="openModal()">
   <svg width="24" height="24" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
 </button>
 
-<!-- Modal -->
 <div class="modal-overlay" id="modalOverlay" style="display:none" onclick="closeModalOutside(event)">
   <div class="glass-modal modal-sheet animate-in" id="modalSheet">
     <div class="modal-handle"></div>
@@ -186,23 +183,10 @@
             <option value="4">4x</option>
             <option value="5">5x</option>
             <option value="6">6x</option>
-            <option value="7">7x</option>
-            <option value="8">8x</option>
-            <option value="9">9x</option>
-            <option value="10">10x</option>
-            <option value="11">11x</option>
             <option value="12">12x</option>
-            <option value="18">18x</option>
-            <option value="24">24x</option>
           </select>
         </div>
       </div>
-
-      <div class="flex items-center gap-2 p-3 rounded-xl" style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1)">
-        <svg width="16" height="16" fill="none" stroke="#a78bfa" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        <p class="text-slate-400 text-xs">Parcelamentos geram entradas automáticas para os próximos meses</p>
-      </div>
-
       <button onclick="saveItem()" class="btn-primary w-full py-3.5 rounded-xl font-semibold text-sm mt-2">
         Salvar Despesa
       </button>
@@ -217,233 +201,66 @@ let curDate=new Date();
 let curYear=curDate.getFullYear();
 let curMonth=curDate.getMonth();
 
-function getData(){try{return JSON.parse(localStorage.getItem('fpro_v2')||'[]')}catch{return[]}}
+function getData(){return JSON.parse(localStorage.getItem('fpro_v2')||'[]')}
 function saveData(d){localStorage.setItem('fpro_v2',JSON.stringify(d))}
-
-function fmt(v){return'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
-
-function getMonthItems(){
-  const all=getData();
-  const key=`${curYear}-${String(curMonth+1).padStart(2,'0')}`;
-  return all.filter(i=>i.monthKey===key);
-}
+function fmt(v){return'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2})}
 
 function render(){
-  const items=getMonthItems();
+  const items=getData().filter(i=>i.monthKey===`${curYear}-${String(curMonth+1).padStart(2,'0')}`);
   const total=items.reduce((s,i)=>s+parseFloat(i.valor),0);
   const paid=items.filter(i=>i.pago);
-  const paidTotal=paid.reduce((s,i)=>s+parseFloat(i.valor),0);
   const cartao=items.filter(i=>i.categoria==='Cartão').reduce((s,i)=>s+parseFloat(i.valor),0);
   const pct=items.length?Math.round(paid.length/items.length*100):0;
 
   document.getElementById('progressFill').style.width=pct+'%';
   document.getElementById('progressLabel').textContent=`${paid.length} de ${items.length} pagas`;
   document.getElementById('progressPct').textContent=pct+'%';
-  document.getElementById('cardSaldo').textContent=fmt(paidTotal);
+  document.getElementById('cardSaldo').textContent=fmt(paid.reduce((s,i)=>s+parseFloat(i.valor),0));
   document.getElementById('cardGastos').textContent=fmt(total);
   document.getElementById('cardCartao').textContent=fmt(cartao);
-  const ml=MONTHS[curMonth]+' de '+curYear;
-  document.getElementById('monthLabel').textContent=ml;
+  document.getElementById('monthLabel').textContent=MONTHS[curMonth]+' de '+curYear;
   document.getElementById('headerDate').textContent=MONTHS[curMonth]+' '+curYear;
 
   const el=document.getElementById('itemsList');
   if(!items.length){
-    el.innerHTML=`<div class="empty-state"><div style="font-size:48px;margin-bottom:12px">📭</div><p class="text-slate-400 text-sm">Nenhuma despesa cadastrada</p><p class="text-slate-600 text-xs mt-1">Toque em + para adicionar</p></div>`;
+    el.innerHTML='<div class="empty-state">📭<p>Nenhuma despesa</p></div>';
     return;
   }
 
-  const sorted=[...items].sort((a,b)=>a.data>b.data?1:-1);
-  el.innerHTML=sorted.map(item=>{
-    const icon=CATS[item.categoria]||'💸';
-    const paid=item.pago;
-    return`<div class="item-row px-4 py-3.5 flex items-center gap-3" id="row-${item.id}">
-      <div class="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(148,163,184,0.08);font-size:18px">${icon}</div>
-      <div class="flex-1 min-w-0">
-        <p class="text-slate-200 text-sm font-medium truncate">${item.nome}</p>
-        <p class="text-slate-500 text-xs mt-0.5">${item.categoria} · ${fmtDate(item.data)}</p>
+  el.innerHTML=items.sort((a,b)=>a.data>b.data?1:-1).map(item=>`
+    <div class="item-row px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 glass rounded-xl flex items-center justify-center">${CATS[item.categoria]||'💸'}</div>
+        <div>
+          <p class="text-sm font-medium">${item.nome}</p>
+          <p class="text-xs text-slate-500">${item.data.split('-').reverse().join('/')}</p>
+        </div>
       </div>
-      <div class="text-right shrink-0 ml-2">
-        <p class="text-slate-200 text-sm font-semibold">${fmt(item.valor)}</p>
-        <button onclick="togglePago('${item.id}')" class="badge mt-1 cursor-pointer transition-all ${paid?'status-paid':'status-pending'}" style="font-size:10px">
-          ${paid?'✓ Pago':'⏳ Pendente'}
-        </button>
+      <div class="text-right">
+        <p class="text-sm font-bold">${fmt(item.valor)}</p>
+        <button onclick="togglePago('${item.id}')" class="badge ${item.pago?'status-paid':'status-pending'}">${item.pago?'Pago':'Pendente'}</button>
       </div>
-      <button onclick="deleteItem('${item.id}')" class="shrink-0 ml-1 text-slate-600 hover:text-red-400 transition-colors p-1" style="font-size:16px">×</button>
-    </div>`;
-  }).join('');
+    </div>`).join('');
 }
 
-function fmtDate(iso){
-  if(!iso)return'';
-  const[y,m,d]=iso.split('-');
-  return`${d}/${m}/${y}`;
-}
-
-function changeMonth(dir){
-  curMonth+=dir;
-  if(curMonth>11){curMonth=0;curYear++}
-  if(curMonth<0){curMonth=11;curYear--}
-  render();
-}
-
-function openModal(editId){
-  document.getElementById('inputNome').value='';
-  document.getElementById('inputValor').value='';
-  document.getElementById('inputData').value=new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
-  document.getElementById('inputParcelas').value='1';
-  document.getElementById('inputCategoria').value='Moradia';
-  document.getElementById('modalOverlay').style.display='flex';
-  setTimeout(()=>document.getElementById('inputNome').focus(),300);
-}
-
+function changeMonth(dir){curMonth+=dir;if(curMonth>11){curMonth=0;curYear++}else if(curMonth<0){curMonth=11;curYear--}render()}
+function openModal(){document.getElementById('modalOverlay').style.display='flex';document.getElementById('inputData').valueAsDate=new Date()}
 function closeModal(){document.getElementById('modalOverlay').style.display='none'}
-function closeModalOutside(e){if(e.target===document.getElementById('modalOverlay'))closeModal()}
+function closeModalOutside(e){if(e.target.id==='modalOverlay')closeModal()}
 
 function saveItem(){
-  const nome=document.getElementById('inputNome').value.trim();
-  const valor=parseFloat(document.getElementById('inputValor').value);
+  const nome=document.getElementById('inputNome').value;
+  const valor=document.getElementById('inputValor').value;
   const data=document.getElementById('inputData').value;
   const cat=document.getElementById('inputCategoria').value;
-  const parc=parseInt(document.getElementById('inputParcelas').value);
-
-  if(!nome){alert('Informe a descrição');return}
-  if(!valor||valor<=0){alert('Informe um valor válido');return}
-  if(!data){alert('Informe a data');return}
-
+  if(!nome||!valor||!data)return;
   const all=getData();
-  const baseDate=new Date(data+'T12:00:00');
-  const parcVal=parseFloat((valor/parc).toFixed(2));
-
-  for(let p=0;p<parc;p++){
-    const d=new Date(baseDate);
-    d.setMonth(d.getMonth()+p);
-    const y=d.getFullYear();
-    const m=d.getMonth();
-    const dayStr=String(d.getDate()).padStart(2,'0');
-    const mStr=String(m+1).padStart(2,'0');
-    const itemNome=parc>1?`${nome} (${p+1}/${parc})`:nome;
-    all.push({
-      id:Date.now()+'-'+p,
-      nome:itemNome,
-      valor:p===parc-1?parseFloat((valor-(parcVal*(parc-1))).toFixed(2)):parcVal,
-      data:`${y}-${mStr}-${dayStr}`,
-      categoria:cat,
-      pago:false,
-      monthKey:`${y}-${mStr}`
-    });
-  }
-
-  saveData(all);
-  closeModal();
-  render();
+  all.push({id:Date.now(),nome,valor,data,categoria:cat,pago:false,monthKey:data.substring(0,7)});
+  saveData(all);closeModal();render();
 }
 
-function togglePago(id){
-  const all=getData();
-  const i=all.findIndex(x=>x.id===id);
-  if(i>=0){all[i].pago=!all[i].pago;saveData(all);render()}
-}
-
-function deleteItem(id){
-  if(!confirm('Remover esta despesa?'))return;
-  saveData(getData().filter(x=>x.id!==id));
-  render();
-}
-
-function exportPDF(){
-  const{jsPDF}=window.jspdf;
-  const doc=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
-  const items=getMonthItems();
-  const mLabel=MONTHS[curMonth]+' '+curYear;
-
-  doc.setFillColor(15,23,42);
-  doc.rect(0,0,210,297,'F');
-
-  doc.setTextColor(99,102,241);
-  doc.setFontSize(22);
-  doc.setFont('helvetica','bold');
-  doc.text('FinancesPro',20,22);
-
-  doc.setTextColor(148,163,184);
-  doc.setFontSize(11);
-  doc.setFont('helvetica','normal');
-  doc.text('Relatório Financeiro – '+mLabel,20,30);
-
-  const today=new Date();
-  doc.text('Gerado em: '+fmtDate(today.toISOString().split('T')[0]),20,37);
-
-  doc.setDrawColor(51,65,85);
-  doc.line(20,42,190,42);
-
-  const total=items.reduce((s,i)=>s+parseFloat(i.valor),0);
-  const paid=items.filter(i=>i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
-  const cartao=items.filter(i=>i.categoria==='Cartão').reduce((s,i)=>s+parseFloat(i.valor),0);
-
-  const cards=[[fmt(paid),'Pagas'],[fmt(total),'Total'],[fmt(cartao),'Cartão']];
-  cards.forEach(([v,l],idx)=>{
-    const x=20+idx*60;
-    doc.setFillColor(30,41,59);
-    doc.roundedRect(x,47,55,18,3,3,'F');
-    doc.setTextColor(99,102,241);
-    doc.setFontSize(11);
-    doc.setFont('helvetica','bold');
-    doc.text(v,x+4,56);
-    doc.setTextColor(100,116,139);
-    doc.setFontSize(8);
-    doc.setFont('helvetica','normal');
-    doc.text(l,x+4,62);
-  });
-
-  doc.setDrawColor(51,65,85);
-  doc.line(20,70,190,70);
-
-  doc.setFontSize(9);
-  doc.setTextColor(100,116,139);
-  doc.setFont('helvetica','bold');
-  doc.text('DESCRIÇÃO',20,77);
-  doc.text('CATEGORIA',90,77);
-  doc.text('DATA',130,77);
-  doc.text('VALOR',155,77);
-  doc.text('STATUS',175,77);
-
-  doc.line(20,80,190,80);
-
-  let y=87;
-  const sorted=[...items].sort((a,b)=>a.data>b.data?1:-1);
-  sorted.forEach((item,idx)=>{
-    if(y>270){doc.addPage();doc.setFillColor(15,23,42);doc.rect(0,0,210,297,'F');y=20}
-    if(idx%2===0){doc.setFillColor(30,41,59);doc.rect(18,y-5,174,9,'F')}
-    doc.setFont('helvetica','normal');
-    doc.setFontSize(8.5);
-    doc.setTextColor(226,232,240);
-    doc.text(item.nome.length>30?item.nome.substring(0,28)+'…':item.nome,20,y);
-    doc.setTextColor(148,163,184);
-    doc.text(item.categoria,90,y);
-    doc.text(fmtDate(item.data),130,y);
-    doc.setTextColor(226,232,240);
-    doc.text(fmt(item.valor),155,y);
-    item.pago?doc.setTextColor(74,222,128):doc.setTextColor(251,191,36);
-    doc.text(item.pago?'Pago':'Pendente',175,y);
-    y+=9;
-  });
-
-  doc.setDrawColor(51,65,85);
-  doc.line(20,y+2,190,y+2);
-  doc.setTextColor(99,102,241);
-  doc.setFont('helvetica','bold');
-  doc.setFontSize(10);
-  doc.text('TOTAL: '+fmt(total),155,y+9);
-
-  doc.setTextColor(71,85,105);
-  doc.setFontSize(8);
-  doc.setFont('helvetica','normal');
-  doc.text('FinancesPro – Relatório gerado automaticamente',20,288);
-
-  doc.save('financas-'+mLabel.toLowerCase().replace(' ','-')+'.pdf');
-}
-
-document.getElementById('inputValor') && document.getElementById('inputValor').addEventListener('keydown',e=>{if(e.key==='Enter')saveItem()});
-
+function togglePago(id){const all=getData();const i=all.findIndex(x=>x.id==id);all[i].pago=!all[i].pago;saveData(all);render()}
+function exportPDF(){window.print()}
 render();
 </script>
 </body>
