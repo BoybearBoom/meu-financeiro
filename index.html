@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="theme-color" content="#0f172a"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="FinancesPro"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="application-name" content="FinancesPro"/>
+<link rel="manifest" href="manifest.json"/>
+<link rel="apple-touch-icon" href="https://img.icons8.com/emoji/192/money-bag.png"/>
+<title>FinancesPro</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overscroll-behavior:none}
+  ::-webkit-scrollbar{width:4px}
+  ::-webkit-scrollbar-track{background:#1e293b}
+  ::-webkit-scrollbar-thumb{background:#334155;border-radius:2px}
+  .glass{background:rgba(30,41,59,0.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(148,163,184,0.1)}
+  .glass-modal{background:rgba(15,23,42,0.92);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid rgba(148,163,184,0.15)}
+  .card{background:linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.95));border:1px solid rgba(148,163,184,0.12);border-radius:16px}
+  .btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;transition:transform .15s,box-shadow .15s}
+  .btn-primary:active{transform:scale(0.95)}
+  .btn-primary:hover{box-shadow:0 0 20px rgba(99,102,241,0.4)}
+  .btn-secondary{background:rgba(30,41,59,0.8);border:1px solid rgba(148,163,184,0.2);color:#94a3b8;transition:transform .15s,background .15s}
+  .btn-secondary:active{transform:scale(0.95)}
+  .btn-secondary:hover{background:rgba(51,65,85,0.9);color:#e2e8f0}
+  .status-pending{background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.3);color:#fbbf24}
+  .status-paid{background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80}
+  .progress-bar{height:4px;background:#1e293b;position:sticky;top:0;z-index:50}
+  .progress-fill{height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6,#ec4899);transition:width .6s cubic-bezier(.4,0,.2,1);border-radius:0 2px 2px 0}
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:flex-end;justify-content:center;padding:0}
+  @media(min-width:640px){.modal-overlay{align-items:center;padding:1rem}}
+  .modal-sheet{width:100%;max-width:560px;max-height:90vh;overflow-y:auto;border-radius:24px 24px 0 0;padding:24px}
+  @media(min-width:640px){.modal-sheet{border-radius:24px}}
+  .modal-handle{width:40px;height:4px;background:rgba(148,163,184,0.3);border-radius:2px;margin:0 auto 20px}
+  .item-row{border-bottom:1px solid rgba(148,163,184,0.07);transition:background .15s}
+  .item-row:last-child{border-bottom:none}
+  .item-row:hover{background:rgba(148,163,184,0.03)}
+  input,select{background:rgba(15,23,42,0.8)!important;border:1px solid rgba(148,163,184,0.2)!important;color:#e2e8f0!important;border-radius:10px!important;padding:12px 14px!important;width:100%;outline:none;transition:border-color .2s}
+  input:focus,select:focus{border-color:rgba(99,102,241,0.6)!important;box-shadow:0 0 0 3px rgba(99,102,241,0.15)}
+  select option{background:#1e293b;color:#e2e8f0}
+  .badge{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:600;letter-spacing:.3px}
+  .animate-in{animation:slideUp .3s ease}
+  @keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+  .nav-btn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s,background .15s}
+  .nav-btn:active{transform:scale(0.9)}
+  .empty-state{text-align:center;padding:60px 20px;color:#475569}
+  .fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 32px rgba(99,102,241,0.4);transition:transform .2s,box-shadow .2s;z-index:40}
+  .fab:active{transform:scale(0.92)}
+  .fab:hover{box-shadow:0 12px 40px rgba(99,102,241,0.5)}
+  .total-bar{background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.1));border:1px solid rgba(99,102,241,0.2)}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+  </div>
+
+  <div class="glass sticky top-1 z-30 mx-3 mt-2 rounded-2xl px-4 py-3 mb-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <span style="font-size:24px">💰</span>
+        <div>
+          <p class="text-xs text-slate-400 leading-none">FinancesPro</p>
+          <p class="text-sm font-semibold text-slate-200 leading-tight" id="headerDate">Abril 2026</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="exportPDF()" class="btn-secondary text-xs px-3 py-2 rounded-xl flex items-center gap-1.5">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+          PDF
+        </button>
+        <button onclick="openModal()" class="btn-primary text-xs px-3 py-2 rounded-xl flex items-center gap-1.5">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          Novo
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex items-center justify-center gap-4 px-4 mb-4">
+    <button onclick="changeMonth(-1)" class="nav-btn btn-secondary">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+    </button>
+    <span class="text-slate-200 font-semibold text-base min-w-[160px] text-center" id="monthLabel">Abril de 2026</span>
+    <button onclick="changeMonth(1)" class="nav-btn btn-secondary">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+  </div>
+
+  <div class="grid grid-cols-3 gap-2 px-3 mb-4">
+    <div class="card p-3 animate-in">
+      <p class="text-slate-400 text-xs mb-1 leading-none">Saldo</p>
+      <p class="text-slate-100 font-bold text-base leading-tight" id="cardSaldo">R$ 0,00</p>
+      <p class="text-xs mt-1 text-slate-500">do mês</p>
+    </div>
+    <div class="card p-3 animate-in" style="animation-delay:.05s">
+      <p class="text-slate-400 text-xs mb-1 leading-none">Gastos</p>
+      <p class="text-red-400 font-bold text-base leading-tight" id="cardGastos">R$ 0,00</p>
+      <p class="text-xs mt-1 text-slate-500">total</p>
+    </div>
+    <div class="card p-3 animate-in" style="animation-delay:.1s">
+      <p class="text-slate-400 text-xs mb-1 leading-none">Cartão</p>
+      <p class="text-violet-400 font-bold text-base leading-tight" id="cardCartao">R$ 0,00</p>
+      <p class="text-xs mt-1 text-slate-500">fatura</p>
+    </div>
+  </div>
+
+  <div class="mx-3 mb-4 total-bar rounded-2xl px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <svg width="16" height="16" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M22 12a10 10 0 11-20 0 10 10 0 0120 0z"/></svg>
+      <span class="text-slate-300 text-sm" id="progressLabel">0 de 0 pagas</span>
+    </div>
+    <span class="text-violet-400 text-sm font-bold" id="progressPct">0%</span>
+  </div>
+
+  <div class="px-3 pb-24" id="listContainer">
+    <div class="card overflow-hidden" id="itemsList"></div>
+  </div>
+</div>
+
+<button class="fab" onclick="openModal()">
+  <svg width="24" height="24" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<div class="modal-overlay" id="modalOverlay" style="display:none" onclick="closeModalOutside(event)">
+  <div class="glass-modal modal-sheet animate-in" id="modalSheet">
+    <div class="modal-handle"></div>
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-slate-100 font-bold text-lg">Nova Despesa</h2>
+      <button onclick="closeModal()" class="text-slate-400 hover:text-slate-200 p-1">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="space-y-3">
+      <div>
+        <label class="text-slate-400 text-xs block mb-1.5 ml-1">Descrição *</label>
+        <input type="text" id="inputNome" placeholder="Ex: Netflix, Aluguel, Mercado..."/>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Valor (R$) *</label>
+          <input type="number" id="inputValor" placeholder="0,00" step="0.01" min="0"/>
+        </div>
+        <div>
+          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Data *</label>
+          <input type="date" id="inputData"/>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Categoria</label>
+          <select id="inputCategoria">
+            <option value="Moradia">🏠 Moradia</option>
+            <option value="Mercado">🛒 Mercado</option>
+            <option value="Transporte">🚗 Transporte</option>
+            <option value="Lazer">🍕 Lazer</option>
+            <option value="Cartão">💳 Cartão</option>
+            <option value="Saúde">🏥 Saúde</option>
+            <option value="Assinaturas">🛡️ Assinaturas</option>
+            <option value="Investimentos">💰 Investimentos</option>
+          </select>
+        </div>
+        <div>
+          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Parcelas</label>
+          <select id="inputParcelas">
+            <option value="1">À vista (1x)</option>
+            <option value="2">2x</option>
+            <option value="3">3x</option>
+            <option value="4">4x</option>
+            <option value="5">5x</option>
+            <option value="6">6x</option>
+            <option value="7">7x</option>
+            <option value="8">8x</option>
+            <option value="9">9x</option>
+            <option value="10">10x</option>
+            <option value="11">11x</option>
+            <option value="12">12x</option>
+            <option value="18">18x</option>
+            <option value="24">24x</option>
+          </select>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 p-3 rounded-xl" style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1)">
+        <svg width="16" height="16" fill="none" stroke="#a78bfa" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <p class="text-slate-400 text-xs">Parcelamentos geram entradas automáticas para os próximos meses</p>
+      </div>
+      <button onclick="saveItem()" class="btn-primary w-full py-3.5 rounded-xl font-semibold text-sm mt-2">
+        Salvar Despesa
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CATS={Moradia:'🏠',Mercado:'🛒',Transporte:'🚗',Lazer:'🍕',Cartão:'💳',Saúde:'🏥',Assinaturas:'🛡️',Investimentos:'💰'};
+const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+let curDate=new Date();
+let curYear=curDate.getFullYear();
+let curMonth=curDate.getMonth();
+
+function getData(){try{return JSON.parse(localStorage.getItem('fpro_v2')||'[]')}catch{return[]}}
+function saveData(d){localStorage.setItem('fpro_v2',JSON.stringify(d))}
+function fmt(v){return'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
+
+function getMonthItems(){
+  const all=getData();
+  const key=`${curYear}-${String(curMonth+1).padStart(2,'0')}`;
+  return all.filter(i=>i.monthKey===key);
+}
+
+function render(){
+  const items=getMonthItems();
+  const total=items.reduce((s,i)=>s+parseFloat(i.valor),0);
+  const paid=items.filter(i=>i.pago);
+  const paidTotal=paid.reduce((s,i)=>s+parseFloat(i.valor),0);
+  const cartao=items.filter(i=>i.categoria==='Cartão').reduce((s,i)=>s+parseFloat(i.valor),0);
+  const pct=items.length?Math.round(paid.length/items.length*100):0;
+
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').textContent=`${paid.length} de ${items.length} pagas`;
+  document.getElementById('progressPct').textContent=pct+'%';
+  document.getElementById('cardSaldo').textContent=fmt(paidTotal);
+  document.getElementById('cardGastos').textContent=fmt(total);
+  document.getElementById('cardCartao').textContent=fmt(cartao);
+  const ml=MONTHS[curMonth]+' de '+curYear;
+  document.getElementById('monthLabel').textContent=ml;
+  document.getElementById('headerDate').textContent=MONTHS[curMonth]+' '+curYear;
+
+  const el=document.getElementById('itemsList');
+  if(!items.length){
+    el.innerHTML=`<div class="empty-state"><div style="font-size:48px;margin-bottom:12px">📭</div><p class="text-slate-400 text-sm">Nenhuma despesa cadastrada</p><p class="text-slate-600 text-xs mt-1">Toque em + para adicionar</p></div>`;
+    return;
+  }
+  const sorted=[...items].sort((a,b)=>a.data>b.data?1:-1);
+  el.innerHTML=sorted.map(item=>{
+    const icon=CATS[item.categoria]||'💸';
+    const paid=item.pago;
+    return`<div class="item-row px-4 py-3.5 flex items-center gap-3">
+      <div class="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center" style="background:rgba(148,163,184,0.08);font-size:18px">${icon}</div>
+      <div class="flex-1 min-w-0">
+        <p class="text-slate-200 text-sm font-medium truncate">${item.nome}</p>
+        <p class="text-slate-500 text-xs mt-0.5">${item.categoria} · ${fmtDate(item.data)}</p>
+      </div>
+      <div class="text-right shrink-0 ml-2">
+        <p class="text-slate-200 text-sm font-semibold">${fmt(item.valor)}</p>
+        <button onclick="togglePago('${item.id}')" class="badge mt-1 cursor-pointer transition-all ${paid?'status-paid':'status-pending'}" style="font-size:10px">
+          ${paid?'✓ Pago':'⏳ Pendente'}
+        </button>
+      </div>
+      <button onclick="deleteItem('${item.id}')" class="shrink-0 ml-1 text-slate-600 hover:text-red-400 transition-colors p-1" style="font-size:16px">×</button>
+    </div>`;
+  }).join('');
+}
+
+function fmtDate(iso){
+  if(!iso)return'';
+  const[y,m,d]=iso.split('-');
+  return`${d}/${m}/${y}`;
+}
+
+function changeMonth(dir){
+  curMonth+=dir;
+  if(curMonth>11){curMonth=0;curYear++}
+  if(curMonth<0){curMonth=11;curYear--}
+  render();
+}
+
+function openModal(){
+  document.getElementById('inputNome').value='';
+  document.getElementById('inputValor').value='';
+  document.getElementById('inputData').value=new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
+  document.getElementById('inputParcelas').value='1';
+  document.getElementById('inputCategoria').value='Moradia';
+  document.getElementById('modalOverlay').style.display='flex';
+  setTimeout(()=>document.getElementById('inputNome').focus(),300);
+}
+
+function closeModal(){document.getElementById('modalOverlay').style.display='none'}
+function closeModalOutside(e){if(e.target===document.getElementById('modalOverlay'))closeModal()}
+
+function saveItem(){
+  const nome=document.getElementById('inputNome').value.trim();
+  const valor=parseFloat(document.getElementById('inputValor').value);
+  const data=document.getElementById('inputData').value;
+  const cat=document.getElementById('inputCategoria').value;
+  const parc=parseInt(document.getElementById('inputParcelas').value);
+  if(!nome){alert('Informe a descrição');return}
+  if(!valor||valor<=0){alert('Informe um valor válido');return}
+  if(!data){alert('Informe a data');return}
+  const all=getData();
+  const baseDate=new Date(data+'T12:00:00');
+  const parcVal=parseFloat((valor/parc).toFixed(2));
+  for(let p=0;p<parc;p++){
+    const d=new Date(baseDate);
+    d.setMonth(d.getMonth()+p);
+    const y=d.getFullYear();
+    const m=d.getMonth();
+    const dayStr=String(d.getDate()).padStart(2,'0');
+    const mStr=String(m+1).padStart(2,'0');
+    const itemNome=parc>1?`${nome} (${p+1}/${parc})`:nome;
+    all.push({
+      id:Date.now()+'-'+p,
+      nome:itemNome,
+      valor:p===parc-1?parseFloat((valor-(parcVal*(parc-1))).toFixed(2)):parcVal,
+      data:`${y}-${mStr}-${dayStr}`,
+      categoria:cat,
+      pago:false,
+      monthKey:`${y}-${mStr}`
+    });
+  }
+  saveData(all);
+  closeModal();
+  render();
+}
+
+function togglePago(id){
+  const all=getData();
+  const i=all.findIndex(x=>x.id===id);
+  if(i>=0){all[i].pago=!all[i].pago;saveData(all);render()}
+}
+
+function deleteItem(id){
+  if(!confirm('Remover esta despesa?'))return;
+  saveData(getData().filter(x=>x.id!==id));
+  render();
+}
+
+function exportPDF(){
+  const{jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
+  const items=getMonthItems();
+  const mLabel=MONTHS[curMonth]+' '+curYear;
+  doc.setFillColor(15,23,42);doc.rect(0,0,210,297,'F');
+  doc.setTextColor(99,102,241);doc.setFontSize(22);doc.setFont('helvetica','bold');
+  doc.text('FinancesPro',20,22);
+  doc.setTextColor(148,163,184);doc.setFontSize(11);doc.setFont('helvetica','normal');
+  doc.text('Relatório Financeiro – '+mLabel,20,30);
+  doc.text('Gerado em: '+fmtDate(new Date().toISOString().split('T')[0]),20,37);
+  doc.setDrawColor(51,65,85);doc.line(20,42,190,42);
+  const total=items.reduce((s,i)=>s+parseFloat(i.valor),0);
+  const paid=items.filter(i=>i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
+  const cartao=items.filter(i=>i.categoria==='Cartão').reduce((s,i)=>s+parseFloat(i.valor),0);
+  [[fmt(paid),'Pagas'],[fmt(total),'Total'],[fmt(cartao),'Cartão']].forEach(([v,l],idx)=>{
+    const x=20+idx*60;
+    doc.setFillColor(30,41,59);doc.roundedRect(x,47,55,18,3,3,'F');
+    doc.setTextColor(99,102,241);doc.setFontSize(11);doc.setFont('helvetica','bold');doc.text(v,x+4,56);
+    doc.setTextColor(100,116,139);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text(l,x+4,62);
+  });
+  doc.setDrawColor(51,65,85);doc.line(20,70,190,70);
+  doc.setFontSize(9);doc.setTextColor(100,116,139);doc.setFont('helvetica','bold');
+  doc.text('DESCRIÇÃO',20,77);doc.text('CATEGORIA',90,77);doc.text('DATA',130,77);doc.text('VALOR',155,77);doc.text('STATUS',175,77);
+  doc.line(20,80,190,80);
+  let y=87;
+  [...items].sort((a,b)=>a.data>b.data?1:-1).forEach((item,idx)=>{
+    if(y>270){doc.addPage();doc.setFillColor(15,23,42);doc.rect(0,0,210,297,'F');y=20}
+    if(idx%2===0){doc.setFillColor(30,41,59);doc.rect(18,y-5,174,9,'F')}
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+    doc.setTextColor(226,232,240);doc.text(item.nome.length>30?item.nome.substring(0,28)+'…':item.nome,20,y);
+    doc.setTextColor(148,163,184);doc.text(item.categoria,90,y);doc.text(fmtDate(item.data),130,y);
+    doc.setTextColor(226,232,240);doc.text(fmt(item.valor),155,y);
+    item.pago?doc.setTextColor(74,222,128):doc.setTextColor(251,191,36);
+    doc.text(item.pago?'Pago':'Pendente',175,y);
+    y+=9;
+  });
+  doc.setDrawColor(51,65,85);doc.line(20,y+2,190,y+2);
+  doc.setTextColor(99,102,241);doc.setFont('helvetica','bold');doc.setFontSize(10);
+  doc.text('TOTAL: '+fmt(total),155,y+9);
+  doc.setTextColor(71,85,105);doc.setFontSize(8);doc.setFont('helvetica','normal');
+  doc.text('FinancesPro – Relatório gerado automaticamente',20,288);
+  doc.save('financas-'+mLabel.toLowerCase().replace(' ','-')+'.pdf');
+}
+
+render();
+</script>
+</body>
+</html>
