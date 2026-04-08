@@ -13,224 +13,32 @@
 <title>FinancesPro</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<style>
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overscroll-behavior:none}
-::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#1e293b}::-webkit-scrollbar-thumb{background:#334155;border-radius:2px}
-.glass{background:rgba(30,41,59,0.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(148,163,184,0.1)}
-.glass-modal{background:rgba(15,23,42,0.95);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid rgba(148,163,184,0.15)}
-.card{background:linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.95));border:1px solid rgba(148,163,184,0.12);border-radius:16px}
-.btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;transition:transform .15s,box-shadow .15s;cursor:pointer}
-.btn-primary:active{transform:scale(0.95)}
-.btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:white;border:none;transition:transform .15s;cursor:pointer}
-.btn-danger:active{transform:scale(0.95)}
-.btn-secondary{background:rgba(30,41,59,0.8);border:1px solid rgba(148,163,184,0.2);color:#94a3b8;transition:transform .15s,background .15s;cursor:pointer}
-.btn-secondary:active{transform:scale(0.95)}
-.btn-secondary:hover{background:rgba(51,65,85,0.9);color:#e2e8f0}
-.status-pending{background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.3);color:#fbbf24}
-.status-paid{background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80}
-.progress-bar{height:4px;background:#1e293b;position:sticky;top:0;z-index:50}
-.progress-fill{height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6,#ec4899);transition:width .6s cubic-bezier(.4,0,.2,1);border-radius:0 2px 2px 0}
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;display:flex;align-items:flex-end;justify-content:center}
-.modal-sheet{width:100%;max-width:560px;max-height:92vh;overflow-y:auto;border-radius:24px 24px 0 0;padding:24px}
-.modal-handle{width:40px;height:4px;background:rgba(148,163,184,0.3);border-radius:2px;margin:0 auto 20px}
-.item-row{border-bottom:1px solid rgba(148,163,184,0.07);transition:background .15s}
-.item-row:last-child{border-bottom:none}
-.item-row.selected{background:rgba(99,102,241,0.1)!important;border-left:3px solid #6366f1}
-input,select{background:rgba(15,23,42,0.8)!important;border:1px solid rgba(148,163,184,0.2)!important;color:#e2e8f0!important;border-radius:10px!important;padding:12px 14px!important;width:100%;outline:none;transition:border-color .2s}
-input:focus,select:focus{border-color:rgba(99,102,241,0.6)!important;box-shadow:0 0 0 3px rgba(99,102,241,0.15)}
-select option{background:#1e293b;color:#e2e8f0}
-.badge{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:600;letter-spacing:.3px}
-.animate-in{animation:slideUp .3s ease}
-@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
-.nav-btn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s,background .15s}
-.nav-btn:active{transform:scale(0.9)}
-.empty-state{text-align:center;padding:60px 20px;color:#475569}
-.fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 32px rgba(99,102,241,0.4);transition:transform .2s,box-shadow .2s;z-index:40}
-.fab:active{transform:scale(0.92)}
-.total-bar{background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.1));border:1px solid rgba(99,102,241,0.2)}
-.checkbox-item{width:20px;height:20px;border-radius:6px;border:2px solid rgba(148,163,184,0.3);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;cursor:pointer}
-.checkbox-item.checked{background:#6366f1;border-color:#6366f1}
-.select-bar{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:14px;padding:10px 14px;margin:0 12px 8px;display:flex;align-items:center;justify-content:space-between;gap:8px}
-.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.97);border:1px solid rgba(148,163,184,0.2);color:#e2e8f0;padding:10px 20px;border-radius:12px;font-size:13px;z-index:200;transition:opacity .3s;pointer-events:none;white-space:nowrap}
-.cloud-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
-</style>
-</head>
-<body>
-<div id="app">
-  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+<script type="module">
+import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-  <!-- Header -->
-  <div class="glass sticky top-1 z-30 mx-3 mt-2 rounded-2xl px-4 py-3 mb-4">
-    <div class="flex items-center justify-between">
-      <div class="flex items-center gap-3">
-        <span style="font-size:22px">💰</span>
-        <div>
-          <p class="text-xs text-slate-400 leading-none">FinancesPro</p>
-          <p class="text-sm font-semibold text-slate-200 leading-tight" id="headerDate"></p>
-        </div>
-      </div>
-      <div class="flex items-center gap-1.5">
-        <button onclick="openCloudModal()" class="btn-secondary text-xs px-2.5 py-2 rounded-xl flex items-center gap-1.5" title="Nuvem">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 109 20h9a5 5 0 000-10z"/></svg>
-          <span id="cloudDot" class="cloud-dot" style="background:#475569"></span>
-        </button>
-        <button onclick="exportPDF()" class="btn-secondary text-xs px-2.5 py-2 rounded-xl flex items-center gap-1">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          PDF
-        </button>
-        <button onclick="toggleSelectMode()" id="btnSelect" class="btn-secondary text-xs px-2.5 py-2 rounded-xl" title="Selecionar">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
-        </button>
-        <button onclick="openModal()" class="btn-primary text-xs px-3 py-2 rounded-xl flex items-center gap-1">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-          Novo
-        </button>
-      </div>
-    </div>
-  </div>
+const firebaseConfig={
+  apiKey:"AIzaSyCdoV1JyYL6Nkg7_yLcqjR47xZi2gT2irU",
+  authDomain:"financespro-8a4f9.firebaseapp.com",
+  projectId:"financespro-8a4f9",
+  storageBucket:"financespro-8a4f9.firebasestorage.app",
+  messagingSenderId:"367204094477",
+  appId:"1:367204094477:web:233b576c8a214dfd36fb44"
+};
 
-  <!-- Month Nav -->
-  <div class="flex items-center justify-center gap-4 px-4 mb-4">
-    <button onclick="changeMonth(-1)" class="nav-btn btn-secondary"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
-    <span class="text-slate-200 font-semibold text-base min-w-[160px] text-center" id="monthLabel"></span>
-    <button onclick="changeMonth(1)" class="nav-btn btn-secondary"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
-  </div>
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
 
-  <!-- Cards -->
-  <div class="grid grid-cols-3 gap-2 px-3 mb-4">
-    <div class="card p-3"><p class="text-slate-400 text-xs mb-1">Pagas</p><p class="text-slate-100 font-bold text-base" id="cardSaldo">R$ 0,00</p><p class="text-xs mt-1 text-slate-500">do mês</p></div>
-    <div class="card p-3"><p class="text-slate-400 text-xs mb-1">Gastos</p><p class="text-red-400 font-bold text-base" id="cardGastos">R$ 0,00</p><p class="text-xs mt-1 text-slate-500">total</p></div>
-    <div class="card p-3"><p class="text-slate-400 text-xs mb-1">Cartão</p><p class="text-violet-400 font-bold text-base" id="cardCartao">R$ 0,00</p><p class="text-xs mt-1 text-slate-500">fatura</p></div>
-  </div>
-
-  <!-- Progress -->
-  <div class="mx-3 mb-4 total-bar rounded-2xl px-4 py-3 flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <svg width="16" height="16" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M22 12a10 10 0 11-20 0 10 10 0 0120 0z"/></svg>
-      <span class="text-slate-300 text-sm" id="progressLabel">0 de 0 pagas</span>
-    </div>
-    <span class="text-violet-400 text-sm font-bold" id="progressPct">0%</span>
-  </div>
-
-  <!-- Select bar -->
-  <div id="selectBar" style="display:none" class="select-bar">
-    <div class="flex items-center gap-2">
-      <svg width="15" height="15" fill="none" stroke="#f87171" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
-      <span class="text-red-400 text-sm font-medium" id="selectCount">0 selecionados</span>
-    </div>
-    <div class="flex gap-2">
-      <button onclick="selectAll()" class="btn-secondary text-xs px-3 py-1.5 rounded-lg">Todos</button>
-      <button onclick="deleteSelected()" class="btn-danger text-xs px-3 py-1.5 rounded-lg">Excluir</button>
-    </div>
-  </div>
-
-  <!-- List -->
-  <div class="px-3 pb-28"><div class="card overflow-hidden" id="itemsList"></div></div>
-</div>
-
-<button class="fab" onclick="openModal()">
-  <svg width="24" height="24" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-</button>
-
-<!-- Modal Novo/Editar -->
-<div class="modal-overlay" id="modalOverlay" style="display:none" onclick="closeModalOutside(event)">
-  <div class="glass-modal modal-sheet animate-in">
-    <div class="modal-handle"></div>
-    <div class="flex items-center justify-between mb-5">
-      <h2 class="text-slate-100 font-bold text-lg" id="modalTitle">Nova Despesa</h2>
-      <button onclick="closeModal()" class="text-slate-400 p-1"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-    </div>
-    <input type="hidden" id="editId"/>
-    <div class="space-y-3">
-      <div>
-        <label class="text-slate-400 text-xs block mb-1.5 ml-1">Descrição *</label>
-        <input type="text" id="inputNome" placeholder="Ex: Netflix, Aluguel, Mercado..."/>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Valor (R$) *</label><input type="number" id="inputValor" placeholder="0,00" step="0.01" min="0"/></div>
-        <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Data *</label><input type="date" id="inputData"/></div>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Categoria</label>
-          <select id="inputCategoria">
-            <option value="Moradia">🏠 Moradia</option><option value="Mercado">🛒 Mercado</option>
-            <option value="Transporte">🚗 Transporte</option><option value="Lazer">🍕 Lazer</option>
-            <option value="Cartão">💳 Cartão</option><option value="Saúde">🏥 Saúde</option>
-            <option value="Assinaturas">🛡️ Assinaturas</option><option value="Investimentos">💰 Investimentos</option>
-          </select>
-        </div>
-        <div id="parcelasGrp">
-          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Parcelas</label>
-          <select id="inputParcelas">
-            <option value="1">À vista (1x)</option>
-            <option value="2">2x</option><option value="3">3x</option><option value="4">4x</option>
-            <option value="5">5x</option><option value="6">6x</option><option value="7">7x</option>
-            <option value="8">8x</option><option value="9">9x</option><option value="10">10x</option>
-            <option value="11">11x</option><option value="12">12x</option><option value="15">15x</option>
-            <option value="18">18x</option><option value="24">24x</option>
-          </select>
-        </div>
-      </div>
-      <div id="parcelasHint" class="flex items-center gap-2 p-3 rounded-xl" style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1)">
-        <svg width="14" height="14" fill="none" stroke="#a78bfa" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        <p class="text-slate-400 text-xs">Parcelamentos geram entradas automáticas para os próximos meses</p>
-      </div>
-      <button onclick="saveItem()" class="btn-primary w-full py-3.5 rounded-xl font-semibold text-sm" id="btnSalvar">Salvar Despesa</button>
-    </div>
-  </div>
-</div>
-
-<!-- Modal Nuvem -->
-<div class="modal-overlay" id="cloudModal" style="display:none" onclick="if(event.target===this)closeCloudModal()">
-  <div class="glass-modal modal-sheet animate-in">
-    <div class="modal-handle"></div>
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-slate-100 font-bold text-lg">☁️ Backup & Nuvem</h2>
-      <button onclick="closeCloudModal()" class="text-slate-400 p-1"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-    </div>
-    <div class="space-y-4">
-      <div class="p-3 rounded-xl" style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2)">
-        <p class="text-slate-300 text-xs leading-relaxed">Use um <span class="text-violet-400 font-semibold">código secreto</span> para sincronizar entre dispositivos. O mesmo código em dois celulares = mesmos dados!</p>
-      </div>
-      <div>
-        <label class="text-slate-400 text-xs block mb-1.5 ml-1">Código secreto (mín. 6 caracteres)</label>
-        <input type="text" id="cloudKey" placeholder="Ex: minhasfinancas2024"/>
-      </div>
-      <div class="grid grid-cols-2 gap-3">
-        <button onclick="cloudUpload()" class="btn-primary py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
-          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-          Enviar
-        </button>
-        <button onclick="cloudDownload()" class="btn-secondary py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
-          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-          Receber
-        </button>
-      </div>
-      <p class="text-center text-sm min-h-5" id="cloudMsg"></p>
-      <div style="border-top:1px solid rgba(148,163,184,0.1);padding-top:14px">
-        <p class="text-slate-500 text-xs mb-2 font-medium">Backup local (arquivo no celular):</p>
-        <div class="grid grid-cols-2 gap-2">
-          <button onclick="exportJSON()" class="btn-secondary py-2.5 rounded-xl text-xs font-medium">📤 Exportar JSON</button>
-          <button onclick="document.getElementById('importFile').click()" class="btn-secondary py-2.5 rounded-xl text-xs font-medium">📥 Importar JSON</button>
-        </div>
-        <input type="file" id="importFile" accept=".json" style="display:none" onchange="importJSON(event)"/>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="toast" class="toast" style="opacity:0"></div>
-
-<script>
 const CATS={Moradia:'🏠',Mercado:'🛒',Transporte:'🚗',Lazer:'🍕',Cartão:'💳',Saúde:'🏥',Assinaturas:'🛡️',Investimentos:'💰'};
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 let curDate=new Date(),curYear=curDate.getFullYear(),curMonth=curDate.getMonth();
-let selectMode=false,selected=new Set();
+let selectMode=false,selected=new Set(),currentUser=null,syncTimer=null;
 
+// ── Helpers ──
 function getData(){try{return JSON.parse(localStorage.getItem('fpro_v2')||'[]')}catch{return[]}}
-function saveData(d){localStorage.setItem('fpro_v2',JSON.stringify(d))}
+function saveData(d){localStorage.setItem('fpro_v2',JSON.stringify(d));schedulSync()}
 function fmt(v){return'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function fmtDate(iso){if(!iso)return'';const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`}
 function getMonthItems(){const k=`${curYear}-${String(curMonth+1).padStart(2,'0')}`;return getData().filter(i=>i.monthKey===k)}
@@ -240,9 +48,137 @@ function showToast(msg,color='#6366f1'){
   clearTimeout(toastTimer);
   const t=document.getElementById('toast');
   t.textContent=msg;t.style.borderColor=color;t.style.opacity='1';
-  toastTimer=setTimeout(()=>t.style.opacity='0',2500);
+  toastTimer=setTimeout(()=>t.style.opacity='0',2800);
 }
 
+// ── Firebase Sync ──
+function schedulSync(){
+  if(!currentUser)return;
+  clearTimeout(syncTimer);
+  syncTimer=setTimeout(()=>syncToCloud(),3000);
+}
+
+async function syncToCloud(){
+  if(!currentUser)return;
+  try{
+    await setDoc(doc(db,'users',currentUser.uid),{
+      data:JSON.stringify(getData()),
+      updatedAt:new Date().toISOString(),
+      displayName:currentUser.displayName||''
+    });
+    document.getElementById('syncDot').style.background='#4ade80';
+    document.getElementById('syncDot').title='Sincronizado';
+  }catch(e){
+    document.getElementById('syncDot').style.background='#f59e0b';
+  }
+}
+
+async function loadFromCloud(){
+  if(!currentUser)return;
+  try{
+    const snap=await getDoc(doc(db,'users',currentUser.uid));
+    if(snap.exists()&&snap.data().data){
+      const cloudData=JSON.parse(snap.data().data);
+      const localData=getData();
+      // Merge: use cloud if has more records or is newer
+      if(cloudData.length>=localData.length){
+        localStorage.setItem('fpro_v2',JSON.stringify(cloudData));
+        showToast('Dados sincronizados da nuvem ☁️','#4ade80');
+      }
+      render();
+    }
+  }catch(e){console.log('Sem dados na nuvem ainda')}
+}
+
+// ── Auth ──
+onAuthStateChanged(auth,user=>{
+  currentUser=user;
+  if(user){
+    document.getElementById('authScreen').style.display='none';
+    document.getElementById('mainApp').style.display='block';
+    document.getElementById('userDisplayName').textContent=user.displayName||user.email.split('@')[0];
+    loadFromCloud();
+    render();
+  }else{
+    document.getElementById('authScreen').style.display='flex';
+    document.getElementById('mainApp').style.display='none';
+  }
+});
+
+window.doLogin=async function(){
+  const user=document.getElementById('loginUser').value.trim();
+  const pass=document.getElementById('loginPass').value;
+  if(!user||!pass){showToast('Preencha usuário e senha','#ef4444');return}
+  const email=user.includes('@')?user:user+'@financespro.app';
+  setAuthLoading(true);
+  try{
+    await signInWithEmailAndPassword(auth,email,pass);
+    showToast('Bem-vindo de volta! 👋');
+  }catch(e){
+    if(e.code==='auth/user-not-found'||e.code==='auth/invalid-credential'){
+      showToast('Usuário não encontrado','#ef4444');
+    }else if(e.code==='auth/wrong-password'){
+      showToast('Senha incorreta','#ef4444');
+    }else{
+      showToast('Erro: '+e.message,'#ef4444');
+    }
+  }finally{setAuthLoading(false)}
+}
+
+window.doRegister=async function(){
+  const user=document.getElementById('regUser').value.trim();
+  const pass=document.getElementById('regPass').value;
+  const pass2=document.getElementById('regPass2').value;
+  if(!user){showToast('Informe um nome de usuário','#ef4444');return}
+  if(user.length<3){showToast('Usuário muito curto (mín. 3 caracteres)','#ef4444');return}
+  if(pass.length<6){showToast('Senha muito curta (mín. 6 caracteres)','#ef4444');return}
+  if(pass!==pass2){showToast('As senhas não coincidem','#ef4444');return}
+  const email=user+'@financespro.app';
+  setAuthLoading(true);
+  try{
+    const cred=await createUserWithEmailAndPassword(auth,email,pass);
+    await updateProfile(cred.user,{displayName:user});
+    showToast('Conta criada com sucesso! 🎉','#4ade80');
+  }catch(e){
+    if(e.code==='auth/email-already-in-use'){
+      showToast('Este usuário já existe','#ef4444');
+    }else{
+      showToast('Erro: '+e.message,'#ef4444');
+    }
+  }finally{setAuthLoading(false)}
+}
+
+window.doLogout=async function(){
+  if(!confirm('Sair da conta?'))return;
+  await syncToCloud();
+  await signOut(auth);
+  showToast('Até logo! 👋');
+}
+
+window.forcSync=async function(){
+  if(!currentUser){showToast('Faça login primeiro','#ef4444');return}
+  document.getElementById('syncDot').style.background='#f59e0b';
+  await syncToCloud();
+  showToast('Sincronizado com a nuvem ☁️','#4ade80');
+}
+
+function setAuthLoading(v){
+  const btns=document.querySelectorAll('.auth-btn');
+  btns.forEach(b=>b.disabled=v);
+  if(v){btns.forEach(b=>b.style.opacity='0.6')}
+  else{btns.forEach(b=>b.style.opacity='1')}
+}
+
+window.showTab=function(tab){
+  document.getElementById('tabLogin').style.display=tab==='login'?'block':'none';
+  document.getElementById('tabRegister').style.display=tab==='register'?'block':'none';
+  document.getElementById('btnTabLogin').style.borderBottom=tab==='login'?'2px solid #6366f1':'2px solid transparent';
+  document.getElementById('btnTabLogin').style.color=tab==='login'?'#a5b4fc':'#64748b';
+  document.getElementById('btnTabRegister').style.borderBottom=tab==='register'?'2px solid #6366f1':'2px solid transparent';
+  document.getElementById('btnTabRegister').style.color=tab==='register'?'#a5b4fc':'#64748b';
+}
+
+// ── Render ──
 function render(){
   const items=getMonthItems();
   const total=items.reduce((s,i)=>s+parseFloat(i.valor),0);
@@ -283,26 +219,26 @@ function render(){
         </button>
       </div>
       ${!selectMode?`<div class="flex flex-col gap-0.5 shrink-0 ml-1">
-        <button onclick="openEdit('${item.id}')" class="text-slate-500 hover:text-violet-400 transition-colors p-1.5 rounded-lg hover:bg-violet-400/10">
+        <button onclick="openEdit('${item.id}')" class="text-slate-500 hover:text-violet-400 p-1.5 rounded-lg hover:bg-violet-400/10 transition-colors">
           <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
         </button>
-        <button onclick="deleteItem('${item.id}')" class="text-slate-600 hover:text-red-400 transition-colors p-1.5 rounded-lg hover:bg-red-400/10">
+        <button onclick="deleteItem('${item.id}')" class="text-slate-600 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-400/10 transition-colors">
           <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
         </button>
       </div>`:''}
     </div>`;
   }).join('');
-  if(selectMode) document.getElementById('selectCount').textContent=selected.size+' selecionado'+(selected.size!==1?'s':'');
+  if(selectMode)document.getElementById('selectCount').textContent=selected.size+' selecionado'+(selected.size!==1?'s':'');
 }
 
-function changeMonth(dir){
+window.changeMonth=function(dir){
   curMonth+=dir;
   if(curMonth>11){curMonth=0;curYear++}
   if(curMonth<0){curMonth=11;curYear--}
   render();
 }
 
-function openModal(){
+window.openModal=function(){
   document.getElementById('editId').value='';
   document.getElementById('inputNome').value='';
   document.getElementById('inputValor').value='';
@@ -317,9 +253,8 @@ function openModal(){
   setTimeout(()=>document.getElementById('inputNome').focus(),300);
 }
 
-function openEdit(id){
-  const item=getData().find(x=>x.id===id);
-  if(!item)return;
+window.openEdit=function(id){
+  const item=getData().find(x=>x.id===id);if(!item)return;
   document.getElementById('editId').value=id;
   document.getElementById('inputNome').value=item.nome;
   document.getElementById('inputValor').value=item.valor;
@@ -333,10 +268,10 @@ function openEdit(id){
   setTimeout(()=>document.getElementById('inputNome').focus(),300);
 }
 
-function closeModal(){document.getElementById('modalOverlay').style.display='none'}
-function closeModalOutside(e){if(e.target===document.getElementById('modalOverlay'))closeModal()}
+window.closeModal=function(){document.getElementById('modalOverlay').style.display='none'}
+window.closeModalOutside=function(e){if(e.target===document.getElementById('modalOverlay'))window.closeModal()}
 
-function saveItem(){
+window.saveItem=function(){
   const nome=document.getElementById('inputNome').value.trim();
   const valor=parseFloat(document.getElementById('inputValor').value);
   const data=document.getElementById('inputData').value;
@@ -348,11 +283,8 @@ function saveItem(){
   const all=getData();
   if(editId){
     const i=all.findIndex(x=>x.id===editId);
-    if(i>=0){
-      all[i].nome=nome;all[i].valor=valor;all[i].data=data;all[i].categoria=cat;
-      const[y,m]=data.split('-');all[i].monthKey=`${y}-${m}`;
-    }
-    saveData(all);closeModal();render();showToast('Despesa atualizada ✓');return;
+    if(i>=0){all[i].nome=nome;all[i].valor=valor;all[i].data=data;all[i].categoria=cat;const[y,m]=data.split('-');all[i].monthKey=`${y}-${m}`;}
+    saveData(all);window.closeModal();render();showToast('Atualizado ✓');return;
   }
   const parc=parseInt(document.getElementById('inputParcelas').value);
   const baseDate=new Date(data+'T12:00:00');
@@ -368,21 +300,21 @@ function saveItem(){
       data:`${y}-${mStr}-${dayStr}`,categoria:cat,pago:false,monthKey:`${y}-${mStr}`
     });
   }
-  saveData(all);closeModal();render();
-  showToast(parc>1?`${parc} parcelas criadas ✓`:'Despesa salva ✓');
+  saveData(all);window.closeModal();render();
+  showToast(parc>1?`${parc} parcelas criadas ✓`:'Salvo ✓');
 }
 
-function togglePago(id){
+window.togglePago=function(id){
   const all=getData(),i=all.findIndex(x=>x.id===id);
   if(i>=0){all[i].pago=!all[i].pago;saveData(all);render()}
 }
 
-function deleteItem(id){
+window.deleteItem=function(id){
   if(!confirm('Remover esta despesa?'))return;
   saveData(getData().filter(x=>x.id!==id));render();showToast('Removido','#ef4444');
 }
 
-function toggleSelectMode(){
+window.toggleSelectMode=function(){
   selectMode=!selectMode;selected.clear();
   document.getElementById('selectBar').style.display=selectMode?'flex':'none';
   const btn=document.getElementById('btnSelect');
@@ -391,77 +323,25 @@ function toggleSelectMode(){
   render();
 }
 
-function toggleSelect(id){
-  if(selected.has(id))selected.delete(id);else selected.add(id);
-  render();
+window.toggleSelect=function(id){
+  if(selected.has(id))selected.delete(id);else selected.add(id);render();
 }
 
-function selectAll(){
+window.selectAll=function(){
   const items=getMonthItems();
   if(selected.size===items.length)selected.clear();
   else items.forEach(i=>selected.add(i.id));
   render();
 }
 
-function deleteSelected(){
+window.deleteSelected=function(){
   if(!selected.size){showToast('Nenhum item selecionado','#ef4444');return}
   if(!confirm(`Remover ${selected.size} item(ns)?`))return;
   saveData(getData().filter(x=>!selected.has(x.id)));
-  selected.clear();toggleSelectMode();showToast('Itens removidos','#ef4444');
+  selected.clear();window.toggleSelectMode();showToast('Removidos','#ef4444');
 }
 
-// ── Backup nuvem via chave local compartilhada ──
-function openCloudModal(){document.getElementById('cloudModal').style.display='flex';document.getElementById('cloudMsg').textContent=''}
-function closeCloudModal(){document.getElementById('cloudModal').style.display='none'}
-
-function cloudUpload(){
-  const key=(document.getElementById('cloudKey').value||'').trim();
-  if(key.length<6){showToast('Código muito curto','#ef4444');return}
-  const encoded=btoa(unescape(encodeURIComponent(JSON.stringify(getData()))));
-  localStorage.setItem('cloud_bk_'+key,encoded);
-  localStorage.setItem('cloud_ts_'+key,new Date().toLocaleString('pt-BR'));
-  document.getElementById('cloudDot').style.background='#4ade80';
-  document.getElementById('cloudMsg').innerHTML='<span style="color:#4ade80">✓ Dados salvos com o código "'+key+'"</span>';
-  showToast('Backup salvo ✓','#4ade80');
-}
-
-function cloudDownload(){
-  const key=(document.getElementById('cloudKey').value||'').trim();
-  if(key.length<6){showToast('Código muito curto','#ef4444');return}
-  const encoded=localStorage.getItem('cloud_bk_'+key);
-  const ts=localStorage.getItem('cloud_ts_'+key);
-  if(!encoded){document.getElementById('cloudMsg').innerHTML='<span style="color:#ef4444">❌ Nenhum dado encontrado para esse código</span>';return}
-  if(!confirm(`Restaurar backup de ${ts||'data desconhecida'}? Os dados atuais serão substituídos.`))return;
-  try{
-    const d=JSON.parse(decodeURIComponent(escape(atob(encoded))));
-    saveData(d);render();closeCloudModal();
-    showToast(`${d.length} registros restaurados ✓`,'#4ade80');
-  }catch{showToast('Erro ao restaurar','#ef4444')}
-}
-
-function exportJSON(){
-  const blob=new Blob([JSON.stringify(getData(),null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='financaspro-'+new Date().toISOString().split('T')[0]+'.json';a.click();
-  showToast('Arquivo exportado ✓');
-}
-
-function importJSON(e){
-  const file=e.target.files[0];if(!file)return;
-  const r=new FileReader();
-  r.onload=ev=>{
-    try{
-      const d=JSON.parse(ev.target.result);
-      if(!Array.isArray(d))throw new Error();
-      if(!confirm(`Importar ${d.length} registros? Dados atuais serão substituídos.`))return;
-      saveData(d);render();closeCloudModal();
-      showToast(`${d.length} registros importados ✓`,'#4ade80');
-    }catch{showToast('Arquivo inválido','#ef4444')}
-  };
-  r.readAsText(file);e.target.value='';
-}
-
-function exportPDF(){
+window.exportPDF=function(){
   const{jsPDF}=window.jspdf;
   const doc=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
   const items=getMonthItems(),mLabel=MONTHS[curMonth]+' '+curYear;
@@ -498,10 +378,241 @@ function exportPDF(){
   doc.save('financas-'+mLabel.toLowerCase().replace(' ','-')+'.pdf');
 }
 
-render();
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{navigator.serviceWorker.register('./sw.js',{scope:'/meu-financeiro/'}).catch(()=>{})});
 }
 </script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overscroll-behavior:none}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#1e293b}::-webkit-scrollbar-thumb{background:#334155;border-radius:2px}
+.glass{background:rgba(30,41,59,0.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(148,163,184,0.1)}
+.glass-modal{background:rgba(15,23,42,0.95);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid rgba(148,163,184,0.15)}
+.card{background:linear-gradient(135deg,rgba(30,41,59,0.9),rgba(15,23,42,0.95));border:1px solid rgba(148,163,184,0.12);border-radius:16px}
+.btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;transition:transform .15s,box-shadow .15s;cursor:pointer}
+.btn-primary:active{transform:scale(0.95)}
+.btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:white;border:none;transition:transform .15s;cursor:pointer}
+.btn-danger:active{transform:scale(0.95)}
+.btn-secondary{background:rgba(30,41,59,0.8);border:1px solid rgba(148,163,184,0.2);color:#94a3b8;transition:transform .15s,background .15s;cursor:pointer}
+.btn-secondary:active{transform:scale(0.95)}
+.btn-secondary:hover{background:rgba(51,65,85,0.9);color:#e2e8f0}
+.status-pending{background:rgba(234,179,8,0.15);border:1px solid rgba(234,179,8,0.3);color:#fbbf24}
+.status-paid{background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80}
+.progress-bar{height:4px;background:#1e293b;position:sticky;top:0;z-index:50}
+.progress-fill{height:100%;background:linear-gradient(90deg,#6366f1,#8b5cf6,#ec4899);transition:width .6s cubic-bezier(.4,0,.2,1);border-radius:0 2px 2px 0}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:100;display:flex;align-items:flex-end;justify-content:center}
+.modal-sheet{width:100%;max-width:560px;max-height:92vh;overflow-y:auto;border-radius:24px 24px 0 0;padding:24px}
+.modal-handle{width:40px;height:4px;background:rgba(148,163,184,0.3);border-radius:2px;margin:0 auto 20px}
+.item-row{border-bottom:1px solid rgba(148,163,184,0.07);transition:background .15s}
+.item-row:last-child{border-bottom:none}
+.item-row.selected{background:rgba(99,102,241,0.1)!important;border-left:3px solid #6366f1}
+input,select{background:rgba(15,23,42,0.8)!important;border:1px solid rgba(148,163,184,0.2)!important;color:#e2e8f0!important;border-radius:10px!important;padding:12px 14px!important;width:100%;outline:none;transition:border-color .2s}
+input:focus,select:focus{border-color:rgba(99,102,241,0.6)!important;box-shadow:0 0 0 3px rgba(99,102,241,0.15)}
+select option{background:#1e293b;color:#e2e8f0}
+.badge{font-size:11px;padding:3px 8px;border-radius:20px;font-weight:600;letter-spacing:.3px}
+.animate-in{animation:slideUp .3s ease}
+@keyframes slideUp{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.nav-btn{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:transform .15s,background .15s}
+.nav-btn:active{transform:scale(0.9)}
+.empty-state{text-align:center;padding:60px 20px;color:#475569}
+.fab{position:fixed;bottom:24px;right:24px;width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 32px rgba(99,102,241,0.4);transition:transform .2s,box-shadow .2s;z-index:40}
+.fab:active{transform:scale(0.92)}
+.total-bar{background:linear-gradient(135deg,rgba(99,102,241,0.1),rgba(139,92,246,0.1));border:1px solid rgba(99,102,241,0.2)}
+.checkbox-item{width:20px;height:20px;border-radius:6px;border:2px solid rgba(148,163,184,0.3);display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;cursor:pointer}
+.checkbox-item.checked{background:#6366f1;border-color:#6366f1}
+.select-bar{background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.25);border-radius:14px;padding:10px 14px;margin:0 12px 8px;display:flex;align-items:center;justify-content:space-between}
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,0.97);border:1px solid rgba(148,163,184,0.2);color:#e2e8f0;padding:10px 20px;border-radius:12px;font-size:13px;z-index:200;transition:opacity .3s;pointer-events:none;white-space:nowrap}
+.sync-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex-shrink:0}
+.auth-input{background:rgba(15,23,42,0.8)!important;border:1px solid rgba(148,163,184,0.2)!important;color:#e2e8f0!important;border-radius:12px!important;padding:14px 16px!important;width:100%;outline:none;font-size:15px}
+.auth-input:focus{border-color:rgba(99,102,241,0.6)!important;box-shadow:0 0 0 3px rgba(99,102,241,0.15)}
+</style>
+</head>
+<body>
+
+<!-- ══════════ TELA DE LOGIN ══════════ -->
+<div id="authScreen" style="display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px">
+  <div style="width:100%;max-width:400px">
+    <!-- Logo -->
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="font-size:56px;margin-bottom:8px">💰</div>
+      <h1 style="font-size:28px;font-weight:700;background:linear-gradient(135deg,#a5b4fc,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0">FinancesPro</h1>
+      <p style="color:#475569;font-size:14px;margin-top:4px">Suas finanças, sempre sincronizadas</p>
+    </div>
+
+    <!-- Tabs -->
+    <div style="display:flex;border-bottom:1px solid rgba(148,163,184,0.1);margin-bottom:24px">
+      <button id="btnTabLogin" onclick="showTab('login')" style="flex:1;padding:12px;background:none;border:none;border-bottom:2px solid #6366f1;color:#a5b4fc;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s">Entrar</button>
+      <button id="btnTabRegister" onclick="showTab('register')" style="flex:1;padding:12px;background:none;border:none;border-bottom:2px solid transparent;color:#64748b;font-size:15px;font-weight:600;cursor:pointer;transition:all .2s">Criar conta</button>
+    </div>
+
+    <!-- Login -->
+    <div id="tabLogin">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px;margin-left:4px">Nome de usuário</label>
+          <input class="auth-input" type="text" id="loginUser" placeholder="seunome" autocomplete="username" autocapitalize="none"/>
+        </div>
+        <div>
+          <label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px;margin-left:4px">Senha</label>
+          <input class="auth-input" type="password" id="loginPass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
+        </div>
+        <button onclick="doLogin()" class="auth-btn btn-primary" style="width:100%;padding:16px;border-radius:14px;font-size:16px;font-weight:700;margin-top:4px">
+          Entrar
+        </button>
+        <p style="text-align:center;color:#475569;font-size:13px">Não tem conta? <button onclick="showTab('register')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:13px">Criar agora</button></p>
+      </div>
+    </div>
+
+    <!-- Register -->
+    <div id="tabRegister" style="display:none">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px;margin-left:4px">Nome de usuário (sem espaços)</label>
+          <input class="auth-input" type="text" id="regUser" placeholder="seunome" autocapitalize="none" autocomplete="username"/>
+        </div>
+        <div>
+          <label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px;margin-left:4px">Senha (mín. 6 caracteres)</label>
+          <input class="auth-input" type="password" id="regPass" placeholder="••••••••" autocomplete="new-password"/>
+        </div>
+        <div>
+          <label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:6px;margin-left:4px">Confirmar senha</label>
+          <input class="auth-input" type="password" id="regPass2" placeholder="••••••••" autocomplete="new-password" onkeydown="if(event.key==='Enter')doRegister()"/>
+        </div>
+        <button onclick="doRegister()" class="auth-btn btn-primary" style="width:100%;padding:16px;border-radius:14px;font-size:16px;font-weight:700;margin-top:4px">
+          Criar conta
+        </button>
+        <p style="text-align:center;color:#475569;font-size:13px">Já tem conta? <button onclick="showTab('login')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:13px">Entrar</button></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ APP PRINCIPAL ══════════ -->
+<div id="mainApp" style="display:none">
+  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+
+  <!-- Header -->
+  <div class="glass sticky top-1 z-30 mx-3 mt-2 rounded-2xl px-4 py-3 mb-4">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2.5">
+        <span style="font-size:20px">💰</span>
+        <div>
+          <div class="flex items-center gap-1.5">
+            <p class="text-sm font-semibold text-slate-200 leading-tight" id="headerDate"></p>
+            <span id="syncDot" class="sync-dot" style="background:#475569" title="Sincronizando..."></span>
+          </div>
+          <p class="text-xs text-slate-500 leading-none">Olá, <span id="userDisplayName" class="text-violet-400 font-medium"></span></p>
+        </div>
+      </div>
+      <div class="flex items-center gap-1.5">
+        <button onclick="forcSync()" class="btn-secondary text-xs px-2.5 py-2 rounded-xl" title="Sincronizar agora">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+        </button>
+        <button onclick="exportPDF()" class="btn-secondary text-xs px-2.5 py-2 rounded-xl">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        </button>
+        <button onclick="toggleSelectMode()" id="btnSelect" class="btn-secondary text-xs px-2.5 py-2 rounded-xl">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+        </button>
+        <button onclick="openModal()" class="btn-primary text-xs px-3 py-2 rounded-xl flex items-center gap-1">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          Novo
+        </button>
+        <button onclick="doLogout()" class="btn-secondary text-xs px-2.5 py-2 rounded-xl" title="Sair">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Month Nav -->
+  <div class="flex items-center justify-center gap-4 px-4 mb-4">
+    <button onclick="changeMonth(-1)" class="nav-btn btn-secondary"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
+    <span class="text-slate-200 font-semibold text-base min-w-[160px] text-center" id="monthLabel"></span>
+    <button onclick="changeMonth(1)" class="nav-btn btn-secondary"><svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
+  </div>
+
+  <!-- Cards -->
+  <div class="grid grid-cols-3 gap-2 px-3 mb-4">
+    <div class="card p-3"><p class="text-slate-400 text-xs mb-1">Pagas</p><p class="text-slate-100 font-bold text-base" id="cardSaldo">R$ 0,00</p><p class="text-xs mt-1 text-slate-500">do mês</p></div>
+    <div class="card p-3"><p class="text-slate-400 text-xs mb-1">Gastos</p><p class="text-red-400 font-bold text-base" id="cardGastos">R$ 0,00</p><p class="text-xs mt-1 text-slate-500">total</p></div>
+    <div class="card p-3"><p class="text-slate-400 text-xs mb-1">Cartão</p><p class="text-violet-400 font-bold text-base" id="cardCartao">R$ 0,00</p><p class="text-xs mt-1 text-slate-500">fatura</p></div>
+  </div>
+
+  <!-- Progress -->
+  <div class="mx-3 mb-4 total-bar rounded-2xl px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-2">
+      <svg width="16" height="16" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M22 12a10 10 0 11-20 0 10 10 0 0120 0z"/></svg>
+      <span class="text-slate-300 text-sm" id="progressLabel">0 de 0 pagas</span>
+    </div>
+    <span class="text-violet-400 text-sm font-bold" id="progressPct">0%</span>
+  </div>
+
+  <!-- Select bar -->
+  <div id="selectBar" style="display:none" class="select-bar">
+    <div class="flex items-center gap-2">
+      <svg width="15" height="15" fill="none" stroke="#f87171" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+      <span class="text-red-400 text-sm font-medium" id="selectCount">0 selecionados</span>
+    </div>
+    <div class="flex gap-2">
+      <button onclick="selectAll()" class="btn-secondary text-xs px-3 py-1.5 rounded-lg">Todos</button>
+      <button onclick="deleteSelected()" class="btn-danger text-xs px-3 py-1.5 rounded-lg">Excluir</button>
+    </div>
+  </div>
+
+  <div class="px-3 pb-28"><div class="card overflow-hidden" id="itemsList"></div></div>
+</div>
+
+<button class="fab" onclick="openModal()">
+  <svg width="24" height="24" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<!-- Modal Novo/Editar -->
+<div class="modal-overlay" id="modalOverlay" style="display:none" onclick="closeModalOutside(event)">
+  <div class="glass-modal modal-sheet animate-in">
+    <div class="modal-handle"></div>
+    <div class="flex items-center justify-between mb-5">
+      <h2 class="text-slate-100 font-bold text-lg" id="modalTitle">Nova Despesa</h2>
+      <button onclick="closeModal()" class="text-slate-400 p-1"><svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </div>
+    <input type="hidden" id="editId"/>
+    <div class="space-y-3">
+      <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Descrição *</label><input type="text" id="inputNome" placeholder="Ex: Netflix, Aluguel..."/></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Valor (R$) *</label><input type="number" id="inputValor" placeholder="0,00" step="0.01" min="0"/></div>
+        <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Data *</label><input type="date" id="inputData"/></div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Categoria</label>
+          <select id="inputCategoria">
+            <option value="Moradia">🏠 Moradia</option><option value="Mercado">🛒 Mercado</option>
+            <option value="Transporte">🚗 Transporte</option><option value="Lazer">🍕 Lazer</option>
+            <option value="Cartão">💳 Cartão</option><option value="Saúde">🏥 Saúde</option>
+            <option value="Assinaturas">🛡️ Assinaturas</option><option value="Investimentos">💰 Investimentos</option>
+          </select>
+        </div>
+        <div id="parcelasGrp">
+          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Parcelas</label>
+          <select id="inputParcelas">
+            <option value="1">À vista</option><option value="2">2x</option><option value="3">3x</option>
+            <option value="4">4x</option><option value="5">5x</option><option value="6">6x</option>
+            <option value="7">7x</option><option value="8">8x</option><option value="9">9x</option>
+            <option value="10">10x</option><option value="11">11x</option><option value="12">12x</option>
+            <option value="15">15x</option><option value="18">18x</option><option value="24">24x</option>
+          </select>
+        </div>
+      </div>
+      <div id="parcelasHint" class="flex items-center gap-2 p-3 rounded-xl" style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1)">
+        <svg width="14" height="14" fill="none" stroke="#a78bfa" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        <p class="text-slate-400 text-xs">Parcelamentos geram entradas automáticas para os próximos meses</p>
+      </div>
+      <button onclick="saveItem()" class="btn-primary w-full py-3.5 rounded-xl font-semibold text-sm" id="btnSalvar">Salvar Despesa</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" style="opacity:0"></div>
+
 </body>
 </html>
