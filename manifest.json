@@ -1,6 +1,6 @@
 {
   "name": "FinancesPro",
-  "short_name": "FinancesPro",
+  "short_name": "Finanças",
   "description": "Controle suas finanças pessoais",
   "start_url": "/meu-financeiro/",
   "scope": "/meu-financeiro/",
@@ -8,15 +8,16 @@
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "orientation": "portrait-primary",
+  "prefer_related_applications": false,
   "icons": [
     {
-      "src": "https://img.icons8.com/emoji/192/money-bag.png",
+      "src": "icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "https://img.icons8.com/emoji/512/money-bag.png",
+      "src": "icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

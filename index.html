@@ -379,6 +379,14 @@ function exportPDF(){
 }
 
 render();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js', {scope:'/meu-financeiro/'})
+      .then(r=>console.log('SW registrado',r.scope))
+      .catch(e=>console.log('SW erro',e));
+  });
+}
 </script>
 </body>
 </html>
