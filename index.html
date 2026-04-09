@@ -83,33 +83,24 @@ function processMonthlyRepeats(){
   const today=new Date();
   const thisKey=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
   let changed=false;
-  // Find all "master" repeat items (items with repeat:true, regardless of their monthKey)
   all.filter(i=>i.repeat).forEach(i=>{
-    // The origin ID to track copies: use the item's own id
     const originId=i.id;
-    // Check if a copy already exists for this month (copy of this master OR the master itself is already in this month)
-    const alreadyThisMonth=all.some(x=>x.monthKey===thisKey&&(x.id===originId||(x.repeatOrigin===originId)));
+    const alreadyThisMonth=all.some(x=>x.monthKey===thisKey&&(x.id===originId||x.repeatOrigin===originId));
     if(alreadyThisMonth)return;
-    // Create a copy for this month
-    const[y,,day]=i.data.split('-');
-    const newId=Date.now()+'-r-'+Math.random().toString(36).slice(2,5);
+    const[,,day]=i.data.split('-');
     const newItem={
       ...i,
-      id:newId,
+      id:Date.now()+'-r-'+Math.random().toString(36).slice(2,5),
       monthKey:thisKey,
       pago:false,
       repeatOrigin:originId,
-      repeat:false, // copy is not a master
+      repeat:false,
       data:`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${day||'01'}`
     };
-    if(i.vencimento){
-      const[,,vd]=i.vencimento.split('-');
-      newItem.vencimento=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${vd||'01'}`;
-    }
-    all.push(newItem);
-    changed=true;
+    if(i.vencimento){const[,,vd]=i.vencimento.split('-');newItem.vencimento=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${vd||'01'}`;}
+    all.push(newItem);changed=true;
   });
-  if(changed){localStorage.setItem('fpro_v2',JSON.stringify(all));scheduleSync();showToast(`Cobranças recorrentes lançadas ↻`,'#6366f1');}
+  if(changed){localStorage.setItem('fpro_v2',JSON.stringify(all));scheduleSync();showToast('Cobranças recorrentes lançadas ↻','#6366f1');}
 }
 
 // ── Notifications ──
@@ -298,9 +289,8 @@ window.openModal=function(editId){
   document.getElementById('inputVencimento').value=item&&item.vencimento?item.vencimento:'';
   document.getElementById('inputCategoria').value=item?item.categoria:'Moradia';
   document.getElementById('inputParcelas').value='1';
-  const repeatVal=item?!!item.repeat:false;
-  document.getElementById('inputRepeat').checked=repeatVal;
-  document.getElementById('toggleRepeat').className='toggle'+(repeatVal?' on':'');
+  document.getElementById('inputRepeat').checked=item?!!item.repeat:false;
+  document.getElementById('toggleRepeat').className='toggle'+((item&&item.repeat)?' on':'');
   document.getElementById('parcelasGrp').style.display=item?'none':'';
   document.getElementById('modalTitle').textContent=item?'Editar Despesa':'Nova Despesa';
   document.getElementById('btnSalvar').textContent=item?'Salvar Alterações':'Salvar Despesa';
@@ -328,9 +318,6 @@ window.saveItem=function(){
       all[i].nome=nome;all[i].valor=valor;all[i].data=data;all[i].categoria=cat;all[i].repeat=repeat;
       if(venc)all[i].vencimento=venc;else delete all[i].vencimento;
       const[y,m]=data.split('-');all[i].monthKey=`${y}-${m}`;
-      // If repeat was disabled on a master item, its future copies won't be generated anymore (correct)
-      // If repeat is enabled, ensure it's not treated as a copy
-      if(repeat)delete all[i].repeatOrigin;
     }
     saveData(all);window.closeModal();render();showToast('Atualizado ✓');return;
   }
@@ -748,10 +735,8 @@ select option{background:#1e293b;color:#e2e8f0}
           <p class="text-slate-300 text-sm font-medium">↻ Repetir mensalmente</p>
           <p class="text-slate-500 text-xs mt-0.5">Lança automaticamente todo mês</p>
         </div>
-        <label style="cursor:pointer;display:flex;align-items:center">
-          <input type="checkbox" id="inputRepeat" style="display:none!important;width:0!important;height:0!important;padding:0!important;border:none!important" onchange="document.getElementById('toggleRepeat').className='toggle'+(this.checked?' on':'')"/>
-          <div id="toggleRepeat" class="toggle" onclick="document.getElementById('inputRepeat').click()"></div>
-        </label>
+        <input type="checkbox" id="inputRepeat" style="display:none"/>
+        <div id="toggleRepeat" class="toggle" onclick="var cb=document.getElementById('inputRepeat');cb.checked=!cb.checked;this.className='toggle'+(cb.checked?' on':'');"></div>
       </div>
 
       <button onclick="saveItem()" class="btn-primary w-full py-3.5 rounded-xl font-bold text-sm" id="btnSalvar">Salvar Despesa</button>
