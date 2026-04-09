@@ -83,19 +83,33 @@ function processMonthlyRepeats(){
   const today=new Date();
   const thisKey=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
   let changed=false;
+  // Find all "master" repeat items (items with repeat:true, regardless of their monthKey)
   all.filter(i=>i.repeat).forEach(i=>{
-    if(i.monthKey===thisKey)return; // already exists this month
-    const existsThisMonth=all.some(x=>x.repeatOrigin===i.id&&x.monthKey===thisKey);
-    if(!existsThisMonth){
-      const newItem={...i,id:Date.now()+'-r-'+Math.random().toString(36).slice(2,5),monthKey:thisKey,pago:false,repeatOrigin:i.id,repeat:false};
-      // update data date to this month
-      const[,, day]=i.data.split('-');
-      newItem.data=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${day}`;
-      if(i.vencimento){const[,,vd]=i.vencimento.split('-');newItem.vencimento=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${vd}`;}
-      all.push(newItem);changed=true;
+    // The origin ID to track copies: use the item's own id
+    const originId=i.id;
+    // Check if a copy already exists for this month (copy of this master OR the master itself is already in this month)
+    const alreadyThisMonth=all.some(x=>x.monthKey===thisKey&&(x.id===originId||(x.repeatOrigin===originId)));
+    if(alreadyThisMonth)return;
+    // Create a copy for this month
+    const[y,,day]=i.data.split('-');
+    const newId=Date.now()+'-r-'+Math.random().toString(36).slice(2,5);
+    const newItem={
+      ...i,
+      id:newId,
+      monthKey:thisKey,
+      pago:false,
+      repeatOrigin:originId,
+      repeat:false, // copy is not a master
+      data:`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${day||'01'}`
+    };
+    if(i.vencimento){
+      const[,,vd]=i.vencimento.split('-');
+      newItem.vencimento=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${vd||'01'}`;
     }
+    all.push(newItem);
+    changed=true;
   });
-  if(changed){localStorage.setItem('fpro_v2',JSON.stringify(all));scheduleSync();}
+  if(changed){localStorage.setItem('fpro_v2',JSON.stringify(all));scheduleSync();showToast(`Cobranças recorrentes lançadas ↻`,'#6366f1');}
 }
 
 // ── Notifications ──
@@ -284,7 +298,9 @@ window.openModal=function(editId){
   document.getElementById('inputVencimento').value=item&&item.vencimento?item.vencimento:'';
   document.getElementById('inputCategoria').value=item?item.categoria:'Moradia';
   document.getElementById('inputParcelas').value='1';
-  document.getElementById('inputRepeat').checked=item?!!item.repeat:false;
+  const repeatVal=item?!!item.repeat:false;
+  document.getElementById('inputRepeat').checked=repeatVal;
+  document.getElementById('toggleRepeat').className='toggle'+(repeatVal?' on':'');
   document.getElementById('parcelasGrp').style.display=item?'none':'';
   document.getElementById('modalTitle').textContent=item?'Editar Despesa':'Nova Despesa';
   document.getElementById('btnSalvar').textContent=item?'Salvar Alterações':'Salvar Despesa';
@@ -312,6 +328,9 @@ window.saveItem=function(){
       all[i].nome=nome;all[i].valor=valor;all[i].data=data;all[i].categoria=cat;all[i].repeat=repeat;
       if(venc)all[i].vencimento=venc;else delete all[i].vencimento;
       const[y,m]=data.split('-');all[i].monthKey=`${y}-${m}`;
+      // If repeat was disabled on a master item, its future copies won't be generated anymore (correct)
+      // If repeat is enabled, ensure it's not treated as a copy
+      if(repeat)delete all[i].repeatOrigin;
     }
     saveData(all);window.closeModal();render();showToast('Atualizado ✓');return;
   }
