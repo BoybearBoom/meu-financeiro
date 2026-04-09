@@ -371,7 +371,7 @@ window.openModal=function(editId){
   document.getElementById('inputVencimento').value=item&&item.vencimento?item.vencimento:'';
   document.getElementById('inputCategoria').value=item?item.categoria:'Moradia';
   document.getElementById('inputParcelas').value='1';
-  const isRepeat=item?!!item.repeat:false;
+  const isRepeat=item?(!!item.repeat||!!item.repeatOrigin||!!item.isTemplate):false;
   document.getElementById('inputRepeat').checked=isRepeat;
   document.getElementById('toggleRepeat').className='toggle'+(isRepeat?' on':'');
   document.getElementById('parcelasGrp').style.display=item?'none':'';
@@ -397,11 +397,52 @@ window.saveItem=function(){
   const all=getData();
 
   if(editId){
-    const i=all.findIndex(x=>x.id===editId);
-    if(i>=0){
-      all[i].nome=nome;all[i].valor=valor;all[i].data=data;all[i].categoria=cat;all[i].repeat=repeat;
-      if(venc)all[i].vencimento=venc;else delete all[i].vencimento;
-      const[y,m]=data.split('-');all[i].monthKey=`${y}-${m}`;
+    const idx=all.findIndex(x=>x.id===editId);
+    if(idx<0){saveData(all);window.closeModal();render();return;}
+    const item=all[idx];
+    const wasRepeat=!!item.repeat||!!item.repeatOrigin||!!item.isTemplate;
+
+    // Caso 1: era item normal, usuário ATIVOU repeat
+    if(!wasRepeat && repeat){
+      const templateId=`tpl-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+      const today=new Date();
+      const thisKey=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+      // Cria template sem monthKey
+      const template={id:templateId,nome,valor,data,categoria,pago:false,repeat:true,isTemplate:true,...(venc?{vencimento:venc}:{})};
+      // Converte o item atual em cópia
+      all[idx]={...all[idx],nome,valor,data,categoria,repeat:false,repeatOrigin:templateId,monthKey:item.monthKey||thisKey};
+      if(venc)all[idx].vencimento=venc; else delete all[idx].vencimento;
+      all.push(template);
+      saveData(all);window.closeModal();render();showToast('Atualizado ↻ repete mensalmente ✓','#6366f1');return;
+    }
+
+    // Caso 2: era repeat (template ou cópia), usuário DESATIVOU repeat
+    if(wasRepeat && !repeat){
+      // Descobre o templateId
+      const templateId=item.isTemplate?item.id:item.repeatOrigin;
+      // Remove o template
+      const newAll=all.filter(x=>x.id!==templateId);
+      // Converte todas as cópias em itens normais
+      newAll.forEach(x=>{if(x.repeatOrigin===templateId){delete x.repeatOrigin;x.repeat=false;}});
+      // Atualiza o item editado
+      const i2=newAll.findIndex(x=>x.id===editId);
+      if(i2>=0){
+        newAll[i2].nome=nome;newAll[i2].valor=valor;newAll[i2].data=data;newAll[i2].categoria=cat;
+        if(venc)newAll[i2].vencimento=venc; else delete newAll[i2].vencimento;
+        const[y,m]=data.split('-');newAll[i2].monthKey=`${y}-${m}`;
+        delete newAll[i2].isTemplate;
+      }
+      saveData(newAll);window.closeModal();render();showToast('Repetição removida ✓','#f59e0b');return;
+    }
+
+    // Caso 3: mantém repeat como estava — atualiza item e seu template (se for cópia)
+    all[idx].nome=nome;all[idx].valor=valor;all[idx].data=data;all[idx].categoria=cat;
+    if(venc)all[idx].vencimento=venc; else delete all[idx].vencimento;
+    if(!item.isTemplate){const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;}
+    // Se é cópia, atualiza também o template pai
+    if(item.repeatOrigin){
+      const ti=all.findIndex(x=>x.id===item.repeatOrigin);
+      if(ti>=0){all[ti].nome=nome;all[ti].valor=valor;all[ti].categoria=cat;if(venc)all[ti].vencimento=venc;else delete all[ti].vencimento;}
     }
     saveData(all);window.closeModal();render();showToast('Atualizado ✓');return;
   }
