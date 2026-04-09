@@ -86,17 +86,6 @@ async function loadFromCloud(){
 }
 
 
-    newItems.push(newItem);
-  });
-
-  if(newItems.length>0){
-    const updated=[...all,...newItems];
-    localStorage.setItem('fpro_v2',JSON.stringify(updated));
-    scheduleSync();
-    showToast(`${newItems.length} cobrança(s) recorrente(s) lançada(s) ↻`,'#6366f1');
-  }
-}
-
 // ── Notificações (CORRIGIDO) ──
 function loadNotifSetting(){notifsEnabled=localStorage.getItem('fpro_notifs')==='1';}
 function saveNotifSetting(v){notifsEnabled=v;localStorage.setItem('fpro_notifs',v?'1':'0');}
