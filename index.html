@@ -31,13 +31,14 @@ let activeFilter='all',searchQuery='',notifsEnabled=false;
 let _repeatChecked=false;
 window.toggleRepeat=function(){
   _repeatChecked=!_repeatChecked;
-  const el=document.getElementById('toggleRepeat');
-  if(el)el.className='toggle'+(_repeatChecked?' on':'');
+  setRepeatUI(_repeatChecked);
 };
 function setRepeatUI(val){
   _repeatChecked=!!val;
-  const el=document.getElementById('toggleRepeat');
-  if(el)el.className='toggle'+(_repeatChecked?' on':'');
+  const box=document.getElementById('repeatCheckbox');
+  const icon=document.getElementById('repeatCheckIcon');
+  if(box){box.style.background=_repeatChecked?'#6366f1':'transparent';box.style.borderColor=_repeatChecked?'#6366f1':'rgba(148,163,184,0.35)';}
+  if(icon)icon.style.display=_repeatChecked?'block':'none';
 }
 
 // ── Storage ──
@@ -892,13 +893,15 @@ select option{background:#1e293b;color:#e2e8f0}
         </select></div>
       </div>
 
-      <!-- Toggle Repetir Mensalmente -->
-      <div class="flex items-center justify-between p-3 rounded-xl" style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15)">
+      <!-- Checkbox Repetir Mensalmente -->
+      <div class="flex items-center gap-3 p-3 rounded-xl" style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);cursor:pointer" onclick="toggleRepeat()">
+        <div id="repeatCheckbox" style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(148,163,184,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;background:transparent">
+          <svg id="repeatCheckIcon" width="13" height="13" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24" style="display:none"><path d="M5 13l4 4L19 7"/></svg>
+        </div>
         <div>
           <p class="text-slate-300 text-sm font-semibold">↻ Repetir mensalmente</p>
           <p class="text-slate-500 text-xs mt-0.5">Lança automaticamente todo mês ao entrar</p>
         </div>
-        <div id="toggleRepeat" class="toggle" onclick="toggleRepeat()"></div>
       </div>
 
       <button onclick="saveItem()" class="btn-primary w-full py-3.5 rounded-xl font-bold text-sm" id="btnSalvar">Salvar Despesa</button>
