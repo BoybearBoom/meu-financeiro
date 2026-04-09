@@ -29,7 +29,7 @@ const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Ago
 let curDate=new Date(),curYear=curDate.getFullYear(),curMonth=curDate.getMonth();
 let selectMode=false,selected=new Set(),currentUser=null,syncTimer=null;
 let activeFilter='all',searchQuery='',notifsEnabled=false;
-let _repeatChecked=false;
+window._repeatChecked=false;
 
 // ── Storage ──
 function getData(){try{return JSON.parse(localStorage.getItem('fpro_v2')||'[]')}catch{return[]}}
@@ -365,17 +365,17 @@ window.changeMonth=function(dir){
 
 // ── Repeat checkbox ──
 function setRepeatUI(val){
-  _repeatChecked=!!val;
+  window._repeatChecked=!!val;
   const box=document.getElementById('repeatCheckbox');
   const icon=document.getElementById('repeatCheckIcon');
   if(box){
-    box.style.background=_repeatChecked?'#6366f1':'transparent';
-    box.style.borderColor=_repeatChecked?'#6366f1':'rgba(148,163,184,0.35)';
+    box.style.background=window._repeatChecked?'#6366f1':'transparent';
+    box.style.borderColor=window._repeatChecked?'#6366f1':'rgba(148,163,184,0.35)';
   }
-  if(icon)icon.style.display=_repeatChecked?'block':'none';
+  if(icon)icon.style.display=window._repeatChecked?'block':'none';
 }
 window.toggleRepeat=function(){
-  setRepeatUI(!_repeatChecked);
+  setRepeatUI(!window._repeatChecked);
 };
 
 // ── Modal ──
@@ -406,7 +406,7 @@ window.saveItem=function(){
   const venc=document.getElementById('inputVencimento').value;
   const cat=document.getElementById('inputCategoria').value;
   const editId=document.getElementById('editId').value;
-  const repeat=_repeatChecked;
+  const repeat=!!window._repeatChecked;
   if(!nome){showToast('Informe a descrição','#ef4444');return}
   if(!valor||valor<=0){showToast('Informe um valor válido','#ef4444');return}
   if(!data){showToast('Informe a data','#ef4444');return}
@@ -468,7 +468,8 @@ window.saveItem=function(){
   const parcVal=parseFloat((valor/parc).toFixed(2));
   const groupId='grp-'+Date.now();
 
-  // Se repeat=true e item único: salva como template (sem monthKey) + cria cópia do mês atual
+  // Se repeat=true e item único: salva apenas o template (sem monthKey)
+  // processMonthlyRepeats vai gerar a cópia a partir do próximo mês ao entrar
   if(repeat && parc===1){
     const templateId=`tpl-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
     const template={
@@ -479,23 +480,9 @@ window.saveItem=function(){
       isTemplate:true,
       ...(venc?{vencimento:venc}:{})
     };
-    // Cria já a cópia do mês atual
-    const today=new Date();
-    const thisKey=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
-    const[,, origDay]=data.split('-');
-    const copyData=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${origDay||'01'}`;
-    let copyVenc='';
-    if(venc){const[,,vDay]=venc.split('-');copyVenc=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${vDay||'01'}`;}
-    const copy={
-      id:`${Date.now()}-rep-${Math.random().toString(36).slice(2,6)}`,
-      nome,valor,data:copyData,categoria,
-      pago:false,monthKey:thisKey,
-      repeatOrigin:templateId,repeat:false,
-      ...(copyVenc?{vencimento:copyVenc}:{})
-    };
-    all.push(template,copy);
+    all.push(template);
     saveData(all);window.closeModal();render();
-    showToast('Salvo ↻ repete mensalmente ✓','#6366f1');
+    showToast('Salvo ↻ vai repetir a partir do próximo mês ✓','#6366f1');
     return;
   }
 
