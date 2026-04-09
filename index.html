@@ -34,7 +34,7 @@ function getData(){try{return JSON.parse(localStorage.getItem('fpro_v2')||'[]')}
 function saveData(d){localStorage.setItem('fpro_v2',JSON.stringify(d));scheduleSync()}
 function fmt(v){return'R$ '+parseFloat(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2})}
 function fmtDate(iso){if(!iso)return'';const[y,m,d]=iso.split('-');return`${d}/${m}/${y}`}
-function getMonthItems(){const k=`${curYear}-${String(curMonth+1).padStart(2,'0')}`;return getData().filter(i=>i.monthKey===k)}
+function getMonthItems(){const k=`${curYear}-${String(curMonth+1).padStart(2,'0')}`;return getData().filter(i=>i.monthKey===k&&!i.isTemplate)}
 function getFilteredItems(){
   let items=getMonthItems();
   if(activeFilter!=='all')items=items.filter(i=>i.categoria===activeFilter);
@@ -98,10 +98,10 @@ function processMonthlyRepeats(){
   const templates=all.filter(i=>i.repeat===true);
 
   templates.forEach(template=>{
-    // Verifica se já existe item deste template para o mês atual
+    // Verifica se já existe cópia deste template para o mês atual
     const alreadyExists=all.some(x=>
       x.monthKey===thisKey &&
-      (x.id===template.id || x.repeatOrigin===template.id)
+      x.repeatOrigin===template.id
     );
     if(alreadyExists)return;
 
@@ -411,6 +411,37 @@ window.saveItem=function(){
   const parcVal=parseFloat((valor/parc).toFixed(2));
   const groupId='grp-'+Date.now();
 
+  // Se repeat=true e item único: salva como template (sem monthKey) + cria cópia do mês atual
+  if(repeat && parc===1){
+    const templateId=`tpl-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+    const template={
+      id:templateId,
+      nome,valor,data,categoria,
+      pago:false,
+      repeat:true,
+      isTemplate:true,
+      ...(venc?{vencimento:venc}:{})
+    };
+    // Cria já a cópia do mês atual
+    const today=new Date();
+    const thisKey=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+    const[,, origDay]=data.split('-');
+    const copyData=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${origDay||'01'}`;
+    let copyVenc='';
+    if(venc){const[,,vDay]=venc.split('-');copyVenc=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${vDay||'01'}`;}
+    const copy={
+      id:`${Date.now()}-rep-${Math.random().toString(36).slice(2,6)}`,
+      nome,valor,data:copyData,categoria,
+      pago:false,monthKey:thisKey,
+      repeatOrigin:templateId,repeat:false,
+      ...(copyVenc?{vencimento:copyVenc}:{})
+    };
+    all.push(template,copy);
+    saveData(all);window.closeModal();render();
+    showToast('Salvo ↻ repete mensalmente ✓','#6366f1');
+    return;
+  }
+
   for(let p=0;p<parc;p++){
     const d=new Date(baseDate);d.setMonth(d.getMonth()+p);
     const y=d.getFullYear(),m=d.getMonth();
@@ -423,13 +454,13 @@ window.saveItem=function(){
       valor:p===parc-1?parseFloat((valor-(parcVal*(parc-1))).toFixed(2)):parcVal,
       data:`${y}-${mStr}-${dayStr}`,
       categoria:cat,pago:false,monthKey:`${y}-${mStr}`,
-      repeat:parc===1?repeat:false,
+      repeat:false,
       ...(parc>1?{groupId,parcelNum:p+1,totalParcelas:parc}:{}),
       ...(vencStr?{vencimento:vencStr}:{})
     });
   }
   saveData(all);window.closeModal();render();
-  showToast(parc>1?`${parc} parcelas criadas ✓`:`Salvo${repeat?' (↻ repete mensalmente)':''} ✓`);
+  showToast(parc>1?`${parc} parcelas criadas ✓`:'Salvo ✓');
 }
 
 window.togglePago=function(id){
