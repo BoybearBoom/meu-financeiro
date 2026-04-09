@@ -142,6 +142,20 @@ function processMonthlyRepeats(){
 function loadNotifSetting(){notifsEnabled=localStorage.getItem('fpro_notifs')==='1';}
 function saveNotifSetting(v){notifsEnabled=v;localStorage.setItem('fpro_notifs',v?'1':'0');}
 
+async function sendNotif(title,body,tag){
+  if('serviceWorker' in navigator){
+    try{
+      const reg=await navigator.serviceWorker.getRegistration();
+      if(reg&&reg.showNotification){
+        await reg.showNotification(title,{body,icon:'icon-192.png',tag:tag||'fpro',renotify:true});
+        return;
+      }
+    }catch(e){}
+  }
+  try{new Notification(title,{body,icon:'icon-192.png',tag:tag||'fpro',renotify:true});}
+  catch(e){console.log('Notif error:',e);}
+}
+
 async function toggleNotifications(){
   if(!notifsEnabled){
     if(!('Notification' in window)){showToast('Seu dispositivo não suporta notificações','#ef4444');return;}
@@ -150,8 +164,7 @@ async function toggleNotifications(){
       saveNotifSetting(true);
       updateMenu();
       showToast('Notificações ativadas! 🔔','#4ade80');
-      // Envia notificação de teste
-      new Notification('FinancesPro 🔔',{body:'Notificações ativadas! Você será avisado sobre vencimentos.',icon:'icon-192.png'});
+      await sendNotif('FinancesPro 🔔','Notificações ativadas! Você será avisado sobre vencimentos.','fpro-test');
       checkDueAlerts();
     }else{
       showToast('Permissão negada. Ative nas configurações do celular.','#ef4444');
@@ -164,33 +177,29 @@ async function toggleNotifications(){
 }
 window.toggleNotifications=toggleNotifications;
 
-function checkDueAlerts(){
+async function checkDueAlerts(){
   if(!notifsEnabled||!('Notification' in window)||Notification.permission!=='granted')return;
   const today=new Date();today.setHours(0,0,0,0);
   const alerted=JSON.parse(localStorage.getItem('fpro_alerted')||'{}');
   const todayStr=today.toISOString().split('T')[0];
-  const newAlerted={};
 
-  getData().filter(i=>!i.pago&&i.vencimento).forEach(i=>{
+  for(const i of getData().filter(i=>!i.pago&&i.vencimento)){
     const v=new Date(i.vencimento+'T00:00:00');
     const diff=Math.round((v-today)/86400000);
-    // Alerta para: vencida, vence hoje, amanhã, ou em 3 dias
     if(diff<=3){
       const alertKey=`${i.id}-${todayStr}`;
-      newAlerted[alertKey]=true;
       if(!alerted[alertKey]){
         let msg='';
-        if(diff<0)msg=`⚠️ VENCIDA há ${Math.abs(diff)} dia(s): ${i.nome} (${fmt(i.valor)})`;
-        else if(diff===0)msg=`🔴 Vence HOJE: ${i.nome} (${fmt(i.valor)})`;
-        else if(diff===1)msg=`🟡 Vence amanhã: ${i.nome} (${fmt(i.valor)})`;
-        else msg=`🔔 Vence em ${diff} dias: ${i.nome} (${fmt(i.valor)})`;
-        try{new Notification('FinancesPro',{body:msg,icon:'icon-192.png',tag:alertKey,renotify:true});}
-        catch(e){console.log('Notif error:',e);}
+        if(diff<0) msg=`⚠️ VENCIDA há ${Math.abs(diff)} dia(s): ${i.nome} (${fmt(i.valor)})`;
+        else if(diff===0) msg=`🔴 Vence HOJE: ${i.nome} (${fmt(i.valor)})`;
+        else if(diff===1) msg=`🟡 Vence amanhã: ${i.nome} (${fmt(i.valor)})`;
+        else               msg=`🔔 Vence em ${diff} dias: ${i.nome} (${fmt(i.valor)})`;
+        await sendNotif('FinancesPro',msg,alertKey);
+        alerted[alertKey]=true;
+        localStorage.setItem('fpro_alerted',JSON.stringify(alerted));
       }
     }
-  });
-  // Salva quais alertas já foram enviados hoje
-  localStorage.setItem('fpro_alerted',JSON.stringify(newAlerted));
+  }
 }
 
 // ── Menu ──
@@ -807,10 +816,8 @@ select option{background:#1e293b;color:#e2e8f0}
           <p class="text-slate-300 text-sm font-semibold">↻ Repetir mensalmente</p>
           <p class="text-slate-500 text-xs mt-0.5">Lança automaticamente todo mês ao entrar</p>
         </div>
-        <label style="cursor:pointer">
-          <input type="checkbox" id="inputRepeat" style="display:none!important;width:0!important;height:0!important;padding:0!important;border:none!important" onchange="document.getElementById('toggleRepeat').className='toggle'+(this.checked?' on':'')"/>
-          <div id="toggleRepeat" class="toggle" onclick="document.getElementById('inputRepeat').click()"></div>
-        </label>
+        <input type="checkbox" id="inputRepeat" style="display:none"/>
+        <div id="toggleRepeat" class="toggle" onclick="var cb=document.getElementById('inputRepeat');cb.checked=!cb.checked;this.className='toggle'+(cb.checked?' on':'');"></div>
       </div>
 
       <button onclick="saveItem()" class="btn-primary w-full py-3.5 rounded-xl font-bold text-sm" id="btnSalvar">Salvar Despesa</button>
