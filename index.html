@@ -17,7 +17,7 @@
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-const BUILD_VERSION='20260409102321';
+const BUILD_VERSION='20260409151441';
 
 const FC={apiKey:"AIzaSyCdoV1JyYL6Nkg7_yLcqjR47xZi2gT2irU",authDomain:"financespro-8a4f9.firebaseapp.com",projectId:"financespro-8a4f9",storageBucket:"financespro-8a4f9.firebasestorage.app",messagingSenderId:"367204094477",appId:"1:367204094477:web:233b576c8a214dfd36fb44"};
 const app=initializeApp(FC);
@@ -444,22 +444,10 @@ window.exportPDF=function(){
 }
 
 if('serviceWorker' in navigator){
-  window.addEventListener('load',async()=>{
-    try{
-      const reg=await navigator.serviceWorker.register('./sw.js?v='+BUILD_VERSION,{scope:'/meu-financeiro/'});
-      // Detecta nova versão disponível e recarrega automaticamente
-      reg.addEventListener('updatefound',()=>{
-        const newSW=reg.installing;
-        newSW.addEventListener('statechange',()=>{
-          if(newSW.state==='activated'&&navigator.serviceWorker.controller){
-            showToast('App atualizado! ✨','#4ade80');
-            setTimeout(()=>location.reload(),1500);
-          }
-        });
-      });
-      // Força verificação de update a cada vez que abre
-      if(reg.active)reg.update();
-    }catch(e){}
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js',{scope:'/meu-financeiro/'})
+      .then(reg=>{ if(reg.active) reg.update(); })
+      .catch(()=>{});
   });
 }
 </script>
