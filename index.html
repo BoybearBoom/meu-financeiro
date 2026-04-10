@@ -17,7 +17,7 @@
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-const BUILD_VERSION='20260409151441';
+const BUILD_VERSION='20260410072240';
 
 const FC={apiKey:"AIzaSyCdoV1JyYL6Nkg7_yLcqjR47xZi2gT2irU",authDomain:"financespro-8a4f9.firebaseapp.com",projectId:"financespro-8a4f9",storageBucket:"financespro-8a4f9.firebasestorage.app",messagingSenderId:"367204094477",appId:"1:367204094477:web:233b576c8a214dfd36fb44"};
 const app=initializeApp(FC);
@@ -85,6 +85,51 @@ async function loadFromCloud(){
   }catch(e){console.log('Cloud load error:',e);}
 }
 
+
+// ── Recorrentes ──
+function processRecurring(){
+  const all=getData();
+  const today=new Date();
+  const thisKey=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
+  // Mês anterior
+  const prevDate=new Date(today.getFullYear(),today.getMonth()-1,1);
+  const prevKey=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
+
+  const prevRecurring=all.filter(i=>i.monthKey===prevKey&&i.recorrente===true);
+  const newItems=[];
+
+  prevRecurring.forEach(src=>{
+    // Já existe no mês atual? (mesmo nome + categoria + recorrente)
+    const exists=all.some(i=>
+      i.monthKey===thisKey&&
+      i.recorrente===true&&
+      i.nome===src.nome&&
+      i.categoria===src.categoria
+    );
+    if(exists)return;
+    // Mantém o mesmo dia do mês
+    const[,, day]=src.data.split('-');
+    const newData=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${day||'01'}`;
+    let newVenc='';
+    if(src.vencimento){
+      const[,,vDay]=src.vencimento.split('-');
+      newVenc=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${vDay||'01'}`;
+    }
+    newItems.push({
+      id:`${Date.now()}-rec-${Math.random().toString(36).slice(2,6)}`,
+      nome:src.nome,valor:src.valor,data:newData,
+      categoria:src.categoria,pago:false,
+      monthKey:thisKey,recorrente:true,
+      ...(newVenc?{vencimento:newVenc}:{})
+    });
+  });
+
+  if(newItems.length>0){
+    localStorage.setItem('fpro_v2',JSON.stringify([...all,...newItems]));
+    scheduleSync();
+    showToast(`${newItems.length} gasto(s) recorrente(s) lançado(s) ↻`,'#6366f1');
+  }
+}
 
 // ── Notificações (CORRIGIDO) ──
 function loadNotifSetting(){notifsEnabled=localStorage.getItem('fpro_notifs')==='1';}
@@ -186,6 +231,7 @@ onAuthStateChanged(auth,user=>{
     document.getElementById('userDisplayName').textContent=user.displayName||user.email.split('@')[0];
     loadNotifSetting();
     loadFromCloud().then(()=>{
+      processRecurring();
       render();
       setTimeout(checkDueAlerts,4000);
     });
@@ -201,6 +247,20 @@ window.doLogin=async function(){
   setAL(true);
   try{await signInWithEmailAndPassword(auth,(u.includes('@')?u:u+'@financespro.app'),p);showToast('Bem-vindo! 👋');}
   catch{showToast('Usuário ou senha incorretos','#ef4444');}
+  finally{setAL(false);}
+}
+window.doForgotPassword=async function(){
+  const u=document.getElementById('loginUser').value.trim();
+  if(!u){showToast('Digite seu usuário primeiro','#ef4444');return;}
+  const email=u.includes('@')?u:u+'@financespro.app';
+  setAL(true);
+  try{
+    const{sendPasswordResetEmail}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    await sendPasswordResetEmail(auth,email);
+    showToast('E-mail de redefinição enviado! Verifique sua caixa.','#4ade80');
+  }catch(e){
+    showToast('Não foi possível enviar. Verifique o usuário.','#ef4444');
+  }
   finally{setAL(false);}
 }
 window.doRegister=async function(){
@@ -266,7 +326,7 @@ function render(){
     el.innerHTML=`<div class="empty-state"><div style="font-size:44px;margin-bottom:10px">${searchQuery||activeFilter!=='all'?'🔍':'📭'}</div><p class="text-slate-400 text-sm">${searchQuery||activeFilter!=='all'?'Nenhum resultado':'Nenhuma despesa cadastrada'}</p></div>`;
     return;
   }
-  const sorted=[...items].sort((a,b)=>a.data>b.data?1:-1);
+  const sorted=[...items].sort((a,b)=>b.data>a.data?1:-1);
   el.innerHTML=sorted.map(item=>{
     const icon=CATS[item.categoria]||'💸';
     const isSel=selected.has(item.id);
@@ -280,6 +340,7 @@ function render(){
       <div class="flex-1 min-w-0"${selectMode?` onclick="toggleSelect('${item.id}')" style="cursor:pointer"`:''}>
         <div class="flex items-center gap-1.5">
           <p class="text-slate-200 text-sm font-medium truncate">${item.nome}</p>
+          ${item.recorrente?'<span style="font-size:9px;background:rgba(99,102,241,0.18);color:#a5b4fc;padding:1px 6px;border-radius:8px;font-weight:700;flex-shrink:0">↻</span>':''}
         </div>
         <p class="text-slate-500 text-xs mt-0.5">${item.categoria}${item.vencimento?' · Venc: <span style="color:'+(isOverdue?'#f87171':isDueSoon?'#fbbf24':'#94a3b8')+'">'+fmtDate(item.vencimento)+'</span>':' · '+fmtDate(item.data)}</p>
         ${isOverdue?'<p style="font-size:10px;color:#ef4444;font-weight:700;margin-top:1px">⚠️ VENCIDA</p>':''}
@@ -306,6 +367,16 @@ window.changeMonth=function(dir){
   render();
 }
 
+// ── Recorrente checkbox ──
+window._recorrente=false;
+window.toggleRecorrente=function(){
+  window._recorrente=!window._recorrente;
+  const box=document.getElementById('recCheckbox');
+  const icon=document.getElementById('recCheckIcon');
+  if(box){box.style.background=window._recorrente?'#6366f1':'transparent';box.style.borderColor=window._recorrente?'#6366f1':'rgba(148,163,184,0.35)';}
+  if(icon)icon.style.display=window._recorrente?'block':'none';
+};
+
 // ── Modal ──
 window.openModal=function(editId){
   const item=editId?getData().find(x=>x.id===editId):null;
@@ -319,6 +390,12 @@ window.openModal=function(editId){
   document.getElementById('parcelasGrp').style.display=item?'none':'';
   document.getElementById('modalTitle').textContent=item?'Editar Despesa':'Nova Despesa';
   document.getElementById('btnSalvar').textContent=item?'Salvar Alterações':'Salvar Despesa';
+  const isRec=item?!!item.recorrente:false;
+  const recBox=document.getElementById('recCheckbox');
+  const recIcon=document.getElementById('recCheckIcon');
+  window._recorrente=isRec;
+  if(recBox){recBox.style.background=isRec?'#6366f1':'transparent';recBox.style.borderColor=isRec?'#6366f1':'rgba(148,163,184,0.35)';}
+  if(recIcon)recIcon.style.display=isRec?'block':'none';
   document.getElementById('modalOverlay').style.display='flex';
   setTimeout(()=>document.getElementById('inputNome').focus(),300);
 }
@@ -332,6 +409,7 @@ window.saveItem=function(){
   const venc=document.getElementById('inputVencimento').value;
   const cat=document.getElementById('inputCategoria').value;
   const editId=document.getElementById('editId').value;
+  const recorrente=!!window._recorrente;
   if(!nome){showToast('Informe a descrição','#ef4444');return}
   if(!valor||valor<=0){showToast('Informe um valor válido','#ef4444');return}
   if(!data){showToast('Informe a data','#ef4444');return}
@@ -341,6 +419,7 @@ window.saveItem=function(){
     const idx=all.findIndex(x=>x.id===editId);
     if(idx<0){saveData(all);window.closeModal();render();return;}
     all[idx].nome=nome;all[idx].valor=valor;all[idx].data=data;all[idx].categoria=cat;
+    all[idx].recorrente=recorrente;
     if(venc)all[idx].vencimento=venc; else delete all[idx].vencimento;
     const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;
     saveData(all);window.closeModal();render();showToast('Atualizado ✓');return;
@@ -363,6 +442,7 @@ window.saveItem=function(){
       valor:p===parc-1?parseFloat((valor-(parcVal*(parc-1))).toFixed(2)):parcVal,
       data:`${y}-${mStr}-${dayStr}`,
       categoria:cat,pago:false,monthKey:`${y}-${mStr}`,
+      recorrente:parc===1?recorrente:false,
       ...(parc>1?{groupId,parcelNum:p+1,totalParcelas:parc}:{}),
       ...(vencStr?{vencimento:vencStr}:{})
     });
@@ -539,7 +619,8 @@ select option{background:#1e293b;color:#e2e8f0}
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Senha</label>
         <input class="auth-input" type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
         <button onclick="doLogin()" class="auth-btn btn-primary" style="width:100%;padding:15px;border-radius:14px;font-size:16px;font-weight:700;margin-top:4px">Entrar</button>
-        <p style="text-align:center;color:#475569;font-size:13px;margin-top:4px">Não tem conta? <button onclick="showTab('register')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:13px;font-weight:600">Criar agora</button></p>
+        <p style="text-align:center;margin-top:8px"><button onclick="doForgotPassword()" style="background:none;border:none;color:#6366f1;cursor:pointer;font-size:13px;font-weight:500">Esqueci minha senha</button></p>
+        <p style="text-align:center;color:#475569;font-size:13px;margin-top:2px">Não tem conta? <button onclick="showTab('register')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:13px;font-weight:600">Criar agora</button></p>
       </div>
     </div>
     <div id="tabRegister" style="display:none">
@@ -745,6 +826,17 @@ select option{background:#1e293b;color:#e2e8f0}
           <option value="10">10x</option><option value="11">11x</option><option value="12">12x</option>
           <option value="15">15x</option><option value="18">18x</option><option value="24">24x</option>
         </select></div>
+      </div>
+
+      <!-- Checkbox Gasto Recorrente -->
+      <div class="flex items-center gap-3 p-3 rounded-xl" style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);cursor:pointer" onclick="toggleRecorrente()">
+        <div id="recCheckbox" style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(148,163,184,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;background:transparent">
+          <svg id="recCheckIcon" width="13" height="13" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24" style="display:none"><path d="M5 13l4 4L19 7"/></svg>
+        </div>
+        <div>
+          <p class="text-slate-300 text-sm font-semibold">↻ Gasto Recorrente</p>
+          <p class="text-slate-500 text-xs mt-0.5">Lança automaticamente todo mês</p>
+        </div>
       </div>
 
       <button onclick="saveItem()" class="btn-primary w-full py-3.5 rounded-xl font-bold text-sm" id="btnSalvar">Salvar Despesa</button>
