@@ -17,7 +17,7 @@
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-const BUILD_VERSION='20260410090444';
+const BUILD_VERSION='20260410203519';
 
 const FC={apiKey:"AIzaSyCdoV1JyYL6Nkg7_yLcqjR47xZi2gT2irU",authDomain:"financespro-8a4f9.firebaseapp.com",projectId:"financespro-8a4f9",storageBucket:"financespro-8a4f9.firebasestorage.app",messagingSenderId:"367204094477",appId:"1:367204094477:web:233b576c8a214dfd36fb44"};
 const app=initializeApp(FC);
@@ -29,6 +29,24 @@ const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Ago
 let curDate=new Date(),curYear=curDate.getFullYear(),curMonth=curDate.getMonth();
 let selectMode=false,selected=new Set(),currentUser=null,syncTimer=null;
 let activeFilter='all',searchQuery='',notifsEnabled=false;
+
+// ── Cartões ──
+function getCartoes(){try{return JSON.parse(localStorage.getItem('fpro_cartoes')||'[]')}catch{return[]}}
+function saveCartoes(c){localStorage.setItem('fpro_cartoes',JSON.stringify(c));scheduleSync();}
+// Retorna o dia de fechamento de um cartão pelo nome, ou null
+function getFechamento(nomeCartao){const c=getCartoes().find(x=>x.nome===nomeCartao);return c?c.fechamento:null;}
+// Dado data da compra e dia de fechamento, retorna monthKey correto
+function monthKeyParaCartao(dataStr,fechamento){
+  const[y,m,d]=dataStr.split('-').map(Number);
+  if(d>=fechamento){
+    // passa para o mês seguinte
+    const next=new Date(y,m,1); // m já é 0-based aqui? Não — vem do split, é 1-based
+    const nextDate=new Date(y,m,1); // month(m) em Date é 0-based, mas m do split é 1-based
+    // Correto: new Date(y, m-1+1, 1) = new Date(y, m, 1)
+    return`${nextDate.getFullYear()}-${String(nextDate.getMonth()+1).padStart(2,'0')}`;
+  }
+  return`${String(y)}-${String(m).padStart(2,'0')}`;
+}
 
 // ── Storage ──
 function getData(){try{return JSON.parse(localStorage.getItem('fpro_v2')||'[]')}catch{return[]}}
@@ -220,6 +238,7 @@ window.menuAction=function(action){
     else if(action==='select')window.toggleSelectMode();
     else if(action==='notifs')toggleNotifications();
     else if(action==='profile')window.openProfileModal();
+    else if(action==='cartoes')window.openCartoesModal();
     else if(action==='logout')window.doLogout();
   },200);
 }
@@ -352,7 +371,7 @@ function render(){
           <p class="text-slate-200 text-sm font-medium truncate">${item.nome}</p>
           ${item.recorrente?'<span style="font-size:9px;background:rgba(99,102,241,0.18);color:#a5b4fc;padding:1px 6px;border-radius:8px;font-weight:700;flex-shrink:0">↻</span>':''}
         </div>
-        <p class="text-slate-500 text-xs mt-0.5">${item.categoria}${item.vencimento?' · Venc: <span style="color:'+(isOverdue?'#f87171':isDueSoon?'#fbbf24':'#94a3b8')+'">'+fmtDate(item.vencimento)+'</span>':' · '+fmtDate(item.data)}</p>
+        <p class="text-slate-500 text-xs mt-0.5">${item.cartaoNome?item.cartaoNome:item.categoria}${item.vencimento?' · Venc: <span style="color:'+(isOverdue?'#f87171':isDueSoon?'#fbbf24':'#94a3b8')+'">'+fmtDate(item.vencimento)+'</span>':' · '+fmtDate(item.data)}</p>
         ${isOverdue?'<p style="font-size:10px;color:#ef4444;font-weight:700;margin-top:1px">⚠️ VENCIDA</p>':''}
         ${isDueSoon?'<p style="font-size:10px;color:#f59e0b;font-weight:700;margin-top:1px">⏰ Vence em breve</p>':''}
       </div>
@@ -379,7 +398,7 @@ window.changeMonth=function(dir){
 
 // ── Profile Modal ──
 window.openProfileModal=function(){
-  document.getElementById('profileEmail').textContent=currentUser?currentUser.email:'';
+  document.getElementById('profileEmail').value=currentUser?currentUser.email:'';
   document.getElementById('profileName').value=currentUser?(currentUser.displayName||''):'';
   document.getElementById('profilePass').value='';
   document.getElementById('profilePass2').value='';
@@ -389,15 +408,20 @@ window.closeProfileModal=function(){document.getElementById('profileOverlay').st
 window.closeProfileOutside=function(e){if(e.target===document.getElementById('profileOverlay'))window.closeProfileModal();}
 window.saveProfile=async function(){
   const name=document.getElementById('profileName').value.trim();
+  const email=document.getElementById('profileEmail').value.trim();
   const pass=document.getElementById('profilePass').value;
   const pass2=document.getElementById('profilePass2').value;
   if(!name){showToast('Informe o nome de exibição','#ef4444');return;}
+  if(!email||!email.includes('@')){showToast('Informe um e-mail válido','#ef4444');return;}
   if(pass&&pass.length<6){showToast('Senha mín. 6 caracteres','#ef4444');return;}
   if(pass&&pass!==pass2){showToast('Senhas não coincidem','#ef4444');return;}
   try{
-    const{updateProfile:up,updatePassword:upw,reauthenticateWithCredential,EmailAuthProvider}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    const{updateProfile:up,updatePassword:upw,updateEmail:ue}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
     await up(currentUser,{displayName:name});
     document.getElementById('userDisplayName').textContent=name;
+    if(email!==currentUser.email){
+      await ue(currentUser,email);
+    }
     if(pass){
       await upw(currentUser,pass);
     }
@@ -406,7 +430,9 @@ window.saveProfile=async function(){
     showToast('Perfil atualizado ✓','#4ade80');
   }catch(e){
     if(e.code==='auth/requires-recent-login'){
-      showToast('Faça login novamente para alterar a senha','#ef4444');
+      showToast('Faça login novamente para alterar e-mail ou senha','#ef4444');
+    }else if(e.code==='auth/email-already-in-use'){
+      showToast('Este e-mail já está em uso','#ef4444');
     }else{
       showToast('Erro ao salvar: '+e.message,'#ef4444');
     }
@@ -423,6 +449,91 @@ window.toggleRecorrente=function(){
   if(icon)icon.style.display=window._recorrente?'block':'none';
 };
 
+// ── Cartões Modal ──
+window.updateCartaoSelect=function(cat, selectedNome){
+  const grp=document.getElementById('cartaoSelectGrp');
+  const sel=document.getElementById('inputCartaoNome');
+  if(!grp||!sel)return;
+  if(cat==='Cartão'){
+    const cartoes=getCartoes();
+    sel.innerHTML=cartoes.length
+      ?cartoes.map(c=>`<option value="${c.nome}"${c.nome===selectedNome?' selected':''}>${c.icone||'💳'} ${c.nome} (fecha dia ${c.fechamento})</option>`).join('')
+      :'<option value="">Nenhum cartão cadastrado</option>';
+    grp.style.display='block';
+  }else{
+    grp.style.display='none';
+  }
+};
+
+window.openCartoesModal=function(){
+  renderCartoesList();
+  document.getElementById('cartoesOverlay').style.display='flex';
+};
+window.closeCartoesModal=function(){document.getElementById('cartoesOverlay').style.display='none';}
+window.closeCartoesOutside=function(e){if(e.target===document.getElementById('cartoesOverlay'))window.closeCartoesModal();}
+
+function renderCartoesList(){
+  const cartoes=getCartoes();
+  const el=document.getElementById('cartoesList');
+  if(!cartoes.length){
+    el.innerHTML='<p style="color:#475569;font-size:13px;text-align:center;padding:20px 0">Nenhum cartão cadastrado</p>';
+    return;
+  }
+  el.innerHTML=cartoes.map((c,i)=>`
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(148,163,184,0.08)">
+      <div>
+        <p style="color:#e2e8f0;font-size:14px;font-weight:600">${c.icone||'💳'} ${c.nome}</p>
+        <p style="color:#475569;font-size:12px;margin-top:2px">Fechamento: dia ${c.fechamento}</p>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="editCartao(${i})" class="icon-btn edit-btn">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+        </button>
+        <button onclick="deleteCartao(${i})" style="width:30px;height:30px;border-radius:9px;background:rgba(239,68,68,0.1);color:#f87171;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+        </button>
+      </div>
+    </div>`).join('');
+}
+
+window.editCartao=function(idx){
+  const c=getCartoes()[idx];
+  document.getElementById('cartaoEditIdx').value=idx;
+  document.getElementById('inputCartaoNomeEdit').value=c.nome;
+  document.getElementById('inputCartaoFechamento').value=c.fechamento;
+  document.getElementById('inputCartaoIcone').value=c.icone||'💳';
+  document.getElementById('cartaoFormTitle').textContent='Editar Cartão';
+  document.getElementById('cartaoForm').style.display='block';
+};
+window.deleteCartao=function(idx){
+  if(!confirm('Remover este cartão?'))return;
+  const c=getCartoes();c.splice(idx,1);saveCartoes(c);renderCartoesList();showToast('Cartão removido','#ef4444');
+};
+window.novoCartao=function(){
+  document.getElementById('cartaoEditIdx').value='';
+  document.getElementById('inputCartaoNomeEdit').value='';
+  document.getElementById('inputCartaoFechamento').value='';
+  document.getElementById('inputCartaoIcone').value='💳';
+  document.getElementById('cartaoFormTitle').textContent='Novo Cartão';
+  document.getElementById('cartaoForm').style.display='block';
+};
+window.cancelCartaoForm=function(){document.getElementById('cartaoForm').style.display='none';};
+window.saveCartao=function(){
+  const nome=document.getElementById('inputCartaoNomeEdit').value.trim();
+  const fech=parseInt(document.getElementById('inputCartaoFechamento').value);
+  const icone=document.getElementById('inputCartaoIcone').value.trim()||'💳';
+  if(!nome){showToast('Informe o nome do cartão','#ef4444');return;}
+  if(!fech||fech<1||fech>31){showToast('Dia de fechamento inválido (1-31)','#ef4444');return;}
+  const cartoes=getCartoes();
+  const idx=document.getElementById('cartaoEditIdx').value;
+  if(idx!==''){cartoes[parseInt(idx)]={nome,fechamento:fech,icone};}
+  else{cartoes.push({nome,fechamento:fech,icone});}
+  saveCartoes(cartoes);
+  renderCartoesList();
+  document.getElementById('cartaoForm').style.display='none';
+  showToast('Cartão salvo ✓','#4ade80');
+};
+
 // ── Modal ──
 window.openModal=function(editId){
   const item=editId?getData().find(x=>x.id===editId):null;
@@ -432,6 +543,7 @@ window.openModal=function(editId){
   document.getElementById('inputData').value=item?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
   document.getElementById('inputVencimento').value=item&&item.vencimento?item.vencimento:'';
   document.getElementById('inputCategoria').value=item?item.categoria:'Moradia';
+  updateCartaoSelect(item?item.categoria:'Moradia', item?item.cartaoNome:'');
   document.getElementById('inputParcelas').value='1';
   document.getElementById('parcelasGrp').style.display=item?'none':'';
   document.getElementById('modalTitle').textContent=item?'Editar Despesa':'Nova Despesa';
@@ -454,6 +566,7 @@ window.saveItem=function(){
   const data=document.getElementById('inputData').value;
   const venc=document.getElementById('inputVencimento').value;
   const cat=document.getElementById('inputCategoria').value;
+  const cartaoNome=cat==='Cartão'?(document.getElementById('inputCartaoNome').value||''):'';
   const editId=document.getElementById('editId').value;
   const recorrente=!!window._recorrente;
   if(!nome){showToast('Informe a descrição','#ef4444');return}
@@ -466,8 +579,14 @@ window.saveItem=function(){
     if(idx<0){saveData(all);window.closeModal();render();return;}
     all[idx].nome=nome;all[idx].valor=valor;all[idx].data=data;all[idx].categoria=cat;
     all[idx].recorrente=recorrente;
+    if(cartaoNome)all[idx].cartaoNome=cartaoNome; else delete all[idx].cartaoNome;
     if(venc)all[idx].vencimento=venc; else delete all[idx].vencimento;
-    const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;
+    // Apply fechamento logic on edit
+    if(cat==='Cartão'&&cartaoNome){
+      const fech=getFechamento(cartaoNome);
+      if(fech)all[idx].monthKey=monthKeyParaCartao(data,fech);
+      else{const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;}
+    }else{const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;}
     saveData(all);window.closeModal();render();showToast('Atualizado ✓');return;
   }
 
@@ -476,19 +595,27 @@ window.saveItem=function(){
   const parcVal=parseFloat((valor/parc).toFixed(2));
   const groupId='grp-'+Date.now();
 
+  // Fechamento do cartão
+  const fechamento=cat==='Cartão'&&cartaoNome?getFechamento(cartaoNome):null;
+
   for(let p=0;p<parc;p++){
     const d=new Date(baseDate);d.setMonth(d.getMonth()+p);
     const y=d.getFullYear(),m=d.getMonth();
     const mStr=String(m+1).padStart(2,'0'),dayStr=String(d.getDate()).padStart(2,'0');
+    const itemDataStr=`${y}-${mStr}-${dayStr}`;
+    // monthKey: aplica regra de fechamento em cada parcela
+    let mKey=`${y}-${mStr}`;
+    if(fechamento){mKey=monthKeyParaCartao(itemDataStr,fechamento);}
     let vencStr='';
     if(venc){const vd=new Date(venc+'T12:00:00');vd.setMonth(vd.getMonth()+p);vencStr=`${vd.getFullYear()}-${String(vd.getMonth()+1).padStart(2,'0')}-${String(vd.getDate()).padStart(2,'0')}`;}
     all.push({
       id:`${Date.now()}-${p}-${Math.random().toString(36).slice(2,5)}`,
       nome:parc>1?`${nome} (${p+1}/${parc})`:nome,
       valor:p===parc-1?parseFloat((valor-(parcVal*(parc-1))).toFixed(2)):parcVal,
-      data:`${y}-${mStr}-${dayStr}`,
-      categoria:cat,pago:false,monthKey:`${y}-${mStr}`,
+      data:itemDataStr,
+      categoria:cat,pago:false,monthKey:mKey,
       recorrente:parc===1?recorrente:false,
+      ...(cartaoNome?{cartaoNome}:{}),
       ...(parc>1?{groupId,parcelNum:p+1,totalParcelas:parc}:{}),
       ...(vencStr?{vencimento:vencStr}:{})
     });
@@ -522,13 +649,42 @@ window.toggleSelectMode=function(){
   document.getElementById('selectBar').style.display=selectMode?'flex':'none';
   render();
 }
-window.toggleSelect=function(id){if(selected.has(id))selected.delete(id);else selected.add(id);render();}
+window.toggleSelect=function(id){
+  const all=getData();
+  const item=all.find(x=>x.id===id);
+  if(selected.has(id)){
+    // Deselect: remove this and all siblings of same group
+    if(item&&item.groupId){
+      all.filter(x=>x.groupId===item.groupId).forEach(x=>selected.delete(x.id));
+    }else{selected.delete(id);}
+  }else{
+    // Select: if parcelado, select all parcelas of the group at once
+    if(item&&item.groupId){
+      all.filter(x=>x.groupId===item.groupId).forEach(x=>selected.add(x.id));
+    }else{selected.add(id);}
+  }
+  render();
+}
 window.selectAll=function(){const it=getFilteredItems();if(selected.size===it.length)selected.clear();else it.forEach(i=>selected.add(i.id));render();}
 window.deleteSelected=function(){
   if(!selected.size){showToast('Nenhum selecionado','#ef4444');return}
-  if(!confirm(`Remover ${selected.size} item(ns)?`))return;
-  saveData(getData().filter(x=>!selected.has(x.id)));
-  selected.clear();window.toggleSelectMode();showToast('Removidos','#ef4444');
+  const all=getData();
+  // Expand selection: for any parcelado item selected, include all following parcelas of same group
+  const expanded=new Set(selected);
+  selected.forEach(id=>{
+    const item=all.find(x=>x.id===id);
+    if(item&&item.groupId){
+      all.filter(x=>x.groupId===item.groupId&&x.parcelNum>=item.parcelNum)
+         .forEach(x=>expanded.add(x.id));
+    }
+  });
+  const extra=expanded.size-selected.size;
+  const msg=extra>0
+    ?`Remover ${selected.size} item(ns) selecionado(s) + ${extra} parcela(s) seguinte(s) do mesmo grupo?`
+    :`Remover ${selected.size} item(ns)?`;
+  if(!confirm(msg))return;
+  saveData(all.filter(x=>!expanded.has(x.id)));
+  selected.clear();window.toggleSelectMode();showToast(`${expanded.size} item(ns) removido(s)`,'#ef4444');
 }
 
 window.exportPDF=function(){
@@ -798,6 +954,13 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
     <div style="height:8px"></div>
 
+    <div onclick="menuAction('cartoes')" class="menu-item">
+      <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
+        <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      </div>
+      <span>Gerenciar Cartões</span>
+    </div>
+
     <div onclick="menuAction('profile')" class="menu-item">
       <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
         <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
@@ -877,7 +1040,7 @@ select option{background:#1e293b;color:#e2e8f0}
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Categoria</label>
-        <select id="inputCategoria">
+        <select id="inputCategoria" onchange="updateCartaoSelect(this.value,'')">
           <option value="Moradia">🏠 Moradia</option><option value="Mercado">🛒 Mercado</option>
           <option value="Transporte">🚗 Transporte</option><option value="Lazer">🍕 Lazer</option>
           <option value="Cartão">💳 Cartão</option><option value="Saúde">🏥 Saúde</option>
@@ -885,12 +1048,19 @@ select option{background:#1e293b;color:#e2e8f0}
         </select></div>
         <div id="parcelasGrp"><label class="text-slate-400 text-xs block mb-1.5 ml-1">Parcelas</label>
         <select id="inputParcelas">
-          <option value="1">À vista</option><option value="2">2x</option><option value="3">3x</option>
+          <option value="1">1x / À vista</option><option value="2">2x</option><option value="3">3x</option>
           <option value="4">4x</option><option value="5">5x</option><option value="6">6x</option>
           <option value="7">7x</option><option value="8">8x</option><option value="9">9x</option>
           <option value="10">10x</option><option value="11">11x</option><option value="12">12x</option>
           <option value="15">15x</option><option value="18">18x</option><option value="24">24x</option>
         </select></div>
+      </div>
+
+      <!-- Cartão select -->
+      <div id="cartaoSelectGrp" style="display:none">
+        <label class="text-slate-400 text-xs block mb-1.5 ml-1">💳 Qual cartão?</label>
+        <select id="inputCartaoNome"></select>
+        <p class="text-slate-600 text-xs mt-1 ml-1">Compras a partir do fechamento vão para a fatura do mês seguinte</p>
       </div>
 
       <!-- Checkbox Gasto Recorrente -->
@@ -909,6 +1079,40 @@ select option{background:#1e293b;color:#e2e8f0}
   </div>
 </div>
 
+<!-- ══ CARTÕES MODAL ══ -->
+<div class="modal-overlay" id="cartoesOverlay" style="display:none" onclick="closeCartoesOutside(event)">
+  <div class="glass-modal modal-sheet animate-in">
+    <div class="modal-handle"></div>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-slate-100 font-bold text-lg">💳 Gerenciar Cartões</h2>
+      <button onclick="closeCartoesModal()" class="text-slate-500 p-1.5 rounded-lg" style="background:rgba(148,163,184,0.08)">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="cartoesList"></div>
+    <!-- Form novo/editar -->
+    <div id="cartaoForm" style="display:none;margin-top:16px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:14px;padding:14px">
+      <p id="cartaoFormTitle" class="text-slate-300 text-sm font-bold mb-3">Novo Cartão</p>
+      <input type="hidden" id="cartaoEditIdx"/>
+      <div class="space-y-3">
+        <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Nome do cartão</label>
+        <input type="text" id="inputCartaoNomeEdit" placeholder="Ex: Nubank, PicPay, Itaú..."/></div>
+        <div class="grid grid-cols-2 gap-3">
+          <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Dia de fechamento</label>
+          <input type="number" id="inputCartaoFechamento" placeholder="Ex: 3" min="1" max="31"/></div>
+          <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Ícone (emoji)</label>
+          <input type="text" id="inputCartaoIcone" placeholder="💳" maxlength="2"/></div>
+        </div>
+        <div class="flex gap-3">
+          <button onclick="cancelCartaoForm()" class="btn-secondary w-full py-2.5 rounded-xl text-sm font-bold">Cancelar</button>
+          <button onclick="saveCartao()" class="btn-primary w-full py-2.5 rounded-xl text-sm font-bold">Salvar</button>
+        </div>
+      </div>
+    </div>
+    <button onclick="novoCartao()" class="btn-primary w-full py-3 rounded-xl font-bold text-sm mt-4">+ Adicionar Cartão</button>
+  </div>
+</div>
+
 <!-- ══ PROFILE MODAL ══ -->
 <div class="modal-overlay" id="profileOverlay" style="display:none" onclick="closeProfileOutside(event)">
   <div class="glass-modal modal-sheet animate-in">
@@ -922,7 +1126,8 @@ select option{background:#1e293b;color:#e2e8f0}
     <div class="space-y-3">
       <div>
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">E-mail</label>
-        <div style="background:rgba(15,23,42,0.5);border:1px solid rgba(148,163,184,0.1);border-radius:10px;padding:11px 13px;color:#475569;font-size:15px" id="profileEmail"></div>
+        <input type="email" id="profileEmail" placeholder="seu@email.com" autocapitalize="none" autocorrect="off"/>
+        <p class="text-slate-600 text-xs mt-1 ml-1">Alterar o e-mail exige login recente</p>
       </div>
       <div>
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">Nome de exibição</label>
