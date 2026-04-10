@@ -17,7 +17,7 @@
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-const BUILD_VERSION='20260410203519';
+const BUILD_VERSION='20260410211159';
 
 const FC={apiKey:"AIzaSyCdoV1JyYL6Nkg7_yLcqjR47xZi2gT2irU",authDomain:"financespro-8a4f9.firebaseapp.com",projectId:"financespro-8a4f9",storageBucket:"financespro-8a4f9.firebasestorage.app",messagingSenderId:"367204094477",appId:"1:367204094477:web:233b576c8a214dfd36fb44"};
 const app=initializeApp(FC);
@@ -371,7 +371,7 @@ function render(){
           <p class="text-slate-200 text-sm font-medium truncate">${item.nome}</p>
           ${item.recorrente?'<span style="font-size:9px;background:rgba(99,102,241,0.18);color:#a5b4fc;padding:1px 6px;border-radius:8px;font-weight:700;flex-shrink:0">↻</span>':''}
         </div>
-        <p class="text-slate-500 text-xs mt-0.5">${item.cartaoNome?item.cartaoNome:item.categoria}${item.vencimento?' · Venc: <span style="color:'+(isOverdue?'#f87171':isDueSoon?'#fbbf24':'#94a3b8')+'">'+fmtDate(item.vencimento)+'</span>':' · '+fmtDate(item.data)}</p>
+        <p class="text-slate-500 text-xs mt-0.5">${item.cartaoNome?item.cartaoNome:item.categoria} · ${fmtDate(item.data)}${item.vencimento?' · Venc: <span style="color:'+(isOverdue?'#f87171':isDueSoon?'#fbbf24':'#94a3b8')+'">'+fmtDate(item.vencimento)+'</span>':''}</p>
         ${isOverdue?'<p style="font-size:10px;color:#ef4444;font-weight:700;margin-top:1px">⚠️ VENCIDA</p>':''}
         ${isDueSoon?'<p style="font-size:10px;color:#f59e0b;font-weight:700;margin-top:1px">⏰ Vence em breve</p>':''}
       </div>
