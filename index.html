@@ -905,13 +905,12 @@ function updatePBSStatus(mode) {
 
 // Atualiza o label de "último sync" no header
 function updatePBSSyncLabel() {
-  const el = document.getElementById('lastSyncLabel');
-  if (!el) return;
-  const d = new Date(_lastSyncAt);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  el.textContent = `Sync ${hh}:${mm}`;
-  el.style.display = 'inline';
+  // Atualiza apenas o status no menu (não exibe nada no header)
+  const pbsStatus = document.getElementById('menuPBSStatus');
+  if (pbsStatus && _lastSyncAt) {
+    const d = new Date(_lastSyncAt);
+    pbsStatus.textContent = `Último sync: ${d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`;
+  }
 }
 
 // Cancela o PBS nativo (chamado no logout ou se o usuário desativar)
@@ -931,6 +930,439 @@ async function unregisterPBS() {
 // Expõe para uso externo
 window._runPeriodicSync = runPeriodicSync;
 window._unregisterPBS   = unregisterPBS;
+
+// ── Sistema de Apelidos ──
+const ALIASES_DEFAULT = {
+  // Cartões
+  'roxo':'Nubank','roxinho':'Nubank','nubank':'Nubank',
+  'inter':'Inter','laranja':'Inter',
+  'itau':'Itaú','itaú':'Itaú',
+  'bradesco':'Bradesco',
+  'santander':'Santander','vermelho':'Santander',
+  'c6':'C6 Bank','c6bank':'C6 Bank',
+  'picpay':'PicPay',
+  'xp':'XP',
+  // Categorias
+  'rancho':'Mercado','feira':'Mercado','mercadinho':'Mercado','supermercado':'Mercado','compras':'Mercado',
+  'luz':'Moradia','energia':'Moradia','água':'Moradia','agua':'Moradia','aluguel':'Moradia','condomínio':'Moradia','condominio':'Moradia','internet':'Moradia',
+  'uber':'Transporte','99':'Transporte','gasolina':'Transporte','combustível':'Transporte','combustivel':'Transporte','ônibus':'Transporte','onibus':'Transporte','metrô':'Transporte','metro':'Transporte',
+  'farmácia':'Saúde','farmacia':'Saúde','remédio':'Saúde','remedio':'Saúde','médico':'Saúde','medico':'Saúde','consulta':'Saúde','dentista':'Saúde',
+  'netflix':'Assinaturas','spotify':'Assinaturas','amazon':'Assinaturas','prime':'Assinaturas','disney':'Assinaturas','hbo':'Assinaturas','max':'Assinaturas',
+  'academia':'Lazer','restaurante':'Lazer','lanche':'Lazer','pizza':'Lazer','cinema':'Lazer','bar':'Lazer',
+  'curso':'Investimentos','livro':'Investimentos','ação':'Investimentos','acao':'Investimentos','fundo':'Investimentos'
+};
+
+function getAliases() {
+  try { return JSON.parse(localStorage.getItem('fpro_aliases') || '{}'); } catch { return {}; }
+}
+function saveAliases(a) { localStorage.setItem('fpro_aliases', JSON.stringify(a)); }
+function getAllAliases() {
+  // Merge: defaults + cartões cadastrados + apelidos do usuário
+  const merged = { ...ALIASES_DEFAULT };
+  // Adiciona nomes de cartões cadastrados como apelidos de si mesmos
+  getCartoes().forEach(c => { merged[c.nome.toLowerCase()] = c.nome; });
+  // Apelidos do usuário sobrescrevem os defaults
+  Object.assign(merged, getAliases());
+  return merged;
+}
+function buildAliasContext() {
+  const aliases = getAllAliases();
+  const cartoes = getCartoes().map(c => c.nome);
+  const lines = Object.entries(aliases).map(([k, v]) => `"${k}" → "${v}"`);
+  return `Apelidos conhecidos:\n${lines.join('\n')}\nCartões cadastrados: ${cartoes.join(', ') || 'nenhum'}`;
+}
+
+// Detecta possíveis novos apelidos no texto vs o que a IA retornou
+function detectarNovosApelidos(texto, itens) {
+  const aliases = getAllAliases();
+  const sugestoes = [];
+  const palavras = texto.toLowerCase().match(/\b[a-záàâãéêíóôõúçüñ]+\b/g) || [];
+
+  itens.forEach(item => {
+    // Sugestão de apelido para cartão
+    if (item.cartaoNome) {
+      palavras.forEach(p => {
+        if (
+          p.length >= 3 &&
+          !aliases[p] &&
+          !['no','na','do','da','de','em','um','uma','por','com','que','reais','real','paguei','gastei','comprei','foi','fiz'].includes(p) &&
+          item.cartaoNome.toLowerCase().includes(p) === false &&
+          texto.toLowerCase().includes(p)
+        ) {
+          // Heurística: palavra está perto de mencionar o cartão no texto?
+          const idx = texto.toLowerCase().indexOf(p);
+          const trecho = texto.toLowerCase().slice(Math.max(0, idx - 30), idx + 30);
+          if (trecho.includes(item.cartaoNome.toLowerCase()) ||
+              trecho.match(/cart[aã]o|nubank|inter|roxo|roxinho|visa|master/)) {
+            sugestoes.push({ apelido: p, valor: item.cartaoNome, tipo: 'cartão' });
+          }
+        }
+      });
+    }
+    // Sugestão de apelido para categoria
+    palavras.forEach(p => {
+      if (
+        p.length >= 4 &&
+        !aliases[p] &&
+        !['reais','real','paguei','gastei','comprei','parcelei','vezes','parcelas','hoje','semana','mês','mes'].includes(p)
+      ) {
+        const catMap = {
+          'Mercado': ['mercado','supermercado','rancho','feira','compras'],
+          'Moradia': ['aluguel','luz','água','condominio','internet'],
+          'Saúde': ['farmacia','remedio','medico','consulta','dentista'],
+          'Transporte': ['uber','gasolina','combustivel','onibus','metro'],
+          'Lazer': ['restaurante','pizza','cinema','academia','lanche'],
+          'Assinaturas': ['netflix','spotify','amazon','disney'],
+          'Investimentos': ['curso','livro','acao','fundo']
+        };
+        // Se a palavra aparece no texto e a IA mapeou para uma categoria, sugere
+        if (catMap[item.categoria] && texto.toLowerCase().includes(p)) {
+          const jaExiste = catMap[item.categoria].some(s => p.includes(s) || s.includes(p));
+          if (!jaExiste && p !== item.nome.toLowerCase()) {
+            sugestoes.push({ apelido: p, valor: item.categoria, tipo: 'categoria' });
+          }
+        }
+      }
+    });
+  });
+
+  // Deduplica
+  const vistos = new Set();
+  return sugestoes.filter(s => {
+    const k = s.apelido + s.valor;
+    if (vistos.has(k)) return false;
+    vistos.add(k); return true;
+  }).slice(0, 3); // máx 3 sugestões por vez
+}
+
+function mostrarSugestoesApelidos(sugestoes) {
+  if (!sugestoes.length) return;
+  const container = document.getElementById('aiAliasSuggestions');
+  if (!container) return;
+  container.innerHTML = `
+    <div style="background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.18);border-radius:12px;padding:12px 14px;margin-top:10px">
+      <p style="color:#a5b4fc;font-size:12px;font-weight:600;margin-bottom:8px">💡 Quer salvar esses apelidos?</p>
+      ${sugestoes.map((s, i) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="color:#94a3b8;font-size:12px">"<b style="color:#e2e8f0">${s.apelido}</b>" → ${s.tipo === 'cartão' ? '💳' : '🏷️'} <b style="color:#e2e8f0">${s.valor}</b></span>
+          <div style="display:flex;gap:6px">
+            <button onclick="salvarApelidoSugerido(${i})" style="font-size:11px;padding:3px 10px;border-radius:8px;background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;cursor:pointer;font-weight:600">Salvar</button>
+            <button onclick="ignorarApelidoSugerido(${i})" style="font-size:11px;padding:3px 8px;border-radius:8px;background:transparent;border:1px solid rgba(148,163,184,0.15);color:#475569;cursor:pointer">Não</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  container.style.display = 'block';
+  window._sugestoesAtivas = sugestoes;
+}
+
+window.salvarApelidoSugerido = function(i) {
+  const s = window._sugestoesAtivas[i];
+  if (!s) return;
+  const aliases = getAliases();
+  aliases[s.apelido] = s.valor;
+  saveAliases(aliases);
+  window._sugestoesAtivas.splice(i, 1);
+  mostrarSugestoesApelidos(window._sugestoesAtivas);
+  showToast(`Apelido "${s.apelido}" salvo ✓`, '#4ade80');
+};
+window.ignorarApelidoSugerido = function(i) {
+  window._sugestoesAtivas.splice(i, 1);
+  mostrarSugestoesApelidos(window._sugestoesAtivas);
+};
+
+// ── AI Modal ──
+let _aiItems = [];
+let _recognition = null;
+let _gravando = false;
+
+window.openAIModal = function() {
+  document.getElementById('aiModalOverlay').style.display = 'flex';
+  document.getElementById('aiResult').style.display = 'none';
+  document.getElementById('aiLoading').style.display = 'none';
+  document.getElementById('aiError').style.display = 'none';
+  document.getElementById('aiInput').value = '';
+  document.getElementById('aiExamples').style.display = 'block';
+  _aiItems = [];
+  setTimeout(() => document.getElementById('aiInput').focus(), 300);
+};
+window.closeAIModal = function() {
+  document.getElementById('aiModalOverlay').style.display = 'none';
+  pararGravacao();
+};
+window.closeAIModalOutside = function(e) {
+  if (e.target === document.getElementById('aiModalOverlay')) window.closeAIModal();
+};
+window.useExample = function(el) {
+  const txt = el.textContent.replace(/^💬\s*"|"$/g, '').trim();
+  document.getElementById('aiInput').value = txt;
+  document.getElementById('aiExamples').style.display = 'none';
+  document.getElementById('aiInput').focus();
+};
+
+// ── Speech Recognition ──
+window.toggleGravacao = function() {
+  if (_gravando) { pararGravacao(); return; }
+  iniciarGravacao();
+};
+
+function iniciarGravacao() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('Seu browser não suporta gravação de áudio', '#ef4444'); return; }
+  _recognition = new SR();
+  _recognition.lang = 'pt-BR';
+  _recognition.continuous = true;
+  _recognition.interimResults = true;
+  let transcrito = '';
+
+  _recognition.onstart = () => {
+    _gravando = true;
+    document.getElementById('btnGravar').style.background = 'rgba(239,68,68,0.25)';
+    document.getElementById('btnGravar').style.borderColor = 'rgba(239,68,68,0.5)';
+    document.getElementById('aiRecStatus').style.display = 'flex';
+  };
+  _recognition.onresult = (e) => {
+    let interim = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) transcrito += e.results[i][0].transcript + ' ';
+      else interim = e.results[i][0].transcript;
+    }
+    document.getElementById('aiInput').value = transcrito + interim;
+  };
+  _recognition.onerror = () => pararGravacao();
+  _recognition.onend = () => pararGravacao();
+  _recognition.start();
+}
+
+function pararGravacao() {
+  _gravando = false;
+  if (_recognition) { try { _recognition.stop(); } catch {} _recognition = null; }
+  const btn = document.getElementById('btnGravar');
+  if (btn) { btn.style.background = 'rgba(239,68,68,0.1)'; btn.style.borderColor = 'rgba(239,68,68,0.2)'; }
+  const st = document.getElementById('aiRecStatus');
+  if (st) st.style.display = 'none';
+}
+
+// ── Interpretar via Claude API ──
+window.interpretarTexto = async function() {
+  const texto = document.getElementById('aiInput').value.trim();
+  if (!texto) { showToast('Digite ou grave algo primeiro', '#ef4444'); return; }
+  pararGravacao();
+
+  document.getElementById('aiExamples').style.display = 'none';
+  document.getElementById('aiResult').style.display = 'none';
+  document.getElementById('aiError').style.display = 'none';
+  document.getElementById('aiLoading').style.display = 'block';
+  document.getElementById('btnInterpretar').disabled = true;
+
+  const aliasContext = buildAliasContext();
+  const hoje = new Date().toISOString().split('T')[0];
+
+  const prompt = `Você é um assistente financeiro. O usuário descreveu despesas em linguagem natural.
+Extraia TODAS as despesas mencionadas e retorne SOMENTE um JSON válido, sem texto adicional, sem markdown.
+
+${aliasContext}
+Data de hoje: ${hoje}
+Categorias disponíveis: Moradia, Mercado, Transporte, Lazer, Cartão, Saúde, Assinaturas, Investimentos
+
+Regras:
+- Use os apelidos acima para identificar cartões e categorias
+- Se o apelido mapear para um cartão, use categoria "Cartão" e coloque o nome exato do cartão em "cartaoNome"
+- Se o apelido mapear para uma categoria, use essa categoria
+- Se parcelado, coloque o número de parcelas em "parcelas" (inteiro)
+- "data" deve ser "${hoje}" salvo se o usuário mencionar outra data
+- "valor" é o valor TOTAL da compra (não por parcela)
+- "nome" deve ser curto e descritivo (máx 30 chars)
+
+Responda APENAS com este JSON (array):
+[{"nome":"...","valor":0.00,"data":"${hoje}","categoria":"...","parcelas":1,"cartaoNome":""}]
+
+Texto do usuário: "${texto}"`;
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content: prompt }]
+      })
+    });
+    const data = await res.json();
+    const raw = data.content.map(b => b.text || '').join('').trim();
+    const clean = raw.replace(/```json|```/g, '').trim();
+    _aiItems = JSON.parse(clean);
+    if (!Array.isArray(_aiItems) || !_aiItems.length) throw new Error('Nenhuma despesa identificada');
+    renderAIItems();
+    // Detecta e sugere novos apelidos
+    const sugestoes = detectarNovosApelidos(texto, _aiItems);
+    mostrarSugestoesApelidos(sugestoes);
+  } catch (e) {
+    document.getElementById('aiLoading').style.display = 'none';
+    document.getElementById('aiError').style.display = 'block';
+    document.getElementById('aiErrorMsg').textContent = 'Não consegui interpretar. Tente ser mais específico com valores e descrições.';
+    console.error('AI error:', e);
+  } finally {
+    document.getElementById('btnInterpretar').disabled = false;
+  }
+};
+
+function renderAIItems() {
+  document.getElementById('aiLoading').style.display = 'none';
+  document.getElementById('aiResult').style.display = 'block';
+  const list = document.getElementById('aiItemsList');
+  const CATS = {Moradia:'🏠',Mercado:'🛒',Transporte:'🚗',Lazer:'🍕',Cartão:'💳',Saúde:'🏥',Assinaturas:'🛡️',Investimentos:'💰'};
+  list.innerHTML = _aiItems.map((item, i) => {
+    const icon = CATS[item.categoria] || '💸';
+    const parcelaInfo = item.parcelas > 1 ? `<span style="font-size:10px;background:rgba(99,102,241,0.18);color:#a5b4fc;padding:1px 6px;border-radius:8px;font-weight:700">${item.parcelas}x</span>` : '';
+    const cartaoInfo = item.cartaoNome ? `<span style="font-size:10px;color:#818cf8"> · ${item.cartaoNome}</span>` : '';
+    return `<div class="ai-item-card">
+      <div class="flex items-center justify-between gap-2">
+        <div class="flex items-center gap-2.5 min-w-0">
+          <div style="width:36px;height:36px;border-radius:10px;background:rgba(148,163,184,0.08);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${icon}</div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <p class="text-slate-200 text-sm font-semibold">${item.nome}</p>
+              ${parcelaInfo}
+            </div>
+            <p class="text-slate-500 text-xs">${item.categoria}${cartaoInfo} · ${fmtDate(item.data)}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <p class="text-slate-200 text-sm font-bold">${fmt(item.valor)}</p>
+          <button onclick="removeAIItem(${i})" style="width:26px;height:26px;border-radius:8px;background:rgba(239,68,68,0.1);border:none;color:#f87171;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+window.removeAIItem = function(i) {
+  _aiItems.splice(i, 1);
+  if (!_aiItems.length) {
+    document.getElementById('aiResult').style.display = 'none';
+    return;
+  }
+  renderAIItems();
+};
+
+window.confirmarAIItems = function() {
+  if (!_aiItems.length) return;
+  const all = getData();
+  const hoje = new Date();
+  let adicionados = 0;
+
+  _aiItems.forEach(item => {
+    const parc = parseInt(item.parcelas) || 1;
+    const valor = parseFloat(item.valor) || 0;
+    const baseDate = new Date((item.data || hoje.toISOString().split('T')[0]) + 'T12:00:00');
+    const cat = item.categoria || 'Mercado';
+    const cartaoNome = cat === 'Cartão' ? (item.cartaoNome || '') : '';
+    const fechamento = cartaoNome ? getFechamento(cartaoNome) : null;
+    const parcVal = parseFloat((valor / parc).toFixed(2));
+    const groupId = parc > 1 ? 'grp-ai-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5) : null;
+
+    for (let p = 0; p < parc; p++) {
+      const d = new Date(baseDate);
+      d.setMonth(d.getMonth() + p);
+      const y = d.getFullYear(), m = d.getMonth();
+      const mStr = String(m + 1).padStart(2, '0'), dayStr = String(d.getDate()).padStart(2, '0');
+      const itemDataStr = `${y}-${mStr}-${dayStr}`;
+      let mKey = `${y}-${mStr}`;
+      if (fechamento) mKey = monthKeyParaCartao(itemDataStr, fechamento);
+
+      all.push({
+        id: `${Date.now()}-ai-${p}-${Math.random().toString(36).slice(2, 5)}`,
+        nome: parc > 1 ? `${item.nome} (${p + 1}/${parc})` : item.nome,
+        valor: p === parc - 1 ? parseFloat((valor - parcVal * (parc - 1)).toFixed(2)) : parcVal,
+        data: itemDataStr,
+        categoria: cat,
+        pago: false,
+        monthKey: mKey,
+        recorrente: false,
+        ...(cartaoNome ? { cartaoNome } : {}),
+        ...(parc > 1 ? { groupId, parcelNum: p + 1, totalParcelas: parc } : {})
+      });
+      adicionados++;
+    }
+  });
+
+  saveData(all);
+  window.closeAIModal();
+  render();
+  showToast(`${_aiItems.length} despesa(s) adicionada(s) ✓`, '#4ade80');
+  _aiItems = [];
+};
+
+// ── Aliases Modal ──
+window.openAliasesModal = function() {
+  renderAliasesList();
+  document.getElementById('aliasesOverlay').style.display = 'flex';
+};
+window.closeAliasesModal = function() {
+  document.getElementById('aliasesOverlay').style.display = 'none';
+};
+window.updateAliasValueOptions = function(tipo) {
+  const sel = document.getElementById('aliasValor');
+  if (tipo === 'cartao') {
+    const cartoes = getCartoes();
+    sel.innerHTML = cartoes.length
+      ? cartoes.map(c => `<option value="${c.nome}">${c.icone||'💳'} ${c.nome}</option>`).join('')
+      : '<option value="">Nenhum cartão cadastrado</option>';
+  } else {
+    sel.innerHTML = `
+      <option value="Mercado">🛒 Mercado</option>
+      <option value="Moradia">🏠 Moradia</option>
+      <option value="Transporte">🚗 Transporte</option>
+      <option value="Lazer">🍕 Lazer</option>
+      <option value="Saúde">🏥 Saúde</option>
+      <option value="Assinaturas">🛡️ Assinaturas</option>
+      <option value="Investimentos">💰 Investimentos</option>
+      <option value="Cartão">💳 Cartão (genérico)</option>`;
+  }
+};
+window.salvarNovoAlias = function() {
+  const apelido = document.getElementById('aliasInput').value.trim().toLowerCase();
+  const valor = document.getElementById('aliasValor').value;
+  if (!apelido) { showToast('Informe o apelido', '#ef4444'); return; }
+  if (!valor) { showToast('Selecione para onde mapeia', '#ef4444'); return; }
+  const aliases = getAliases();
+  aliases[apelido] = valor;
+  saveAliases(aliases);
+  document.getElementById('aliasInput').value = '';
+  renderAliasesList();
+  showToast(`"${apelido}" salvo ✓`, '#4ade80');
+};
+window.deletarAlias = function(apelido) {
+  const aliases = getAliases();
+  delete aliases[apelido];
+  saveAliases(aliases);
+  renderAliasesList();
+  showToast(`Apelido removido`, '#f59e0b');
+};
+function renderAliasesList() {
+  const userAliases = getAliases();
+  const el = document.getElementById('aliasesList');
+  if (!el) return;
+  const entries = Object.entries(userAliases);
+  if (!entries.length) {
+    el.innerHTML = '<p style="color:#475569;font-size:13px;text-align:center;padding:16px 0">Nenhum apelido personalizado ainda.<br><span style="font-size:11px">Os padrões (roxo→Nubank, rancho→Mercado...) já estão ativos.</span></p>';
+    return;
+  }
+  el.innerHTML = `<p class="text-slate-400 text-xs mb-2 ml-1">Seus apelidos (${entries.length})</p>` +
+    entries.map(([k, v]) => `
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(148,163,184,0.07)">
+        <div>
+          <span style="color:#e2e8f0;font-size:13px;font-weight:600">"${k}"</span>
+          <span style="color:#475569;font-size:12px;margin-left:6px">→ ${v}</span>
+        </div>
+        <button onclick="deletarAlias('${k}')" style="width:28px;height:28px;border-radius:8px;background:rgba(239,68,68,0.1);border:none;color:#f87171;cursor:pointer;display:flex;align-items:center;justify-content:center">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+        </button>
+      </div>`).join('');
+}
 
 // Inicia tudo ao carregar
 window.addEventListener('load', registerSWAndPBS);
@@ -1000,6 +1432,11 @@ select option{background:#1e293b;color:#e2e8f0}
 .icon-btn{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;transition:all .15s}
 .edit-btn{background:rgba(99,102,241,0.1);color:#818cf8}
 .edit-btn:active{transform:scale(0.88);background:rgba(99,102,241,0.22)}
+.ai-example-chip{background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.15);border-radius:10px;padding:8px 12px;color:#94a3b8;font-size:12px;cursor:pointer;transition:all .15s}
+.ai-example-chip:active{background:rgba(99,102,241,0.15);color:#a5b4fc}
+.ai-item-card{background:rgba(30,41,59,0.7);border:1px solid rgba(148,163,184,0.1);border-radius:12px;padding:12px 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 </style>
 </head>
 <body>
@@ -1057,10 +1494,7 @@ select option{background:#1e293b;color:#e2e8f0}
             <span id="syncDot" class="sync-dot" style="background:#475569" title="Status do sync"></span>
             <span id="pbsModeDot" class="sync-dot" style="display:none;width:6px;height:6px;border-radius:50%;flex-shrink:0"></span>
           </div>
-          <div class="flex items-center gap-1.5">
-            <p class="text-xs text-slate-500 leading-none mt-0.5">Olá, <span id="userDisplayName" class="text-violet-400 font-semibold"></span></p>
-            <span id="lastSyncLabel" style="display:none;font-size:10px;color:#475569;background:rgba(71,85,105,0.15);padding:1px 5px;border-radius:6px;font-weight:500"></span>
-          </div>
+          <p class="text-xs text-slate-500 leading-none mt-0.5">Olá, <span id="userDisplayName" class="text-violet-400 font-semibold"></span></p>
         </div>
       </div>
       <button onclick="openMenu()" class="btn-secondary px-2.5 py-2 rounded-xl shrink-0" title="Menu">
@@ -1084,13 +1518,19 @@ select option{background:#1e293b;color:#e2e8f0}
     <div class="card-violet p-3"><p class="text-violet-400 text-xs font-semibold mb-0.5">💳 Cartão Pend.</p><p class="text-violet-300 font-bold text-lg leading-tight" id="cardCartao">R$ 0,00</p></div>
   </div>
 
-  <!-- Progress -->
-  <div class="mx-3 mb-3 total-bar rounded-2xl px-4 py-2.5 flex items-center justify-between">
+  <!-- IA Assistant (substituiu a barra de progresso) -->
+  <div class="mx-3 mb-3 total-bar rounded-2xl px-4 py-2.5 flex items-center justify-between cursor-pointer" onclick="openAIModal()" style="transition:background .15s" onmouseenter="this.style.background='rgba(99,102,241,0.08)'" onmouseleave="this.style.background=''">
     <div class="flex items-center gap-2">
       <svg width="15" height="15" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M22 12a10 10 0 11-20 0 10 10 0 0120 0z"/></svg>
       <span class="text-slate-300 text-sm" id="progressLabel">0 de 0 pagas</span>
     </div>
-    <span class="text-violet-400 text-sm font-bold" id="progressPct">0%</span>
+    <div class="flex items-center gap-2">
+      <span class="text-violet-400 text-sm font-bold" id="progressPct">0%</span>
+      <div style="display:flex;align-items:center;gap:5px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.25);border-radius:10px;padding:3px 8px">
+        <svg width="13" height="13" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span style="font-size:11px;color:#a5b4fc;font-weight:600">IA</span>
+      </div>
+    </div>
   </div>
 
   <!-- Search -->
@@ -1372,6 +1812,133 @@ select option{background:#1e293b;color:#e2e8f0}
         <button onclick="saveProfile()" class="btn-primary w-full py-3 rounded-xl font-bold text-sm">Salvar</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ══ AI MODAL ══ -->
+<div class="modal-overlay" id="aiModalOverlay" style="display:none" onclick="closeAIModalOutside(event)">
+  <div class="glass-modal modal-sheet animate-in" style="max-height:88vh">
+    <div class="modal-handle"></div>
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <div style="width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,rgba(99,102,241,0.25),rgba(139,92,246,0.25));border:1px solid rgba(99,102,241,0.3);display:flex;align-items:center;justify-content:center">
+          <svg width="16" height="16" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        </div>
+        <div>
+          <h2 class="text-slate-100 font-bold text-base leading-tight">Assistente IA</h2>
+          <p class="text-slate-500 text-xs">Descreva suas despesas em linguagem natural</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <button onclick="openAliasesModal()" style="font-size:11px;padding:4px 10px;border-radius:9px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);color:#a5b4fc;cursor:pointer;font-weight:600">🏷️ Apelidos</button>
+        <button onclick="closeAIModal()" class="text-slate-500 p-1.5 rounded-lg" style="background:rgba(148,163,184,0.08)">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+
+    <!-- Exemplos -->
+    <div id="aiExamples" style="margin-bottom:14px">
+      <p class="text-slate-500 text-xs mb-2 ml-1">Exemplos do que você pode dizer:</p>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <div onclick="useExample(this)" class="ai-example-chip">💬 &quot;Fiz compras no mercado e gastei R$ 200&quot;</div>
+        <div onclick="useExample(this)" class="ai-example-chip">💬 &quot;Comprei chocolate no cartão Nubank por R$ 100 em 2x&quot;</div>
+        <div onclick="useExample(this)" class="ai-example-chip">💬 &quot;Paguei aluguel de R$ 1200 e conta de luz de R$ 85&quot;</div>
+      </div>
+    </div>
+
+    <!-- Área de texto -->
+    <div style="position:relative;margin-bottom:12px">
+      <textarea id="aiInput" placeholder="Ex: fiz rancho e gastei 350 reais, comprei remédio na farmácia por 45 reais..." style="width:100%;min-height:90px;resize:none;padding:12px 13px;background:rgba(15,23,42,0.85);border:1px solid rgba(148,163,184,0.18);border-radius:12px;color:#e2e8f0;font-size:14px;line-height:1.5;outline:none;font-family:inherit;transition:border-color .2s" onfocus="this.style.borderColor='rgba(99,102,241,0.5)'" onblur="this.style.borderColor='rgba(148,163,184,0.18)'"></textarea>
+    </div>
+
+    <!-- Botões de ação -->
+    <div class="flex gap-2 mb-4">
+      <!-- Gravar áudio -->
+      <button id="btnGravar" onclick="toggleGravacao()" style="flex-shrink:0;width:48px;height:48px;border-radius:14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s" title="Gravar áudio">
+        <svg id="micIcon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+      </button>
+      <!-- Status gravação -->
+      <div id="aiRecStatus" style="display:none;flex:1;align-items:center;gap:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:14px;padding:0 14px">
+        <span id="recDot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;animation:pulse 1s infinite;flex-shrink:0"></span>
+        <span style="color:#f87171;font-size:13px;font-weight:500">Ouvindo...</span>
+      </div>
+      <!-- Interpretar -->
+      <button onclick="interpretarTexto()" id="btnInterpretar" class="btn-primary flex-1 rounded-xl font-bold text-sm" style="height:48px;display:flex;align-items:center;justify-content:center;gap:6px">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
+        Interpretar
+      </button>
+    </div>
+
+    <!-- Sugestões de apelidos -->
+    <div id="aiAliasSuggestions" style="display:none"></div>
+
+    <!-- Resultado da IA -->
+    <div id="aiResult" style="display:none">
+      <div style="height:1px;background:rgba(148,163,184,0.08);margin-bottom:14px"></div>
+      <p class="text-slate-400 text-xs mb-3 ml-1">Despesas identificadas — confirme e salve:</p>
+      <div id="aiItemsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
+      <div class="flex gap-2">
+        <button onclick="closeAIModal()" class="btn-secondary flex-1 py-3 rounded-xl text-sm font-bold">Cancelar</button>
+        <button onclick="confirmarAIItems()" class="btn-primary flex-1 py-3 rounded-xl text-sm font-bold" style="display:flex;align-items:center;justify-content:center;gap:5px">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+          Salvar tudo
+        </button>
+      </div>
+    </div>
+
+    <!-- Loading -->
+    <div id="aiLoading" style="display:none;text-align:center;padding:24px 0">
+      <div style="width:36px;height:36px;border:3px solid rgba(99,102,241,0.2);border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px"></div>
+      <p class="text-slate-400 text-sm">Interpretando...</p>
+    </div>
+
+    <!-- Erro -->
+    <div id="aiError" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:12px 14px;margin-top:4px">
+      <p id="aiErrorMsg" class="text-red-400 text-sm"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ ALIASES MODAL ══ -->
+<div class="modal-overlay" id="aliasesOverlay" style="display:none" onclick="if(event.target===this)closeAliasesModal()">
+  <div class="glass-modal modal-sheet animate-in" style="max-height:85vh">
+    <div class="modal-handle"></div>
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-slate-100 font-bold text-lg">🏷️ Apelidos da IA</h2>
+      <button onclick="closeAliasesModal()" class="text-slate-500 p-1.5 rounded-lg" style="background:rgba(148,163,184,0.08)">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <p class="text-slate-500 text-xs mb-3">Palavras que a IA reconhece como cartão ou categoria.</p>
+
+    <!-- Form novo apelido -->
+    <div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:14px;padding:14px;margin-bottom:14px">
+      <p class="text-slate-300 text-sm font-bold mb-3">Novo apelido</p>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Apelido (palavra)</label>
+        <input type="text" id="aliasInput" placeholder='Ex: roxinho, rancho'/></div>
+        <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Tipo</label>
+        <select id="aliasTipo" onchange="updateAliasValueOptions(this.value)">
+          <option value="categoria">Categoria</option>
+          <option value="cartao">Cartão</option>
+        </select></div>
+      </div>
+      <div class="mb-3"><label class="text-slate-400 text-xs block mb-1.5 ml-1">Mapeia para</label>
+      <select id="aliasValor">
+        <option value="Mercado">🛒 Mercado</option>
+        <option value="Moradia">🏠 Moradia</option>
+        <option value="Transporte">🚗 Transporte</option>
+        <option value="Lazer">🍕 Lazer</option>
+        <option value="Saúde">🏥 Saúde</option>
+        <option value="Assinaturas">🛡️ Assinaturas</option>
+        <option value="Investimentos">💰 Investimentos</option>
+        <option value="Cartão">💳 Cartão (genérico)</option>
+      </select></div>
+      <button onclick="salvarNovoAlias()" class="btn-primary w-full py-2.5 rounded-xl text-sm font-bold">Salvar apelido</button>
+    </div>
+
+    <!-- Lista de apelidos do usuário -->
+    <div id="aliasesList"></div>
   </div>
 </div>
 
