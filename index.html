@@ -17,7 +17,7 @@
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-const BUILD_VERSION='20260410211159';
+const BUILD_VERSION='20260411013047';
 
 const FC={apiKey:"AIzaSyCdoV1JyYL6Nkg7_yLcqjR47xZi2gT2irU",authDomain:"financespro-8a4f9.firebaseapp.com",projectId:"financespro-8a4f9",storageBucket:"financespro-8a4f9.firebasestorage.app",messagingSenderId:"367204094477",appId:"1:367204094477:web:233b576c8a214dfd36fb44"};
 const app=initializeApp(FC);
@@ -457,7 +457,7 @@ window.updateCartaoSelect=function(cat, selectedNome){
   if(cat==='Cartão'){
     const cartoes=getCartoes();
     sel.innerHTML=cartoes.length
-      ?cartoes.map(c=>`<option value="${c.nome}"${c.nome===selectedNome?' selected':''}>${c.icone||'💳'} ${c.nome} (fecha dia ${c.fechamento})</option>`).join('')
+      ?cartoes.map(c=>`<option value="${c.nome}"${c.nome===selectedNome?' selected':''}>${c.icone||'💳'} ${c.nome} — fecha dia ${c.fechamento}${c.vencimento?' / vence dia '+c.vencimento:''}</option>`).join('')
       :'<option value="">Nenhum cartão cadastrado</option>';
     grp.style.display='block';
   }else{
@@ -483,7 +483,7 @@ function renderCartoesList(){
     <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(148,163,184,0.08)">
       <div>
         <p style="color:#e2e8f0;font-size:14px;font-weight:600">${c.icone||'💳'} ${c.nome}</p>
-        <p style="color:#475569;font-size:12px;margin-top:2px">Fechamento: dia ${c.fechamento}</p>
+        <p style="color:#475569;font-size:12px;margin-top:2px">Fecha dia ${c.fechamento}${c.vencimento?' · Vence dia '+c.vencimento:''}</p>
       </div>
       <div style="display:flex;gap:8px">
         <button onclick="editCartao(${i})" class="icon-btn edit-btn">
@@ -500,6 +500,7 @@ window.editCartao=function(idx){
   const c=getCartoes()[idx];
   document.getElementById('cartaoEditIdx').value=idx;
   document.getElementById('inputCartaoNomeEdit').value=c.nome;
+  document.getElementById('inputCartaoVencimento').value=c.vencimento||'';
   document.getElementById('inputCartaoFechamento').value=c.fechamento;
   document.getElementById('inputCartaoIcone').value=c.icone||'💳';
   document.getElementById('cartaoFormTitle').textContent='Editar Cartão';
@@ -512,22 +513,39 @@ window.deleteCartao=function(idx){
 window.novoCartao=function(){
   document.getElementById('cartaoEditIdx').value='';
   document.getElementById('inputCartaoNomeEdit').value='';
+  document.getElementById('inputCartaoVencimento').value='';
   document.getElementById('inputCartaoFechamento').value='';
   document.getElementById('inputCartaoIcone').value='💳';
   document.getElementById('cartaoFormTitle').textContent='Novo Cartão';
   document.getElementById('cartaoForm').style.display='block';
 };
 window.cancelCartaoForm=function(){document.getElementById('cartaoForm').style.display='none';};
+window.autoCalcFechamento=function(venc){
+  const v=parseInt(venc);
+  if(v>=1&&v<=31){
+    let f=v-7;if(f<1)f=f+31;
+    document.getElementById('inputCartaoFechamento').value=f;
+  }else{
+    document.getElementById('inputCartaoFechamento').value='';
+  }
+};
 window.saveCartao=function(){
   const nome=document.getElementById('inputCartaoNomeEdit').value.trim();
-  const fech=parseInt(document.getElementById('inputCartaoFechamento').value);
+  const vencInput=parseInt(document.getElementById('inputCartaoVencimento').value)||0;
+  let fechInput=parseInt(document.getElementById('inputCartaoFechamento').value)||0;
   const icone=document.getElementById('inputCartaoIcone').value.trim()||'💳';
   if(!nome){showToast('Informe o nome do cartão','#ef4444');return;}
-  if(!fech||fech<1||fech>31){showToast('Dia de fechamento inválido (1-31)','#ef4444');return;}
+  // Auto-calc fechamento from vencimento if provided
+  if(vencInput>=1&&vencInput<=31){
+    fechInput=vencInput-7;
+    if(fechInput<1)fechInput=fechInput+31; // wrap around (ex: vence dia 3 → fecha dia 27 do mês anterior)
+  }
+  if(!fechInput||fechInput<1||fechInput>31){showToast('Informe o dia de vencimento ou fechamento','#ef4444');return;}
   const cartoes=getCartoes();
   const idx=document.getElementById('cartaoEditIdx').value;
-  if(idx!==''){cartoes[parseInt(idx)]={nome,fechamento:fech,icone};}
-  else{cartoes.push({nome,fechamento:fech,icone});}
+  const entry={nome,fechamento:fechInput,icone,...(vencInput?{vencimento:vencInput}:{})};
+  if(idx!==''){cartoes[parseInt(idx)]=entry;}
+  else{cartoes.push(entry);}
   saveCartoes(cartoes);
   renderCartoesList();
   document.getElementById('cartaoForm').style.display='none';
@@ -1098,10 +1116,17 @@ select option{background:#1e293b;color:#e2e8f0}
         <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Nome do cartão</label>
         <input type="text" id="inputCartaoNomeEdit" placeholder="Ex: Nubank, PicPay, Itaú..."/></div>
         <div class="grid grid-cols-2 gap-3">
-          <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Dia de fechamento</label>
-          <input type="number" id="inputCartaoFechamento" placeholder="Ex: 3" min="1" max="31"/></div>
+          <div>
+            <label class="text-slate-400 text-xs block mb-1.5 ml-1">Dia de vencimento</label>
+            <input type="number" id="inputCartaoVencimento" placeholder="Ex: 10" min="1" max="31" oninput="autoCalcFechamento(this.value)"/>
+            <p class="text-slate-600 text-xs mt-1 ml-1">Fechamento = venc. − 7 dias</p>
+          </div>
           <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Ícone (emoji)</label>
           <input type="text" id="inputCartaoIcone" placeholder="💳" maxlength="2"/></div>
+        </div>
+        <div>
+          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Dia de fechamento <span style="color:#475569">(calculado automaticamente)</span></label>
+          <input type="number" id="inputCartaoFechamento" placeholder="Calculado pelo vencimento" min="1" max="31" style="opacity:0.6"/>
         </div>
         <div class="flex gap-3">
           <button onclick="cancelCartaoForm()" class="btn-secondary w-full py-2.5 rounded-xl text-sm font-bold">Cancelar</button>
