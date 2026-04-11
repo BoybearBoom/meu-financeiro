@@ -1076,26 +1076,29 @@ let _recognition = null;
 let _gravando = false;
 
 window.openAIModal = function() {
-  document.getElementById('aiModalOverlay').style.display = 'flex';
-  document.getElementById('aiResult').style.display = 'none';
-  document.getElementById('aiLoading').style.display = 'none';
-  document.getElementById('aiError').style.display = 'none';
-  document.getElementById('aiInput').value = '';
-  document.getElementById('aiExamples').style.display = 'block';
-  _aiItems = [];
-  setTimeout(() => document.getElementById('aiInput').focus(), 300);
+  // não usado mais — caixa já está inline
 };
 window.closeAIModal = function() {
-  document.getElementById('aiModalOverlay').style.display = 'none';
+  cancelarAIResult();
   pararGravacao();
 };
 window.closeAIModalOutside = function(e) {
   if (e.target === document.getElementById('aiModalOverlay')) window.closeAIModal();
 };
+window.cancelarAIResult = function() {
+  _aiItems = [];
+  const r = document.getElementById('aiResult');
+  const s = document.getElementById('aiAliasSuggestions');
+  const e = document.getElementById('aiError');
+  if (r) r.style.display = 'none';
+  if (s) { s.style.display = 'none'; s.innerHTML = ''; }
+  if (e) e.style.display = 'none';
+  const inp = document.getElementById('aiInput');
+  if (inp) inp.value = '';
+};
 window.useExample = function(el) {
   const txt = el.textContent.replace(/^💬\s*"|"$/g, '').trim();
   document.getElementById('aiInput').value = txt;
-  document.getElementById('aiExamples').style.display = 'none';
   document.getElementById('aiInput').focus();
 };
 
@@ -1148,7 +1151,6 @@ window.interpretarTexto = async function() {
   if (!texto) { showToast('Digite ou grave algo primeiro', '#ef4444'); return; }
   pararGravacao();
 
-  document.getElementById('aiExamples').style.display = 'none';
   document.getElementById('aiResult').style.display = 'none';
   document.getElementById('aiError').style.display = 'none';
   document.getElementById('aiLoading').style.display = 'block';
@@ -1290,7 +1292,7 @@ window.confirmarAIItems = function() {
   });
 
   saveData(all);
-  window.closeAIModal();
+  cancelarAIResult();
   render();
   showToast(`${_aiItems.length} despesa(s) adicionada(s) ✓`, '#4ade80');
   _aiItems = [];
@@ -1518,17 +1520,58 @@ select option{background:#1e293b;color:#e2e8f0}
     <div class="card-violet p-3"><p class="text-violet-400 text-xs font-semibold mb-0.5">💳 Cartão Pend.</p><p class="text-violet-300 font-bold text-lg leading-tight" id="cardCartao">R$ 0,00</p></div>
   </div>
 
-  <!-- IA Assistant (substituiu a barra de progresso) -->
-  <div class="mx-3 mb-3 total-bar rounded-2xl px-4 py-2.5 flex items-center justify-between cursor-pointer" onclick="openAIModal()" style="transition:background .15s" onmouseenter="this.style.background='rgba(99,102,241,0.08)'" onmouseleave="this.style.background=''">
-    <div class="flex items-center gap-2">
-      <svg width="15" height="15" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M22 12a10 10 0 11-20 0 10 10 0 0120 0z"/></svg>
-      <span class="text-slate-300 text-sm" id="progressLabel">0 de 0 pagas</span>
+  <!-- IA Assistant — caixa inline -->
+  <div class="mx-3 mb-3" style="background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(139,92,246,0.06));border:1px solid rgba(99,102,241,0.2);border-radius:18px;padding:12px 14px">
+    <!-- Topo: título + progresso + apelidos -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+        <span style="color:#a5b4fc;font-size:12px;font-weight:700">Assistente IA</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span class="text-slate-400 text-xs" id="progressLabel">0 de 0 pagas</span>
+        <span class="text-violet-400 text-xs font-bold" id="progressPct">0%</span>
+        <button onclick="openAliasesModal()" style="font-size:10px;padding:3px 8px;border-radius:8px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.25);color:#a5b4fc;cursor:pointer;font-weight:600">🏷️</button>
+      </div>
     </div>
-    <div class="flex items-center gap-2">
-      <span class="text-violet-400 text-sm font-bold" id="progressPct">0%</span>
-      <div style="display:flex;align-items:center;gap:5px;background:rgba(99,102,241,0.12);border:1px solid rgba(99,102,241,0.25);border-radius:10px;padding:3px 8px">
-        <svg width="13" height="13" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-        <span style="font-size:11px;color:#a5b4fc;font-weight:600">IA</span>
+    <!-- Textarea -->
+    <textarea id="aiInput" placeholder="Ex: fiz rancho de R$ 350, paguei roxinho R$ 100 em 2x..." style="width:100%;height:64px;resize:none;background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.15);border-radius:12px;color:#e2e8f0;font-size:14px;line-height:1.5;padding:10px 12px;outline:none;font-family:inherit;margin-bottom:8px;box-sizing:border-box" onfocus="this.style.borderColor='rgba(99,102,241,0.45)'" onblur="this.style.borderColor='rgba(148,163,184,0.15)'"></textarea>
+    <!-- Botões -->
+    <div style="display:flex;gap:8px;align-items:center">
+      <button id="btnGravar" onclick="toggleGravacao()" style="width:42px;height:42px;flex-shrink:0;border-radius:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s">
+        <svg id="micIcon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+      </button>
+      <div id="aiRecStatus" style="display:none;flex:1;align-items:center;gap:6px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:0 10px;height:42px">
+        <span id="recDot" style="width:7px;height:7px;border-radius:50%;background:#ef4444;animation:pulse 1s infinite;flex-shrink:0"></span>
+        <span style="color:#f87171;font-size:12px;font-weight:500">Ouvindo...</span>
+      </div>
+      <button onclick="interpretarTexto()" id="btnInterpretar" class="btn-primary" style="flex:1;height:42px;border-radius:12px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:5px">
+        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
+        Interpretar
+      </button>
+    </div>
+    <!-- Loading inline -->
+    <div id="aiLoading" style="display:none;text-align:center;padding:14px 0 4px">
+      <div style="width:28px;height:28px;border:3px solid rgba(99,102,241,0.2);border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 8px"></div>
+      <p style="color:#94a3b8;font-size:12px">Interpretando...</p>
+    </div>
+    <!-- Erro inline -->
+    <div id="aiError" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:10px 12px;margin-top:8px">
+      <p id="aiErrorMsg" style="color:#f87171;font-size:12px"></p>
+    </div>
+    <!-- Sugestões de apelidos -->
+    <div id="aiAliasSuggestions" style="display:none;margin-top:8px"></div>
+    <!-- Resultado -->
+    <div id="aiResult" style="display:none;margin-top:10px">
+      <div style="height:1px;background:rgba(148,163,184,0.08);margin-bottom:10px"></div>
+      <p style="color:#94a3b8;font-size:11px;margin-bottom:8px;font-weight:500">Despesas identificadas — confirme:</p>
+      <div id="aiItemsList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <button onclick="cancelarAIResult()" class="btn-secondary" style="flex:1;padding:10px;border-radius:12px;font-size:13px;font-weight:700">Cancelar</button>
+        <button onclick="confirmarAIItems()" class="btn-primary" style="flex:1;padding:10px;border-radius:12px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:5px">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+          Salvar tudo
+        </button>
       </div>
     </div>
   </div>
@@ -1811,90 +1854,6 @@ select option{background:#1e293b;color:#e2e8f0}
         <button onclick="closeProfileModal()" class="btn-secondary w-full py-3 rounded-xl font-bold text-sm">Cancelar</button>
         <button onclick="saveProfile()" class="btn-primary w-full py-3 rounded-xl font-bold text-sm">Salvar</button>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ AI MODAL ══ -->
-<div class="modal-overlay" id="aiModalOverlay" style="display:none" onclick="closeAIModalOutside(event)">
-  <div class="glass-modal modal-sheet animate-in" style="max-height:88vh">
-    <div class="modal-handle"></div>
-    <div class="flex items-center justify-between mb-4">
-      <div class="flex items-center gap-2">
-        <div style="width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,rgba(99,102,241,0.25),rgba(139,92,246,0.25));border:1px solid rgba(99,102,241,0.3);display:flex;align-items:center;justify-content:center">
-          <svg width="16" height="16" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-        </div>
-        <div>
-          <h2 class="text-slate-100 font-bold text-base leading-tight">Assistente IA</h2>
-          <p class="text-slate-500 text-xs">Descreva suas despesas em linguagem natural</p>
-        </div>
-      </div>
-      <div class="flex items-center gap-2">
-        <button onclick="openAliasesModal()" style="font-size:11px;padding:4px 10px;border-radius:9px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);color:#a5b4fc;cursor:pointer;font-weight:600">🏷️ Apelidos</button>
-        <button onclick="closeAIModal()" class="text-slate-500 p-1.5 rounded-lg" style="background:rgba(148,163,184,0.08)">
-        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
-      </button>
-    </div>
-
-    <!-- Exemplos -->
-    <div id="aiExamples" style="margin-bottom:14px">
-      <p class="text-slate-500 text-xs mb-2 ml-1">Exemplos do que você pode dizer:</p>
-      <div style="display:flex;flex-direction:column;gap:6px">
-        <div onclick="useExample(this)" class="ai-example-chip">💬 &quot;Fiz compras no mercado e gastei R$ 200&quot;</div>
-        <div onclick="useExample(this)" class="ai-example-chip">💬 &quot;Comprei chocolate no cartão Nubank por R$ 100 em 2x&quot;</div>
-        <div onclick="useExample(this)" class="ai-example-chip">💬 &quot;Paguei aluguel de R$ 1200 e conta de luz de R$ 85&quot;</div>
-      </div>
-    </div>
-
-    <!-- Área de texto -->
-    <div style="position:relative;margin-bottom:12px">
-      <textarea id="aiInput" placeholder="Ex: fiz rancho e gastei 350 reais, comprei remédio na farmácia por 45 reais..." style="width:100%;min-height:90px;resize:none;padding:12px 13px;background:rgba(15,23,42,0.85);border:1px solid rgba(148,163,184,0.18);border-radius:12px;color:#e2e8f0;font-size:14px;line-height:1.5;outline:none;font-family:inherit;transition:border-color .2s" onfocus="this.style.borderColor='rgba(99,102,241,0.5)'" onblur="this.style.borderColor='rgba(148,163,184,0.18)'"></textarea>
-    </div>
-
-    <!-- Botões de ação -->
-    <div class="flex gap-2 mb-4">
-      <!-- Gravar áudio -->
-      <button id="btnGravar" onclick="toggleGravacao()" style="flex-shrink:0;width:48px;height:48px;border-radius:14px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s" title="Gravar áudio">
-        <svg id="micIcon" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
-      </button>
-      <!-- Status gravação -->
-      <div id="aiRecStatus" style="display:none;flex:1;align-items:center;gap:8px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:14px;padding:0 14px">
-        <span id="recDot" style="width:8px;height:8px;border-radius:50%;background:#ef4444;animation:pulse 1s infinite;flex-shrink:0"></span>
-        <span style="color:#f87171;font-size:13px;font-weight:500">Ouvindo...</span>
-      </div>
-      <!-- Interpretar -->
-      <button onclick="interpretarTexto()" id="btnInterpretar" class="btn-primary flex-1 rounded-xl font-bold text-sm" style="height:48px;display:flex;align-items:center;justify-content:center;gap:6px">
-        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
-        Interpretar
-      </button>
-    </div>
-
-    <!-- Sugestões de apelidos -->
-    <div id="aiAliasSuggestions" style="display:none"></div>
-
-    <!-- Resultado da IA -->
-    <div id="aiResult" style="display:none">
-      <div style="height:1px;background:rgba(148,163,184,0.08);margin-bottom:14px"></div>
-      <p class="text-slate-400 text-xs mb-3 ml-1">Despesas identificadas — confirme e salve:</p>
-      <div id="aiItemsList" style="display:flex;flex-direction:column;gap:8px;margin-bottom:14px"></div>
-      <div class="flex gap-2">
-        <button onclick="closeAIModal()" class="btn-secondary flex-1 py-3 rounded-xl text-sm font-bold">Cancelar</button>
-        <button onclick="confirmarAIItems()" class="btn-primary flex-1 py-3 rounded-xl text-sm font-bold" style="display:flex;align-items:center;justify-content:center;gap:5px">
-          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
-          Salvar tudo
-        </button>
-      </div>
-    </div>
-
-    <!-- Loading -->
-    <div id="aiLoading" style="display:none;text-align:center;padding:24px 0">
-      <div style="width:36px;height:36px;border:3px solid rgba(99,102,241,0.2);border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px"></div>
-      <p class="text-slate-400 text-sm">Interpretando...</p>
-    </div>
-
-    <!-- Erro -->
-    <div id="aiError" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:12px;padding:12px 14px;margin-top:4px">
-      <p id="aiErrorMsg" class="text-red-400 text-sm"></p>
     </div>
   </div>
 </div>
