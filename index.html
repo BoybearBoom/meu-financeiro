@@ -220,6 +220,16 @@ function updateMenu(){
   if(el)el.textContent=notifsEnabled?'🔕 Desativar notificações':'🔔 Ativar notificações';
   const dot=document.getElementById('menuNotifDot');
   if(dot){dot.style.background=notifsEnabled?'#4ade80':'#475569';dot.style.display='block';}
+  // PBS menu dot: reflete o dot principal
+  const pbsDot=document.getElementById('pbsMenuDot');
+  const syncDotEl=document.getElementById('syncDot');
+  if(pbsDot&&syncDotEl) pbsDot.style.background=syncDotEl.style.background;
+  // PBS status label
+  const pbsStatus=document.getElementById('menuPBSStatus');
+  if(pbsStatus&&_lastSyncAt){
+    const d=new Date(_lastSyncAt);
+    pbsStatus.textContent=`Último sync: ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
+  }
 }
 window.openMenu=function(){
   document.getElementById('menuOverlay').style.display='flex';
@@ -234,6 +244,7 @@ window.menuAction=function(action){
   window.closeMenu();
   setTimeout(()=>{
     if(action==='sync')window.forcSync();
+    else if(action==='pbssync')window._runPeriodicSync();
     else if(action==='pdf')window.exportPDF();
     else if(action==='select')window.toggleSelectMode();
     else if(action==='notifs')toggleNotifications();
@@ -254,7 +265,15 @@ onAuthStateChanged(auth,user=>{
     loadFromCloud().then(()=>{
       processRecurring();
       render();
-      setTimeout(checkDueAlerts,4000);
+      // Atualiza label se já houver sync anterior
+      if(_lastSyncAt) updatePBSSyncLabel();
+      // Agenda checkDueAlerts e primeiro PBS se já passou o intervalo
+      setTimeout(async()=>{
+        checkDueAlerts();
+        if(Date.now()-_lastSyncAt >= PBS_MIN_INTERVAL){
+          await runPeriodicSync();
+        }
+      },4000);
     });
   }else{
     document.getElementById('authScreen').style.display='flex';
@@ -300,6 +319,7 @@ window.doRegister=async function(){
 window.doLogout=async function(){
   if(!confirm('Sair da conta?'))return;
   await syncToCloud();
+  await unregisterPBS();
   await signOut(auth);
 }
 window.forcSync=async function(){setSyncDot('amber');await syncToCloud();showToast('Sincronizado ☁️','#4ade80');}
@@ -743,13 +763,156 @@ window.exportPDF=function(){
   doc.save('financas-'+mLabel.toLowerCase().replace(' ','-')+'.pdf');
 }
 
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('./sw.js',{scope:'/meu-financeiro/'})
-      .then(reg=>{ if(reg.active) reg.update(); })
-      .catch(()=>{});
+// ── Periodic Background Sync ──
+const PBS_TAG = 'fpro-sync';
+const PBS_MIN_INTERVAL = 12 * 60 * 60 * 1000; // 12h em ms
+
+// Estado interno do PBS
+let _pbsRegistered = false;
+let _pbsFallbackTimer = null;
+let _lastSyncAt = parseInt(localStorage.getItem('fpro_last_sync') || '0');
+
+// Registra o SW e tenta ativar PBS
+async function registerSWAndPBS() {
+  if (!('serviceWorker' in navigator)) return;
+  let reg;
+  try {
+    reg = await navigator.serviceWorker.register('./sw.js', { scope: '/meu-financeiro/' });
+    if (reg.active) reg.update();
+  } catch {
+    startPBSFallback();
+    return;
+  }
+
+  // Tenta registrar Periodic Background Sync nativo
+  if ('periodicSync' in reg) {
+    try {
+      const status = await navigator.permissions.query({ name: 'periodic-background-sync' });
+      if (status.state === 'granted') {
+        await reg.periodicSync.register(PBS_TAG, { minInterval: PBS_MIN_INTERVAL });
+        _pbsRegistered = true;
+        updatePBSStatus('native');
+        console.log('[PBS] Periodic Background Sync nativo ativado ✓');
+      } else {
+        updatePBSStatus('denied');
+        startPBSFallback();
+      }
+    } catch (e) {
+      console.log('[PBS] periodicSync indisponível, usando fallback:', e.message);
+      updatePBSStatus('fallback');
+      startPBSFallback();
+    }
+  } else {
+    updatePBSStatus('fallback');
+    startPBSFallback();
+  }
+
+  // Ouve mensagens do SW (ex: 'PBS_SYNC' disparado pelo background sync nativo)
+  navigator.serviceWorker.addEventListener('message', async (event) => {
+    if (event.data && event.data.type === 'PBS_SYNC') {
+      console.log('[PBS] Sync solicitado pelo SW');
+      await runPeriodicSync();
+    }
   });
 }
+
+// Fallback: dispara a cada 15min via setInterval + visibilitychange
+function startPBSFallback() {
+  if (_pbsFallbackTimer) return; // já iniciado
+  // Checa ao retornar ao app (visibilitychange)
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      const elapsed = Date.now() - _lastSyncAt;
+      if (elapsed >= PBS_MIN_INTERVAL) {
+        console.log('[PBS Fallback] App voltou ao foco — sincronizando');
+        runPeriodicSync();
+      }
+    }
+  });
+  // Polling a cada 15 min enquanto o app está aberto
+  _pbsFallbackTimer = setInterval(() => {
+    const elapsed = Date.now() - _lastSyncAt;
+    if (elapsed >= PBS_MIN_INTERVAL && document.visibilityState === 'visible') {
+      console.log('[PBS Fallback] Intervalo atingido — sincronizando');
+      runPeriodicSync();
+    }
+  }, 15 * 60 * 1000);
+}
+
+// Tarefa executada em cada ciclo do PBS (nativo ou fallback)
+async function runPeriodicSync() {
+  if (!currentUser) return;
+  console.log('[PBS] runPeriodicSync iniciado');
+  setSyncDot('amber');
+  try {
+    // 1. Salva dados locais na nuvem
+    await syncToCloud();
+    // 2. Relê dados da nuvem para pegar mudanças de outros dispositivos
+    await loadFromCloud();
+    // 3. Processa recorrentes (caso tenha mudado de mês em background)
+    processRecurring();
+    // 4. Checa alertas de vencimento
+    if (notifsEnabled) await checkDueAlerts();
+    // 5. Registra timestamp do último sync
+    _lastSyncAt = Date.now();
+    localStorage.setItem('fpro_last_sync', String(_lastSyncAt));
+    updatePBSSyncLabel();
+    setSyncDot('green');
+    console.log('[PBS] runPeriodicSync concluído ✓');
+  } catch (e) {
+    setSyncDot('red');
+    console.error('[PBS] Falha no sync periódico:', e);
+  }
+}
+
+// Exibe no dot de sync o modo ativo (nativo vs fallback)
+function updatePBSStatus(mode) {
+  const dot = document.getElementById('pbsModeDot');
+  if (!dot) return;
+  if (mode === 'native') {
+    dot.title = 'Periodic Background Sync: NATIVO ✓';
+    dot.style.display = 'inline-block';
+    dot.style.background = '#818cf8';
+  } else if (mode === 'fallback') {
+    dot.title = 'Periodic Background Sync: Fallback (app aberto)';
+    dot.style.display = 'inline-block';
+    dot.style.background = '#f59e0b';
+  } else {
+    dot.style.display = 'none';
+  }
+}
+
+// Atualiza o label de "último sync" no header
+function updatePBSSyncLabel() {
+  const el = document.getElementById('lastSyncLabel');
+  if (!el) return;
+  const d = new Date(_lastSyncAt);
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  el.textContent = `Sync ${hh}:${mm}`;
+  el.style.display = 'inline';
+}
+
+// Cancela o PBS nativo (chamado no logout ou se o usuário desativar)
+async function unregisterPBS() {
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.getRegistration();
+    if (reg && 'periodicSync' in reg) {
+      await reg.periodicSync.unregister(PBS_TAG);
+      console.log('[PBS] periodicSync cancelado');
+    }
+  } catch {}
+  if (_pbsFallbackTimer) { clearInterval(_pbsFallbackTimer); _pbsFallbackTimer = null; }
+  _pbsRegistered = false;
+}
+
+// Expõe para uso externo
+window._runPeriodicSync = runPeriodicSync;
+window._unregisterPBS   = unregisterPBS;
+
+// Inicia tudo ao carregar
+window.addEventListener('load', registerSWAndPBS);
 </script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -870,9 +1033,13 @@ select option{background:#1e293b;color:#e2e8f0}
         <div class="min-w-0">
           <div class="flex items-center gap-1.5">
             <p class="text-sm font-semibold text-slate-200 leading-tight truncate" id="headerDate"></p>
-            <span id="syncDot" class="sync-dot" style="background:#475569"></span>
+            <span id="syncDot" class="sync-dot" style="background:#475569" title="Status do sync"></span>
+            <span id="pbsModeDot" class="sync-dot" style="display:none;width:6px;height:6px;border-radius:50%;flex-shrink:0"></span>
           </div>
-          <p class="text-xs text-slate-500 leading-none mt-0.5">Olá, <span id="userDisplayName" class="text-violet-400 font-semibold"></span></p>
+          <div class="flex items-center gap-1.5">
+            <p class="text-xs text-slate-500 leading-none mt-0.5">Olá, <span id="userDisplayName" class="text-violet-400 font-semibold"></span></p>
+            <span id="lastSyncLabel" style="display:none;font-size:10px;color:#475569;background:rgba(71,85,105,0.15);padding:1px 5px;border-radius:6px;font-weight:500"></span>
+          </div>
         </div>
       </div>
       <button onclick="openMenu()" class="btn-secondary px-2.5 py-2 rounded-xl shrink-0" title="Menu">
@@ -991,6 +1158,19 @@ select option{background:#1e293b;color:#e2e8f0}
         <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
       </div>
       <span>Sincronizar com nuvem</span>
+    </div>
+
+    <div onclick="menuAction('pbssync')" class="menu-item" style="justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="menu-item-icon" style="background:rgba(129,140,248,0.13)">
+          <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div>
+          <span style="display:block">Sync periódico agora</span>
+          <span id="menuPBSStatus" style="font-size:11px;color:#475569">Sincroniza, processa recorrentes e alertas</span>
+        </div>
+      </div>
+      <span id="pbsMenuDot" class="sync-dot" style="background:#475569"></span>
     </div>
 
     <div onclick="menuAction('pdf')" class="menu-item">
