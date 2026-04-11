@@ -905,13 +905,12 @@ function updatePBSStatus(mode) {
 
 // Atualiza o label de "último sync" no header
 function updatePBSSyncLabel() {
-  const el = document.getElementById('lastSyncLabel');
-  if (!el) return;
-  const d = new Date(_lastSyncAt);
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  el.textContent = `Sync ${hh}:${mm}`;
-  el.style.display = 'inline';
+  // Atualiza apenas o status no menu (não exibe nada no header)
+  const pbsStatus = document.getElementById('menuPBSStatus');
+  if (pbsStatus && _lastSyncAt) {
+    const d = new Date(_lastSyncAt);
+    pbsStatus.textContent = `Último sync: ${d.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`;
+  }
 }
 
 // Cancela o PBS nativo (chamado no logout ou se o usuário desativar)
@@ -1058,7 +1057,6 @@ select option{background:#1e293b;color:#e2e8f0}
             <span id="pbsModeDot" class="sync-dot" style="display:none;width:6px;height:6px;border-radius:50%;flex-shrink:0"></span>
           </div>
           <p class="text-xs text-slate-500 leading-none mt-0.5">Olá, <span id="userDisplayName" class="text-violet-400 font-semibold"></span></p>
-          <span id="lastSyncLabel" style="display:none"></span>
         </div>
       </div>
       <button onclick="openMenu()" class="btn-secondary px-2.5 py-2 rounded-xl shrink-0" title="Menu">
