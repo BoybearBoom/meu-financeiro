@@ -1220,29 +1220,43 @@ function pararMic() {
 
 // ── Normaliza texto para extrair valor ──
 function extrairValor(txt) {
-  const t = txt.toLowerCase()
+  // Normaliza sinônimos de "reais"
+  let t = txt.toLowerCase()
     .replace(/\bpila(s)?\b/g,'reais').replace(/\bconto(s)?\b/g,'reais')
     .replace(/\bgrana\b/g,'reais').replace(/\bmoney\b/g,'reais')
-    .replace(/\bbala(s)?\b/g,'reais').replace(/\bpau(s)?\b/g,'reais');
+    .replace(/\bbala(s)?\b/g,'reais').replace(/\bpau\b/g,'reais');
 
-  // Tenta padrões em ordem de especificidade
-  const padroes = [
-    /r\$\s*([\d]+(?:[.,][\d]{1,2})?)/,                        // R$ 24,90
-    /([\d]+(?:[.,][\d]{1,2})?)\s*reais/,                      // 24,90 reais
-    /(?:deu|custou|foi|saiu|valor\s+de?|de)\s+([\d]+(?:[.,][\d]{1,2})?)/,  // de 24,90
-    /(?:por|no\s+valor\s+de)\s+([\d]+(?:[.,][\d]{1,2})?)/,   // por 24,90
-    /\b([\d]+[.,][\d]{2})\b/,                                  // número com centavos: 24,90
-    /\b([\d]{2,})\b/                                           // número solto: 150
-  ];
-
-  for (const re of padroes) {
-    const m = t.match(re);
-    if (m) {
-      const raw = (m[1]||'').replace(/\./g,'').replace(',','.');
-      const v = parseFloat(raw);
-      if (!isNaN(v) && v > 0) return v;
-    }
+  // Função interna: converte string numérica para float
+  function toFloat(s) {
+    if (!s) return null;
+    // Remove pontos de milhar, troca vírgula por ponto
+    const n = s.replace(/\./g,'').replace(',','.');
+    const v = parseFloat(n);
+    return (!isNaN(v) && v > 0) ? v : null;
   }
+
+  let m;
+
+  // R$ 24,90 ou R$24.90
+  m = t.match(/r\$\s*([\d]+(?:[.,][\d]{1,2})?)/);
+  if (m) { const v=toFloat(m[1]); if(v) return v; }
+
+  // 24,90 reais / 24.90 reais
+  m = t.match(/([\d]+(?:[.,][\d]{1,2})?)\s*reais/);
+  if (m) { const v=toFloat(m[1]); if(v) return v; }
+
+  // deu/custou/foi/saiu/de/valor de + número
+  m = t.match(/(?:deu|custou|foi|saiu|valor\s+de?|de|no\s+valor\s+de|por)\s+([\d]+(?:[.,][\d]{1,2})?)/);
+  if (m) { const v=toFloat(m[1]); if(v) return v; }
+
+  // número com vírgula/ponto seguido de 2 dígitos (centavos): 24,90 ou 24.90
+  m = t.match(/(?<![a-z\d])([\d]{1,6}[.,][\d]{2})(?![a-z\d])/);
+  if (m) { const v=toFloat(m[1]); if(v) return v; }
+
+  // número inteiro com 2+ dígitos isolado: 150, 200
+  m = t.match(/(?<![a-z\d,.])([\d]{2,6})(?![a-z\d,.])/);
+  if (m) { const v=toFloat(m[1]); if(v) return v; }
+
   return null;
 }
 
