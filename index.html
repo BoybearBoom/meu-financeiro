@@ -1075,137 +1075,149 @@ let _aiItems = [];
 let _recognition = null;
 let _gravando = false;
 
-window.openAIModal = function() {
-  // não usado mais — caixa já está inline
-};
-window.closeAIModal = function() {
-  cancelarAIResult();
-  pararGravacao();
-};
-window.closeAIModalOutside = function(e) {
-  if (e.target === document.getElementById('aiModalOverlay')) window.closeAIModal();
-};
+window.openAIModal = function() {};
+window.closeAIModal = function() { cancelarAIResult(); pararGravacao(); };
+window.closeAIModalOutside = function(e) { if(e.target===document.getElementById('aiModalOverlay')) window.closeAIModal(); };
+
 window.cancelarAIResult = function() {
-  _aiItems = [];
-  const r = document.getElementById('aiResult');
-  const s = document.getElementById('aiAliasSuggestions');
-  const e = document.getElementById('aiError');
-  if (r) r.style.display = 'none';
-  if (s) { s.style.display = 'none'; s.innerHTML = ''; }
-  if (e) e.style.display = 'none';
-  const inp = document.getElementById('aiInput');
-  if (inp) inp.value = '';
+  _aiItems = []; _chatHistory = [];
+  ['aiResult','aiAliasSuggestions','aiError','aiLoading'].forEach(id=>{
+    const el=document.getElementById(id); if(el){el.style.display='none'; if(id==='aiAliasSuggestions')el.innerHTML='';}
+  });
+  const h=document.getElementById('aiChatHistory');
+  if(h){h.innerHTML='';h.style.display='none';}
+  const inp=document.getElementById('aiInput');
+  if(inp){inp.value=''; inp.placeholder='Ex: comprei um tênis por 200 reais...';}
+  const clr=document.getElementById('btnClearAI'); if(clr) clr.style.display='none';
+  const rst=document.getElementById('btnResetChat'); if(rst) rst.style.display='none';
 };
+window.resetarChat = function() { window.cancelarAIResult(); };
 window.useExample = function(el) {
-  const txt = el.textContent.replace(/^💬\s*"|"$/g, '').trim();
-  document.getElementById('aiInput').value = txt;
+  const txt=el.textContent.replace(/^💬\s*"|"$/g,'').trim();
+  document.getElementById('aiInput').value=txt;
+  document.getElementById('btnClearAI').style.display='flex';
   document.getElementById('aiInput').focus();
 };
 
-// ── Speech Recognition ──
-window.toggleGravacao = function() {
-  if (_gravando) { pararGravacao(); return; }
-  iniciarGravacao();
-};
-
-function iniciarGravacao() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { showToast('Seu browser não suporta gravação de áudio', '#ef4444'); return; }
-  _recognition = new SR();
-  _recognition.lang = 'pt-BR';
-  _recognition.continuous = true;
-  _recognition.interimResults = true;
-  let transcrito = '';
-
-  _recognition.onstart = () => {
-    _gravando = true;
-    document.getElementById('btnGravar').style.background = 'rgba(239,68,68,0.25)';
-    document.getElementById('btnGravar').style.borderColor = 'rgba(239,68,68,0.5)';
-    document.getElementById('aiRecStatus').style.display = 'flex';
-  };
-  _recognition.onresult = (e) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) transcrito += e.results[i][0].transcript + ' ';
-      else interim = e.results[i][0].transcript;
-    }
-    document.getElementById('aiInput').value = transcrito + interim;
-  };
-  _recognition.onerror = () => pararGravacao();
-  _recognition.onend = () => pararGravacao();
-  _recognition.start();
+// Resolve datas relativas para ISO YYYY-MM-DD
+function resolverData(texto, hoje) {
+  if(!texto||texto===hoje) return hoje;
+  const t=texto.toLowerCase().trim();
+  const base=new Date(hoje+'T12:00:00');
+  if(t==='hoje'||t==='') return hoje;
+  if(t==='ontem'){base.setDate(base.getDate()-1);return base.toISOString().split('T')[0];}
+  if(t==='anteontem'){base.setDate(base.getDate()-2);return base.toISOString().split('T')[0];}
+  const diaM=t.match(/dia\s+(\d{1,2})(?:\s+(?:do\s+)?m[eê]s\s+(\d{1,2}))?/);
+  if(diaM){
+    const dia=parseInt(diaM[1]);
+    const mes=diaM[2]?parseInt(diaM[2])-1:base.getMonth();
+    return new Date(base.getFullYear(),mes,dia).toISOString().split('T')[0];
+  }
+  if(/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
+  return hoje;
 }
 
-function pararGravacao() {
-  _gravando = false;
-  if (_recognition) { try { _recognition.stop(); } catch {} _recognition = null; }
-  const btn = document.getElementById('btnGravar');
-  if (btn) { btn.style.background = 'rgba(239,68,68,0.1)'; btn.style.borderColor = 'rgba(239,68,68,0.2)'; }
-  const st = document.getElementById('aiRecStatus');
-  if (st) st.style.display = 'none';
+// ── Modo Conversacional ──
+let _chatHistory = [];
+
+function adicionarBolha(texto, tipo) {
+  const h=document.getElementById('aiChatHistory');
+  h.style.display='flex';
+  const isUser=tipo==='user';
+  const bolha=document.createElement('div');
+  bolha.style.cssText=`display:flex;justify-content:${isUser?'flex-end':'flex-start'}`;
+  bolha.innerHTML=`<div style="max-width:85%;padding:8px 11px;border-radius:${isUser?'12px 12px 3px 12px':'12px 12px 12px 3px'};background:${isUser?'rgba(99,102,241,0.25)':'rgba(30,41,59,0.8)'};border:1px solid ${isUser?'rgba(99,102,241,0.3)':'rgba(148,163,184,0.1)'};color:${isUser?'#c7d2fe':'#cbd5e1'};font-size:13px;line-height:1.4">${texto}</div>`;
+  h.appendChild(bolha);
+  h.scrollTop=h.scrollHeight;
+  const rst=document.getElementById('btnResetChat'); if(rst) rst.style.display='inline-block';
 }
 
 // ── Interpretar via Claude API ──
 window.interpretarTexto = async function() {
-  const texto = document.getElementById('aiInput').value.trim();
-  if (!texto) { showToast('Digite ou grave algo primeiro', '#ef4444'); return; }
+  const texto=document.getElementById('aiInput').value.trim();
+  if(!texto){showToast('Digite ou grave algo primeiro','#ef4444');return;}
   pararGravacao();
 
-  document.getElementById('aiResult').style.display = 'none';
-  document.getElementById('aiError').style.display = 'none';
-  document.getElementById('aiLoading').style.display = 'block';
-  document.getElementById('btnInterpretar').disabled = true;
+  adicionarBolha(texto,'user');
+  document.getElementById('aiInput').value='';
+  document.getElementById('btnClearAI').style.display='none';
+  document.getElementById('aiResult').style.display='none';
+  document.getElementById('aiError').style.display='none';
+  document.getElementById('aiLoading').style.display='block';
+  document.getElementById('btnInterpretar').disabled=true;
 
-  const aliasContext = buildAliasContext();
-  const hoje = new Date().toISOString().split('T')[0];
+  _chatHistory.push({role:'user',content:texto});
 
-  const prompt = `Você é um assistente financeiro. O usuário descreveu despesas em linguagem natural.
-Extraia TODAS as despesas mencionadas e retorne SOMENTE um JSON válido, sem texto adicional, sem markdown.
+  const aliasContext=buildAliasContext();
+  const hoje=new Date().toISOString().split('T')[0];
+  const [ano,mes,dia]=hoje.split('-').map(Number);
+  const ontem=new Date(new Date(hoje+'T12:00:00').setDate(dia-1)).toISOString().split('T')[0];
+  const anteontem=new Date(new Date(hoje+'T12:00:00').setDate(dia-2)).toISOString().split('T')[0];
+
+  const systemPrompt=`Você é um assistente de finanças pessoais conversacional em português brasileiro.
+Seu objetivo é extrair despesas do que o usuário descreve. Quando faltar informação essencial (descrição OU valor), faça UMA pergunta curta e objetiva.
 
 ${aliasContext}
-Data de hoje: ${hoje}
-Categorias disponíveis: Moradia, Mercado, Transporte, Lazer, Cartão, Saúde, Assinaturas, Investimentos
+Data de hoje: ${hoje} (${dia}/${mes}/${ano})
+Categorias: Moradia, Mercado, Transporte, Lazer, Cartão, Saúde, Assinaturas, Investimentos
 
-Regras:
-- Use os apelidos acima para identificar cartões e categorias
-- Se o apelido mapear para um cartão, use categoria "Cartão" e coloque o nome exato do cartão em "cartaoNome"
-- Se o apelido mapear para uma categoria, use essa categoria
-- Se parcelado, coloque o número de parcelas em "parcelas" (inteiro)
-- "data" deve ser "${hoje}" salvo se o usuário mencionar outra data
-- "valor" é o valor TOTAL da compra (não por parcela)
-- "nome" deve ser curto e descritivo (máx 30 chars)
+REGRAS:
+1. Se tiver descrição E valor → retorne JSON imediatamente, sem texto
+2. Se faltar o valor → pergunte APENAS: "Qual o valor?"
+3. Se faltar a descrição → pergunte APENAS: "Pagamento de quê?"
+4. NUNCA faça perguntas quando tiver os dois campos
 
-Responda APENAS com este JSON (array):
-[{"nome":"...","valor":0.00,"data":"${hoje}","categoria":"...","parcelas":1,"cartaoNome":""}]
+DATAS:
+- "ontem" = ${ontem}
+- "anteontem" = ${anteontem}
+- "dia X" = ${ano}-${String(mes).padStart(2,'0')}-XX (complete o dia)
+- sem menção = ${hoje}
 
-Texto do usuário: "${texto}"`;
+VENCIMENTO: "vence dia X", "vencimento X", "venc dia X/X" → campo "vencimento" em YYYY-MM-DD
+
+FORMATO JSON (array, sem texto algum ao redor):
+[{"nome":"string","valor":number,"data":"YYYY-MM-DD","vencimento":"YYYY-MM-DD ou vazio","categoria":"string","parcelas":1,"cartaoNome":""}]`;
 
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content: prompt }]
-      })
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:systemPrompt,messages:_chatHistory})
     });
-    const data = await res.json();
-    const raw = data.content.map(b => b.text || '').join('').trim();
-    const clean = raw.replace(/```json|```/g, '').trim();
-    _aiItems = JSON.parse(clean);
-    if (!Array.isArray(_aiItems) || !_aiItems.length) throw new Error('Nenhuma despesa identificada');
-    renderAIItems();
-    // Detecta e sugere novos apelidos
-    const sugestoes = detectarNovosApelidos(texto, _aiItems);
-    mostrarSugestoesApelidos(sugestoes);
-  } catch (e) {
-    document.getElementById('aiLoading').style.display = 'none';
-    document.getElementById('aiError').style.display = 'block';
-    document.getElementById('aiErrorMsg').textContent = 'Não consegui interpretar. Tente ser mais específico com valores e descrições.';
-    console.error('AI error:', e);
+    if(!res.ok){const err=await res.json().catch(()=>({}));throw new Error(err.error?.message||`HTTP ${res.status}`);}
+    const data=await res.json();
+    const raw=data.content.map(b=>b.text||'').join('').trim();
+    _chatHistory.push({role:'assistant',content:raw});
+
+    const match=raw.match(/\[[\s\S]*\]/);
+    if(match){
+      let items=JSON.parse(match[0]);
+      items=items.map(item=>({
+        nome:item.nome||'Despesa',
+        valor:parseFloat(item.valor)||0,
+        data:resolverData(item.data,hoje),
+        vencimento:item.vencimento?resolverData(item.vencimento,hoje):'',
+        categoria:item.categoria||'Mercado',
+        parcelas:parseInt(item.parcelas)||1,
+        cartaoNome:item.cartaoNome||''
+      })).filter(i=>i.valor>0);
+      if(!items.length) throw new Error('Nenhum valor');
+      _aiItems=items;
+      document.getElementById('aiLoading').style.display='none';
+      renderAIItems();
+      mostrarSugestoesApelidos(detectarNovosApelidos(texto,_aiItems));
+    } else {
+      document.getElementById('aiLoading').style.display='none';
+      adicionarBolha(raw.replace(/\*\*/g,'').replace(/`/g,'').trim(),'ai');
+      document.getElementById('aiInput').placeholder='Responda aqui...';
+    }
+  } catch(e){
+    document.getElementById('aiLoading').style.display='none';
+    document.getElementById('aiError').style.display='block';
+    document.getElementById('aiErrorMsg').textContent=e.message.includes('HTTP')?`Erro: ${e.message}`:'Não identifiquei. Inclua o valor, ex: "tênis 200"';
+    console.error('AI:',e);
   } finally {
-    document.getElementById('btnInterpretar').disabled = false;
+    document.getElementById('btnInterpretar').disabled=false;
   }
 };
 
@@ -1217,17 +1229,18 @@ function renderAIItems() {
   list.innerHTML = _aiItems.map((item, i) => {
     const icon = CATS[item.categoria] || '💸';
     const parcelaInfo = item.parcelas > 1 ? `<span style="font-size:10px;background:rgba(99,102,241,0.18);color:#a5b4fc;padding:1px 6px;border-radius:8px;font-weight:700">${item.parcelas}x</span>` : '';
-    const cartaoInfo = item.cartaoNome ? `<span style="font-size:10px;color:#818cf8"> · ${item.cartaoNome}</span>` : '';
+    const cartaoInfo = item.cartaoNome ? ` · ${item.cartaoNome}` : '';
+    const vencInfo = item.vencimento ? `<span style="color:#fbbf24"> · Venc: ${fmtDate(item.vencimento)}</span>` : '';
     return `<div class="ai-item-card">
       <div class="flex items-center justify-between gap-2">
         <div class="flex items-center gap-2.5 min-w-0">
-          <div style="width:36px;height:36px;border-radius:10px;background:rgba(148,163,184,0.08);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">${icon}</div>
+          <div style="width:34px;height:34px;border-radius:10px;background:rgba(148,163,184,0.08);display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0">${icon}</div>
           <div class="min-w-0">
             <div class="flex items-center gap-1.5 flex-wrap">
               <p class="text-slate-200 text-sm font-semibold">${item.nome}</p>
               ${parcelaInfo}
             </div>
-            <p class="text-slate-500 text-xs">${item.categoria}${cartaoInfo} · ${fmtDate(item.data)}</p>
+            <p class="text-slate-500 text-xs">${item.categoria}${cartaoInfo} · ${fmtDate(item.data)}${vencInfo}</p>
           </div>
         </div>
         <div class="flex items-center gap-2 shrink-0">
@@ -1285,7 +1298,8 @@ window.confirmarAIItems = function() {
         monthKey: mKey,
         recorrente: false,
         ...(cartaoNome ? { cartaoNome } : {}),
-        ...(parc > 1 ? { groupId, parcelNum: p + 1, totalParcelas: parc } : {})
+        ...(parc > 1 ? { groupId, parcelNum: p + 1, totalParcelas: parc } : {}),
+        ...(item.vencimento ? { vencimento: item.vencimento } : {})
       });
       adicionados++;
     }
@@ -1520,10 +1534,10 @@ select option{background:#1e293b;color:#e2e8f0}
     <div class="card-violet p-3"><p class="text-violet-400 text-xs font-semibold mb-0.5">💳 Cartão Pend.</p><p class="text-violet-300 font-bold text-lg leading-tight" id="cardCartao">R$ 0,00</p></div>
   </div>
 
-  <!-- IA Assistant — caixa inline -->
+  <!-- IA Assistant — modo conversacional -->
   <div class="mx-3 mb-3" style="background:linear-gradient(135deg,rgba(99,102,241,0.08),rgba(139,92,246,0.06));border:1px solid rgba(99,102,241,0.2);border-radius:18px;padding:12px 14px">
-    <!-- Topo: título + progresso + apelidos -->
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <!-- Topo -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
       <div style="display:flex;align-items:center;gap:6px">
         <svg width="14" height="14" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
         <span style="color:#a5b4fc;font-size:12px;font-weight:700">Assistente IA</span>
@@ -1531,11 +1545,19 @@ select option{background:#1e293b;color:#e2e8f0}
       <div style="display:flex;align-items:center;gap:8px">
         <span class="text-slate-400 text-xs" id="progressLabel">0 de 0 pagas</span>
         <span class="text-violet-400 text-xs font-bold" id="progressPct">0%</span>
+        <button onclick="resetarChat()" id="btnResetChat" style="display:none;font-size:10px;padding:3px 8px;border-radius:8px;background:rgba(148,163,184,0.1);border:1px solid rgba(148,163,184,0.2);color:#64748b;cursor:pointer;font-weight:600">↺ Reiniciar</button>
         <button onclick="openAliasesModal()" style="font-size:10px;padding:3px 8px;border-radius:8px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.25);color:#a5b4fc;cursor:pointer;font-weight:600">🏷️</button>
       </div>
     </div>
-    <!-- Textarea -->
-    <textarea id="aiInput" placeholder="Ex: fiz rancho de R$ 350, paguei roxinho R$ 100 em 2x..." style="width:100%;height:64px;resize:none;background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.15);border-radius:12px;color:#e2e8f0;font-size:14px;line-height:1.5;padding:10px 12px;outline:none;font-family:inherit;margin-bottom:8px;box-sizing:border-box" onfocus="this.style.borderColor='rgba(99,102,241,0.45)'" onblur="this.style.borderColor='rgba(148,163,184,0.15)'"></textarea>
+    <!-- Histórico do chat -->
+    <div id="aiChatHistory" style="display:none;max-height:180px;overflow-y:auto;margin-bottom:8px;display:flex;flex-direction:column;gap:6px"></div>
+    <!-- Textarea com X -->
+    <div style="position:relative;margin-bottom:8px">
+      <textarea id="aiInput" placeholder="Ex: comprei um tênis por 200 reais..." style="width:100%;height:64px;resize:none;background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.15);border-radius:12px;color:#e2e8f0;font-size:14px;line-height:1.5;padding:10px 36px 10px 12px;outline:none;font-family:inherit;box-sizing:border-box" onfocus="this.style.borderColor='rgba(99,102,241,0.45)'" onblur="this.style.borderColor='rgba(148,163,184,0.15)'" oninput="document.getElementById('btnClearAI').style.display=this.value?'flex':'none'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();interpretarTexto();}"></textarea>
+      <button id="btnClearAI" onclick="document.getElementById('aiInput').value='';this.style.display='none';document.getElementById('aiInput').focus()" style="display:none;position:absolute;top:7px;right:7px;width:22px;height:22px;border-radius:6px;background:rgba(71,85,105,0.5);border:none;color:#94a3b8;cursor:pointer;align-items:center;justify-content:center;padding:0">
+        <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
     <!-- Botões -->
     <div style="display:flex;gap:8px;align-items:center">
       <button id="btnGravar" onclick="toggleGravacao()" style="width:42px;height:42px;flex-shrink:0;border-radius:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s">
@@ -1547,15 +1569,15 @@ select option{background:#1e293b;color:#e2e8f0}
       </div>
       <button onclick="interpretarTexto()" id="btnInterpretar" class="btn-primary" style="flex:1;height:42px;border-radius:12px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:5px">
         <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M5 3l14 9-14 9V3z"/></svg>
-        Interpretar
+        Enviar
       </button>
     </div>
-    <!-- Loading inline -->
-    <div id="aiLoading" style="display:none;text-align:center;padding:14px 0 4px">
-      <div style="width:28px;height:28px;border:3px solid rgba(99,102,241,0.2);border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 8px"></div>
-      <p style="color:#94a3b8;font-size:12px">Interpretando...</p>
+    <!-- Loading -->
+    <div id="aiLoading" style="display:none;text-align:center;padding:10px 0 2px">
+      <div style="width:24px;height:24px;border:3px solid rgba(99,102,241,0.2);border-top-color:#6366f1;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 6px"></div>
+      <p style="color:#94a3b8;font-size:11px">Pensando...</p>
     </div>
-    <!-- Erro inline -->
+    <!-- Erro -->
     <div id="aiError" style="display:none;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:10px 12px;margin-top:8px">
       <p id="aiErrorMsg" style="color:#f87171;font-size:12px"></p>
     </div>
