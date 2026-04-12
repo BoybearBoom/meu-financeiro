@@ -1079,6 +1079,78 @@ window.openAIModal = function() {};
 window.closeAIModal = function() { cancelarAIResult(); pararGravacao(); };
 window.closeAIModalOutside = function(e) { if(e.target===document.getElementById('aiModalOverlay')) window.closeAIModal(); };
 
+// ── Helpers do input ──
+window.atualizarBtnClear = function() {
+  const inp = document.getElementById('aiInput');
+  const btn = document.getElementById('btnClearAI');
+  if(btn) btn.style.display = inp && inp.value ? 'flex' : 'none';
+};
+window.limparAIInput = function() {
+  const inp = document.getElementById('aiInput');
+  if(inp){ inp.value = ''; inp.focus(); }
+  atualizarBtnClear();
+};
+
+// ── Speech Recognition ──
+window.toggleGravacao = function() {
+  if (_gravando) { pararGravacao(); return; }
+  iniciarGravacao();
+};
+
+function iniciarGravacao() {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { showToast('Seu browser não suporta gravação de áudio', '#ef4444'); return; }
+  if (_recognition) { try { _recognition.abort(); } catch {} _recognition = null; }
+
+  _recognition = new SR();
+  _recognition.lang = 'pt-BR';
+  _recognition.continuous = false;
+  _recognition.interimResults = true;
+  _recognition.maxAlternatives = 1;
+
+  const inp = document.getElementById('aiInput');
+  let acumulado = inp ? inp.value.trimEnd() : '';
+
+  _recognition.onstart = () => {
+    _gravando = true;
+    const btn = document.getElementById('btnGravar');
+    if(btn){ btn.style.background='rgba(239,68,68,0.25)'; btn.style.borderColor='rgba(239,68,68,0.5)'; }
+    const st = document.getElementById('aiRecStatus');
+    if(st) st.style.display='flex';
+  };
+
+  _recognition.onresult = (e) => {
+    let interim = '';
+    let novoFinal = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      if (e.results[i].isFinal) novoFinal += e.results[i][0].transcript;
+      else interim = e.results[i][0].transcript;
+    }
+    if (novoFinal) acumulado = (acumulado ? acumulado + ' ' : '') + novoFinal.trim();
+    if(inp) inp.value = acumulado + (interim ? ' ' + interim : '');
+    atualizarBtnClear();
+  };
+
+  _recognition.onerror = (e) => { if (e.error !== 'aborted') pararGravacao(); };
+
+  _recognition.onend = () => {
+    if(inp) inp.value = acumulado;
+    atualizarBtnClear();
+    pararGravacao();
+  };
+
+  _recognition.start();
+}
+
+function pararGravacao() {
+  _gravando = false;
+  if (_recognition) { try { _recognition.stop(); } catch {} _recognition = null; }
+  const btn = document.getElementById('btnGravar');
+  if(btn){ btn.style.background='rgba(239,68,68,0.1)'; btn.style.borderColor='rgba(239,68,68,0.2)'; }
+  const st = document.getElementById('aiRecStatus');
+  if(st) st.style.display='none';
+}
+
 window.cancelarAIResult = function() {
   _aiItems = []; _chatHistory = [];
   ['aiResult','aiAliasSuggestions','aiError','aiLoading'].forEach(id=>{
@@ -1550,21 +1622,21 @@ select option{background:#1e293b;color:#e2e8f0}
       </div>
     </div>
     <!-- Histórico do chat -->
-    <div id="aiChatHistory" style="display:none;max-height:180px;overflow-y:auto;margin-bottom:8px;display:flex;flex-direction:column;gap:6px"></div>
+    <div id="aiChatHistory" style="display:none;flex-direction:column;gap:6px;max-height:180px;overflow-y:auto;margin-bottom:8px"></div>
     <!-- Textarea com X -->
     <div style="position:relative;margin-bottom:8px">
-      <textarea id="aiInput" placeholder="Ex: comprei um tênis por 200 reais..." style="width:100%;height:64px;resize:none;background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.15);border-radius:12px;color:#e2e8f0;font-size:14px;line-height:1.5;padding:10px 36px 10px 12px;outline:none;font-family:inherit;box-sizing:border-box" onfocus="this.style.borderColor='rgba(99,102,241,0.45)'" onblur="this.style.borderColor='rgba(148,163,184,0.15)'" oninput="document.getElementById('btnClearAI').style.display=this.value?'flex':'none'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();interpretarTexto();}"></textarea>
-      <button id="btnClearAI" onclick="document.getElementById('aiInput').value='';this.style.display='none';document.getElementById('aiInput').focus()" style="display:none;position:absolute;top:7px;right:7px;width:22px;height:22px;border-radius:6px;background:rgba(71,85,105,0.5);border:none;color:#94a3b8;cursor:pointer;align-items:center;justify-content:center;padding:0">
+      <textarea id="aiInput" placeholder="Ex: comprei um tênis por 200 reais..." style="width:100%;height:64px;resize:none;background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.15);border-radius:12px;color:#e2e8f0;font-size:14px;line-height:1.5;padding:10px 36px 10px 12px;outline:none;font-family:inherit;box-sizing:border-box" onfocus="this.style.borderColor='rgba(99,102,241,0.45)'" onblur="this.style.borderColor='rgba(148,163,184,0.15)'" oninput="atualizarBtnClear()" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();interpretarTexto();}"></textarea>
+      <button id="btnClearAI" onclick="limparAIInput()" style="display:none;position:absolute;top:7px;right:7px;width:22px;height:22px;border-radius:6px;background:rgba(71,85,105,0.6);border:none;color:#e2e8f0;cursor:pointer;align-items:center;justify-content:center;padding:0;z-index:2">
         <svg width="11" height="11" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button>
     </div>
     <!-- Botões -->
     <div style="display:flex;gap:8px;align-items:center">
       <button id="btnGravar" onclick="toggleGravacao()" style="width:42px;height:42px;flex-shrink:0;border-radius:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.2);color:#f87171;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s">
-        <svg id="micIcon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8"/></svg>
       </button>
       <div id="aiRecStatus" style="display:none;flex:1;align-items:center;gap:6px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:0 10px;height:42px">
-        <span id="recDot" style="width:7px;height:7px;border-radius:50%;background:#ef4444;animation:pulse 1s infinite;flex-shrink:0"></span>
+        <span style="width:7px;height:7px;border-radius:50%;background:#ef4444;animation:pulse 1s infinite;flex-shrink:0"></span>
         <span style="color:#f87171;font-size:12px;font-weight:500">Ouvindo...</span>
       </div>
       <button onclick="interpretarTexto()" id="btnInterpretar" class="btn-primary" style="flex:1;height:42px;border-radius:12px;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:5px">
