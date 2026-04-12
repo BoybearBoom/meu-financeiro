@@ -1227,32 +1227,44 @@ window.interpretarTexto = async function() {
   const anteontem=new Date(new Date(hoje+'T12:00:00').setDate(dia-2)).toISOString().split('T')[0];
 
   const systemPrompt=`Você é um assistente de finanças pessoais conversacional em português brasileiro.
-Seu objetivo é extrair despesas do que o usuário descreve. Quando faltar informação essencial (descrição OU valor), faça UMA pergunta curta e objetiva.
+Você lê o histórico da conversa e extrai despesas. Quando faltar alguma informação importante, faça UMA pergunta curta e objetiva para completar.
 
 ${aliasContext}
 Data de hoje: ${hoje} (${dia}/${mes}/${ano})
 Categorias: Moradia, Mercado, Transporte, Lazer, Cartão, Saúde, Assinaturas, Investimentos
 
-REGRAS:
-1. Se tiver descrição E valor → retorne JSON imediatamente, sem texto
-2. Se faltar o valor → pergunte APENAS: "Qual o valor?"
-3. Se faltar a descrição → pergunte APENAS: "Pagamento de quê?"
-4. NUNCA faça perguntas quando tiver os dois campos
+SINÔNIMOS DE VALOR: pila, pilas, conto, contos, grana, money, bala, pau
+- "165 pila" = 165, "2 conto" = 200
+
+O QUE PERGUNTAR (faça UMA pergunta por vez, na ordem de prioridade):
+1. Falta descrição do item → pergunte: "Pagamento de quê?"
+2. Falta valor → pergunte: "Qual o valor?"
+3. Mencionou cartão mas não qual → pergunte: "Qual cartão?"
+4. Tem tudo → gere o JSON imediatamente
+
+IMPORTANTE:
+- Leia TODO o histórico da conversa antes de decidir o que falta
+- Se o usuário respondeu a pergunta anterior no histórico, use a resposta e gere o JSON
+- Número sozinho perto de item = valor. "r$ X", "X reais", "X pila" = valor X
+- "cartão de crédito" sem nome = pergunte qual cartão
+- Cartões cadastrados: use o nome exato ao preencher cartaoNome
 
 DATAS:
-- "ontem" = ${ontem}
-- "anteontem" = ${anteontem}
-- "dia X" = ${ano}-${String(mes).padStart(2,'0')}-XX (complete o dia)
-- sem menção = ${hoje}
+- "ontem"=${ontem}, "anteontem"=${anteontem}, "dia X"=${ano}-${String(mes).padStart(2,'0')}-XX, sem menção=${hoje}
 
-SINÔNIMOS DE VALOR (trate como "reais"):
-- pila, pilas, conto, contos, grana, money, real, bala, pau, melão, dinheiro
-- Exemplos: "165 pila" = R$ 165, "2 conto" = R$ 2000, "1 melão" = R$ 1000000
+VENCIMENTO: "vence dia X" → campo "vencimento" YYYY-MM-DD
 
-VENCIMENTO: "vence dia X", "vencimento X", "venc dia X/X" → campo "vencimento" em YYYY-MM-DD
+EXEMPLOS DE FLUXO:
+Usuário: "compra no cartão de crédito ração dos gatos r$ 150"
+IA: "Qual cartão?"
+Usuário: "Nubank"
+IA: [{"nome":"Ração dos Gatos","valor":150,"categoria":"Cartão","cartaoNome":"Nubank","data":"${hoje}","vencimento":"","parcelas":1}]
 
-FORMATO JSON (array, sem texto algum ao redor):
-[{"nome":"string","valor":number,"data":"YYYY-MM-DD","vencimento":"YYYY-MM-DD ou vazio","categoria":"string","parcelas":1,"cartaoNome":""}]`;
+Usuário: "rancho 350 pila"
+IA: [{"nome":"Rancho","valor":350,"categoria":"Mercado","cartaoNome":"","data":"${hoje}","vencimento":"","parcelas":1}]
+
+FORMATO QUANDO TIVER TUDO (APENAS o array JSON, zero texto fora):
+[{"nome":"string","valor":number,"data":"YYYY-MM-DD","vencimento":"","categoria":"string","parcelas":1,"cartaoNome":""}]`;
 
   try {
     const res=await fetch('https://api.anthropic.com/v1/messages',{
