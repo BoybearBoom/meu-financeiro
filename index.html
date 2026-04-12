@@ -1220,41 +1220,33 @@ function pararMic() {
 
 // ── Normaliza texto para extrair valor ──
 function extrairValor(txt) {
-  // Normaliza sinônimos de "reais"
   let t = txt.toLowerCase()
     .replace(/\bpila(s)?\b/g,'reais').replace(/\bconto(s)?\b/g,'reais')
     .replace(/\bgrana\b/g,'reais').replace(/\bmoney\b/g,'reais')
     .replace(/\bbala(s)?\b/g,'reais').replace(/\bpau\b/g,'reais');
 
-  // Função interna: converte string numérica para float
   function toFloat(s) {
     if (!s) return null;
-    // Remove pontos de milhar, troca vírgula por ponto
     const n = s.replace(/\./g,'').replace(',','.');
     const v = parseFloat(n);
     return (!isNaN(v) && v > 0) ? v : null;
   }
 
   let m;
-
-  // R$ 24,90 ou R$24.90
+  // R$ 24,90
   m = t.match(/r\$\s*([\d]+(?:[.,][\d]{1,2})?)/);
   if (m) { const v=toFloat(m[1]); if(v) return v; }
-
-  // 24,90 reais / 24.90 reais
+  // 24,90 reais
   m = t.match(/([\d]+(?:[.,][\d]{1,2})?)\s*reais/);
   if (m) { const v=toFloat(m[1]); if(v) return v; }
-
-  // deu/custou/foi/saiu/de/valor de + número
-  m = t.match(/(?:deu|custou|foi|saiu|valor\s+de?|de|no\s+valor\s+de|por)\s+([\d]+(?:[.,][\d]{1,2})?)/);
+  // deu/custou/foi/saiu/de/por + número
+  m = t.match(/(?:deu|custou|foi|saiu|valor\s*de?|de|por|no\s*valor\s*de)\s+([\d]+(?:[.,][\d]{1,2})?)/);
   if (m) { const v=toFloat(m[1]); if(v) return v; }
-
-  // número com vírgula/ponto seguido de 2 dígitos (centavos): 24,90 ou 24.90
-  m = t.match(/(?<![a-z\d])([\d]{1,6}[.,][\d]{2})(?![a-z\d])/);
+  // número com centavos: 24,90 ou 24.90 (sem lookbehind)
+  m = t.match(/([\d]{1,6}[.,][\d]{2})(?![\d])/);
   if (m) { const v=toFloat(m[1]); if(v) return v; }
-
-  // número inteiro com 2+ dígitos isolado: 150, 200
-  m = t.match(/(?<![a-z\d,.])([\d]{2,6})(?![a-z\d,.])/);
+  // número inteiro isolado: 150
+  m = t.match(/([\d]{2,6})(?![\d.,])/);
   if (m) { const v=toFloat(m[1]); if(v) return v; }
 
   return null;
@@ -1407,8 +1399,11 @@ function processarResposta(txt) {
   }
 
   if (_estado === 'aguarda_valor') {
-    const v = extrairValor(txt);
-    if (!v) { dizer('Não entendi o valor. Pode repetir?', true); return; }
+    // Tenta parse direto primeiro (resposta pode ser só "24,90" ou "foi 24,90")
+    const limpo = txt.trim().replace(/[^\d.,]/g, '');
+    const direto = parseFloat(limpo.replace(/\./g,'').replace(',','.'));
+    const v = (!isNaN(direto) && direto > 0) ? direto : extrairValor(txt);
+    if (!v) { dizer('Não entendi o valor. Pode repetir? Ex: 24,90', true); return; }
     _pendingData.valor = v;
     _estado = 'idle';
     finalizarCadastro();
