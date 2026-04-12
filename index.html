@@ -1283,11 +1283,49 @@ function inferirCartao(txt) {
 
 function ehComandoStatus(txt) {
   const t = txt.toLowerCase();
-  // Não é status se contém intenção de adicionar/cadastrar
   if (/\b(adiciona|cadastra|coloca|lança|registra|inclui|cria|nova|novo)\b/.test(t)) return false;
-  // É status se pergunta/lista pendentes sem mencionar valor
-  return /\b(quais|listar|mostrar|me (diz|fala|mostra)|qual|pendente[s]?|fatura[s]?|devo|venc)\b/.test(t)
-      && !/r\$|reais|pila|conto|\d+/.test(t);
+  return /\b(quais|listar|mostrar|me (diz|fala|mostra)|qual|pendente[s]?|fatura[s]?|devo|venc|paga[s]?|pago[s]?|já paguei|contas do)\b/.test(t)
+      && !/r\$|reais|pila|conto|\d{3,}/.test(t);
+}
+
+// Detecta mês mencionado no texto (ex: "março", "mês 3", "03")
+function extrairMesAno(txt) {
+  const meses = ['janeiro','fevereiro','março','marco','abril','maio','junho',
+                 'julho','agosto','setembro','outubro','novembro','dezembro'];
+  const t = txt.toLowerCase();
+  const hoje = new Date();
+  let ano = hoje.getFullYear();
+  let mes = hoje.getMonth(); // 0-based
+
+  // "mês passado"
+  if (/m[eê]s\s+passado/.test(t)) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth()-1, 1);
+    return { mes: d.getMonth(), ano: d.getFullYear() };
+  }
+  // "mês que vem" / "próximo mês"
+  if (/pr[oó]ximo\s+m[eê]s|m[eê]s\s+que\s+vem/.test(t)) {
+    const d = new Date(hoje.getFullYear(), hoje.getMonth()+1, 1);
+    return { mes: d.getMonth(), ano: d.getFullYear() };
+  }
+  // nome do mês
+  for (let i=0; i<meses.length; i++) {
+    if (t.includes(meses[i])) {
+      mes = i > 3 ? i : i; // março=2, marco=2
+      if (meses[i]==='marco') mes=2;
+      // ano explícito?
+      const am = t.match(/20(\d{2})/); if (am) ano=parseInt('20'+am[1]);
+      return { mes, ano };
+    }
+  }
+  // "mês X" ou número de mês
+  const mm = t.match(/m[eê]s\s+(\d{1,2})/);
+  if (mm) { mes=parseInt(mm[1])-1; return { mes, ano }; }
+
+  return { mes: hoje.getMonth(), ano: hoje.getFullYear() };
+}
+
+function ehConsultaPagas(txt) {
+  return /\b(paga[s]?|pago[s]?|já paguei|quitad|já foi pag)\b/.test(txt.toLowerCase());
 }
 
 function ehComandoPagar(txt) {
@@ -1394,14 +1432,30 @@ function finalizarCadastro() {
 function interpretarComando(txt) {
   const hoje = new Date().toISOString().split('T')[0];
 
-  // Comando de status (listar pendentes)
+  // Comando de status (listar pendentes ou pagas)
   if (ehComandoStatus(txt)) {
-    const all = getData().filter(x => x.monthKey === currentMonthKey() && !x.pago);
-    if (!all.length) { dizer('Não há contas pendentes este mês!', false); return; }
-    const lista = all.slice(0,3).map(x=>`${x.nome} de ${fmt(x.valor)}`).join(', ');
-    const primeiro = all[0];
-    _pendingData.item = primeiro; _estado = 'confirm_pagar';
-    dizer(`Você tem ${all.length} conta(s) pendente(s): ${lista}. Deseja pagar ${primeiro.nome} agora?`, true);
+    const { mes, ano } = extrairMesAno(txt);
+    const mKey = `${ano}-${String(mes+1).padStart(2,'0')}`;
+    const nomeMes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+                     'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'][mes];
+    const all = getData().filter(x => x.monthKey === mKey);
+
+    if (ehConsultaPagas(txt)) {
+      // Contas pagas
+      const pagas = all.filter(x => x.pago);
+      if (!pagas.length) { dizer(`Nenhuma conta paga em ${nomeMes}.`, false); return; }
+      const lista = pagas.slice(0,5).map(x=>`${x.nome} de ${fmt(x.valor)}`).join(', ');
+      const resto = pagas.length > 5 ? ` e mais ${pagas.length-5}` : '';
+      dizer(`Em ${nomeMes} você pagou ${pagas.length} conta(s): ${lista}${resto}.`, false);
+    } else {
+      // Contas pendentes
+      const pend = all.filter(x => !x.pago);
+      if (!pend.length) { dizer(`Nenhuma conta pendente em ${nomeMes}!`, false); return; }
+      const lista = pend.slice(0,3).map(x=>`${x.nome} de ${fmt(x.valor)}`).join(', ');
+      const primeiro = pend[0];
+      _pendingData.item = primeiro; _estado = 'confirm_pagar';
+      dizer(`Em ${nomeMes} você tem ${pend.length} conta(s) pendente(s): ${lista}. Deseja pagar ${primeiro.nome} agora?`, true);
+    }
     return;
   }
 
