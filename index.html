@@ -1004,7 +1004,7 @@ function detectarNovosApelidos(texto, itens) {
       if (
         p.length >= 4 &&
         !aliases[p] &&
-        !['reais','real','paguei','gastei','comprei','parcelei','vezes','parcelas','hoje','semana','mês','mes','pila'].includes(p)
+        !['reais','real','paguei','gastei','comprei','parcelei','vezes','parcelas','hoje','semana','mês','mes'].includes(p)
       ) {
         const catMap = {
           'Mercado': ['mercado','supermercado','rancho','feira','compras'],
@@ -1220,17 +1220,30 @@ function pararMic() {
 
 // ── Normaliza texto para extrair valor ──
 function extrairValor(txt) {
-  // substitui sinônimos
   const t = txt.toLowerCase()
     .replace(/\bpila(s)?\b/g,'reais').replace(/\bconto(s)?\b/g,'reais')
     .replace(/\bgrana\b/g,'reais').replace(/\bmoney\b/g,'reais')
     .replace(/\bbala(s)?\b/g,'reais').replace(/\bpau(s)?\b/g,'reais');
-  // padrões: R$ 50, 50,00 reais, deu 50, custou 50, valor 50, total 50
-  const m = t.match(/r\$\s*([\d.,]+)|([\d.,]+)\s*reais|(deu|custou|valor\s+de?|foi|saiu)\s+([\d.,]+)|([\d.,]+)/);
-  if (!m) return null;
-  const raw = (m[1]||m[2]||m[4]||m[5]||'').replace(/\./g,'').replace(',','.');
-  const v = parseFloat(raw);
-  return isNaN(v)||v<=0 ? null : v;
+
+  // Tenta padrões em ordem de especificidade
+  const padroes = [
+    /r\$\s*([\d]+(?:[.,][\d]{1,2})?)/,                        // R$ 24,90
+    /([\d]+(?:[.,][\d]{1,2})?)\s*reais/,                      // 24,90 reais
+    /(?:deu|custou|foi|saiu|valor\s+de?|de)\s+([\d]+(?:[.,][\d]{1,2})?)/,  // de 24,90
+    /(?:por|no\s+valor\s+de)\s+([\d]+(?:[.,][\d]{1,2})?)/,   // por 24,90
+    /\b([\d]+[.,][\d]{2})\b/,                                  // número com centavos: 24,90
+    /\b([\d]{2,})\b/                                           // número solto: 150
+  ];
+
+  for (const re of padroes) {
+    const m = t.match(re);
+    if (m) {
+      const raw = (m[1]||'').replace(/\./g,'').replace(',','.');
+      const v = parseFloat(raw);
+      if (!isNaN(v) && v > 0) return v;
+    }
+  }
+  return null;
 }
 
 function extrairParcelas(txt) {
@@ -1434,7 +1447,8 @@ function termosFrequentesDoUsuario() {
 function detectarIntencaoLocal(txt) {
   const t = txt.toLowerCase();
   const temValor = extrairValor(txt) !== null;
-  const temAdicionar = /\b(adiciona|cadastra|coloca|lança|registra|inclui|cria|nova|novo|pagar conta de|quero pagar conta de)\b/.test(t);
+  const temAdicionar = /\b(adiciona|cadastra|coloca|lança|registra|inclui|cria|nova|novo|assinar|assinatura)\b/.test(t);
+  const temServico = /\b(netflix|spotify|amazon|prime|disney|hbo|max|deezer|youtube|nubank|inter|claro|vivo|tim|oi|luz|água|agua|aluguel|condomínio|condominio|internet|seguro|plano)\b/.test(t);
 
   // Consultas analíticas
   if (/\b(quanto\s*(gastei|foi|gast|total|soma)|total\s+do\s+m[eê]s|resume|resumo|balanço|balanco)\b/.test(t)) return 'resumo';
@@ -1446,14 +1460,14 @@ function detectarIntencaoLocal(txt) {
   if (/\b(compare|comparar|vs|versus|diferença)\b/.test(t)) return 'comparar_meses';
   if (/\b(média|media|gasto\s*médio|por\s*m[eê]s\s*em\s*média)\b/.test(t)) return 'media_gastos';
 
-  // Status
-  if (ehComandoStatus(txt) && !temAdicionar) return ehConsultaPagas(txt) ? 'listar_pagas' : 'listar_pendentes';
+  // Status — só se não tiver intenção de cadastro e não for serviço conhecido com valor
+  if (ehComandoStatus(txt) && !temAdicionar && !temServico) return ehConsultaPagas(txt) ? 'listar_pagas' : 'listar_pendentes';
   if (ehComandoPagar(txt) && !temAdicionar) return 'pagar_item';
 
-  // Cadastro
-  if (temAdicionar || temValor) return 'cadastrar';
+  // Cadastro — tem intenção, serviço conhecido ou valor
+  if (temAdicionar || temValor || temServico) return 'cadastrar';
 
-  return null; // não reconheceu
+  return null;
 }
 
 // ══════════════════════════════
@@ -1666,8 +1680,15 @@ Para qualquer outra pergunta, responda em texto simples.`;
     dizer(raw.replace(/\*\*/g,'').replace(/`/g,'').trim(), false);
   } catch(e) {
     document.getElementById('aiLoading').style.display = 'none';
-    document.getElementById('aiError').style.display = 'block';
-    document.getElementById('aiErrorMsg').textContent = 'Não consegui responder. Tente novamente.';
+    // Tenta salvar como cadastro genérico se tiver valor
+    const v = extrairValor(txt);
+    if (v) {
+      // Tinha valor mas a API falhou — processa localmente mesmo assim
+      responderLocal('cadastrar', txt);
+    } else {
+      document.getElementById('aiError').style.display = 'block';
+      document.getElementById('aiErrorMsg').textContent = 'Não entendi. Tente incluir o valor, ex: "Netflix 24,90"';
+    }
     console.error('API:', e);
   }
 }
