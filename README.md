@@ -23,3 +23,43 @@ Aplicativo PWA de controle financeiro pessoal, feito para funcionar no celular c
 ## 🚀 Acesse
 
 👉 [https://boybearboom.github.io/meu-financeiro/](https://boybearboom.github.io/meu-financeiro/)
+
+**Formas de adicionar despesas**
+
+**Direto — cadastra sem perguntar:**
+- `netflix 24,90` / `netflix de r$ 24,90`
+- `ração 160,99` / `ração dos gatos 160,99`
+- `comprei tênis 200` / `gastei 350 no mercado`
+- `aluguel 1200 vence dia 10`
+- `cartão nubank 500 em 3x`
+- `adicionar assinatura netflix 24,90`
+- `luz 85,50` / `farmácia 45`
+
+**Com diálogo — pergunta o que falta:**
+- `adicionar conta da netflix` → pergunta o valor
+- `comprei tênis` → pergunta o valor
+- `gastei no cartão de crédito 200` → pergunta qual cartão
+- `paguei 150` → pergunta o que foi
+
+**Consultas — não cadastra, só informa:**
+- `quais pendentes` / `contas pendentes de março`
+- `o que já paguei` / `o que paguei em março`
+- `quanto gastei esse mês` / `total do mês`
+- `maior despesa` / `menor despesa`
+- `gastos por categoria`
+- `quanto falta pagar`
+- `compare com mês passado`
+- `minha média de gastos`
+- `próximos vencimentos`
+
+**Pagar uma conta:**
+- `pagar netflix` → confirma e marca como pago
+- `quais pendentes` → lista e pergunta se quer pagar a primeira
+
+**Formatos de valor aceitos:**
+- Com vírgula: `24,90` / `160,99` / `1.200,00`
+- Com ponto: `24.90`
+- Inteiro: `150` / `1200`
+- Com R$: `r$ 150` / `r$24,90`
+- Com palavras: `150 reais` / `160 pila` / `2 conto`
+- Em frase: `deu 150` / `custou 24,90` / `foi 200` / `de 150`
