@@ -1282,11 +1282,20 @@ function inferirCartao(txt) {
 }
 
 function ehComandoStatus(txt) {
-  return /pendente|fatura|conta(s)?|devo|quais|listar|mostrar|venc/.test(txt.toLowerCase());
+  const t = txt.toLowerCase();
+  // Não é status se contém intenção de adicionar/cadastrar
+  if (/\b(adiciona|cadastra|coloca|lança|registra|inclui|cria|nova|novo)\b/.test(t)) return false;
+  // É status se pergunta/lista pendentes sem mencionar valor
+  return /\b(quais|listar|mostrar|me (diz|fala|mostra)|qual|pendente[s]?|fatura[s]?|devo|venc)\b/.test(t)
+      && !/r\$|reais|pila|conto|\d+/.test(t);
 }
 
 function ehComandoPagar(txt) {
-  return /pagar|pague|marcar.*(pag|pago)|status.*pago|marcar.*como.*pago/.test(txt.toLowerCase());
+  const t = txt.toLowerCase();
+  // Não é pagar se contém intenção de adicionar
+  if (/\b(adiciona|cadastra|coloca|lança|registra|inclui|cria)\b/.test(t)) return false;
+  return /\b(pagar|pague|marcar.*(pago)|status.*pago|marcar.*como.*pago)\b/.test(t)
+      && !/r\$|reais|pila|conto/.test(t);
 }
 
 // ── Processador de respostas (máquina de estados) ──
