@@ -1004,7 +1004,7 @@ function detectarNovosApelidos(texto, itens) {
       if (
         p.length >= 4 &&
         !aliases[p] &&
-        !['reais','real','paguei','gastei','comprei','parcelei','vezes','parcelas','hoje','semana','mês','mes'].includes(p)
+        !['reais','real','paguei','gastei','comprei','parcelei','vezes','parcelas','hoje','semana','mês','mes','pila'].includes(p)
       ) {
         const catMap = {
           'Mercado': ['mercado','supermercado','rancho','feira','compras'],
@@ -1225,7 +1225,7 @@ function extrairValor(txt) {
     .replace(/\bpila(s)?\b/g,'reais').replace(/\bconto(s)?\b/g,'reais')
     .replace(/\bgrana\b/g,'reais').replace(/\bmoney\b/g,'reais')
     .replace(/\bbala(s)?\b/g,'reais').replace(/\bpau(s)?\b/g,'reais');
-  // padrões: R$ 150, 150 reais, deu 150, custou 150, valor 150
+  // padrões: R$ 50, 50,00 reais, deu 50, custou 50, valor 50, total 50
   const m = t.match(/r\$\s*([\d.,]+)|([\d.,]+)\s*reais|(deu|custou|valor\s+de?|foi|saiu)\s+([\d.,]+)|([\d.,]+)/);
   if (!m) return null;
   const raw = (m[1]||m[2]||m[4]||m[5]||'').replace(/\./g,'').replace(',','.');
