@@ -1259,24 +1259,21 @@ function processarResposta(texto) {
   }
 
   if (_estado === 'aguardando_cartao') {
-    // Usuário respondeu qual cartão
     _chatHistory.push({ role: 'user', content: texto });
     _estado = 'idle';
-    interpretarTexto(); // re-processa com o histórico completo
+    interpretarTexto(''); // re-processa com histórico completo
     return;
   }
 
   if (_estado === 'aguardando_valor' || _estado === 'aguardando_descricao') {
     _chatHistory.push({ role: 'user', content: texto });
     _estado = 'idle';
-    interpretarTexto();
+    interpretarTexto(''); // re-processa com histórico completo
     return;
   }
 
-  // Estado idle — trata como novo comando
-  const inp = document.getElementById('aiInput');
-  if (inp) { inp.value = texto; atualizarBtnClear(); }
-  interpretarTexto();
+  // Estado idle — novo comando
+  interpretarTexto(texto);
 }
 
 // ── Resolve datas relativas ──
@@ -1311,18 +1308,30 @@ function adicionarBolha(texto, tipo) {
 }
 
 // ── Interpretar via Claude API ──
-window.interpretarTexto = async function() {
+window.interpretarTexto = async function(textoExterno) {
   const inp = document.getElementById('aiInput');
-  const texto = inp ? inp.value.trim() : '';
+  // textoExterno = veio de processarResposta; senão lê do campo
+  const texto = textoExterno || (inp ? inp.value.trim() : '');
 
-  // Se não veio do input (veio de processarResposta), usa última msg do histórico
-  const ehNovoTexto = texto.length > 0;
+  if (!texto && !_chatHistory.length) {
+    showToast('Digite ou grave algo primeiro', '#ef4444');
+    return;
+  }
 
-  if (ehNovoTexto) {
-    if (!texto) { showToast('Digite ou grave algo primeiro', '#ef4444'); return; }
-    pararGravacao();
+  pararGravacao();
+
+  if (texto) {
+    // Novo comando independente em idle → limpa histórico anterior
+    if (_estado === 'idle' && _chatHistory.length) {
+      _chatHistory = [];
+      const h = document.getElementById('aiChatHistory');
+      if (h) { h.innerHTML = ''; h.style.display = 'none'; }
+      document.getElementById('aiResult').style.display = 'none';
+      document.getElementById('aiError').style.display = 'none';
+      document.getElementById('aiAliasSuggestions').style.display = 'none';
+    }
     adicionarBolha(texto, 'user');
-    inp.value = '';
+    if (inp) { inp.value = ''; }
     document.getElementById('btnClearAI').style.display = 'none';
     _chatHistory.push({ role: 'user', content: texto });
   }
