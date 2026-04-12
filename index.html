@@ -931,6 +931,146 @@ async function unregisterPBS() {
 window._runPeriodicSync = runPeriodicSync;
 window._unregisterPBS   = unregisterPBS;
 
+// ── Sistema de Apelidos ──
+const ALIASES_DEFAULT = {
+  // Cartões
+  'roxo':'Nubank','roxinho':'Nubank','nubank':'Nubank',
+  'inter':'Inter','laranja':'Inter',
+  'itau':'Itaú','itaú':'Itaú',
+  'bradesco':'Bradesco',
+  'santander':'Santander','vermelho':'Santander',
+  'c6':'C6 Bank','c6bank':'C6 Bank',
+  'picpay':'PicPay',
+  'xp':'XP',
+  // Categorias
+  'rancho':'Mercado','feira':'Mercado','mercadinho':'Mercado','supermercado':'Mercado','compras':'Mercado',
+  'luz':'Moradia','energia':'Moradia','água':'Moradia','agua':'Moradia','aluguel':'Moradia','condomínio':'Moradia','condominio':'Moradia','internet':'Moradia',
+  'uber':'Transporte','99':'Transporte','gasolina':'Transporte','combustível':'Transporte','combustivel':'Transporte','ônibus':'Transporte','onibus':'Transporte','metrô':'Transporte','metro':'Transporte',
+  'farmácia':'Saúde','farmacia':'Saúde','remédio':'Saúde','remedio':'Saúde','médico':'Saúde','medico':'Saúde','consulta':'Saúde','dentista':'Saúde',
+  'netflix':'Assinaturas','spotify':'Assinaturas','amazon':'Assinaturas','prime':'Assinaturas','disney':'Assinaturas','hbo':'Assinaturas','max':'Assinaturas',
+  'academia':'Lazer','restaurante':'Lazer','lanche':'Lazer','pizza':'Lazer','cinema':'Lazer','bar':'Lazer',
+  'curso':'Investimentos','livro':'Investimentos','ação':'Investimentos','acao':'Investimentos','fundo':'Investimentos'
+};
+
+function getAliases() {
+  try { return JSON.parse(localStorage.getItem('fpro_aliases') || '{}'); } catch { return {}; }
+}
+function saveAliases(a) { localStorage.setItem('fpro_aliases', JSON.stringify(a)); }
+function getAllAliases() {
+  // Merge: defaults + cartões cadastrados + apelidos do usuário
+  const merged = { ...ALIASES_DEFAULT };
+  // Adiciona nomes de cartões cadastrados como apelidos de si mesmos
+  getCartoes().forEach(c => { merged[c.nome.toLowerCase()] = c.nome; });
+  // Apelidos do usuário sobrescrevem os defaults
+  Object.assign(merged, getAliases());
+  return merged;
+}
+function buildAliasContext() {
+  const aliases = getAllAliases();
+  const cartoes = getCartoes().map(c => c.nome);
+  const lines = Object.entries(aliases).map(([k, v]) => `"${k}" → "${v}"`);
+  return `Apelidos conhecidos:\n${lines.join('\n')}\nCartões cadastrados: ${cartoes.join(', ') || 'nenhum'}`;
+}
+
+// Detecta possíveis novos apelidos no texto vs o que a IA retornou
+function detectarNovosApelidos(texto, itens) {
+  const aliases = getAllAliases();
+  const sugestoes = [];
+  const palavras = texto.toLowerCase().match(/\b[a-záàâãéêíóôõúçüñ]+\b/g) || [];
+
+  itens.forEach(item => {
+    // Sugestão de apelido para cartão
+    if (item.cartaoNome) {
+      palavras.forEach(p => {
+        if (
+          p.length >= 3 &&
+          !aliases[p] &&
+          !['no','na','do','da','de','em','um','uma','por','com','que','reais','real','paguei','gastei','comprei','foi','fiz'].includes(p) &&
+          item.cartaoNome.toLowerCase().includes(p) === false &&
+          texto.toLowerCase().includes(p)
+        ) {
+          // Heurística: palavra está perto de mencionar o cartão no texto?
+          const idx = texto.toLowerCase().indexOf(p);
+          const trecho = texto.toLowerCase().slice(Math.max(0, idx - 30), idx + 30);
+          if (trecho.includes(item.cartaoNome.toLowerCase()) ||
+              trecho.match(/cart[aã]o|nubank|inter|roxo|roxinho|visa|master/)) {
+            sugestoes.push({ apelido: p, valor: item.cartaoNome, tipo: 'cartão' });
+          }
+        }
+      });
+    }
+    // Sugestão de apelido para categoria
+    palavras.forEach(p => {
+      if (
+        p.length >= 4 &&
+        !aliases[p] &&
+        !['reais','real','paguei','gastei','comprei','parcelei','vezes','parcelas','hoje','semana','mês','mes'].includes(p)
+      ) {
+        const catMap = {
+          'Mercado': ['mercado','supermercado','rancho','feira','compras'],
+          'Moradia': ['aluguel','luz','água','condominio','internet'],
+          'Saúde': ['farmacia','remedio','medico','consulta','dentista'],
+          'Transporte': ['uber','gasolina','combustivel','onibus','metro'],
+          'Lazer': ['restaurante','pizza','cinema','academia','lanche'],
+          'Assinaturas': ['netflix','spotify','amazon','disney'],
+          'Investimentos': ['curso','livro','acao','fundo']
+        };
+        // Se a palavra aparece no texto e a IA mapeou para uma categoria, sugere
+        if (catMap[item.categoria] && texto.toLowerCase().includes(p)) {
+          const jaExiste = catMap[item.categoria].some(s => p.includes(s) || s.includes(p));
+          if (!jaExiste && p !== item.nome.toLowerCase()) {
+            sugestoes.push({ apelido: p, valor: item.categoria, tipo: 'categoria' });
+          }
+        }
+      }
+    });
+  });
+
+  // Deduplica
+  const vistos = new Set();
+  return sugestoes.filter(s => {
+    const k = s.apelido + s.valor;
+    if (vistos.has(k)) return false;
+    vistos.add(k); return true;
+  }).slice(0, 3); // máx 3 sugestões por vez
+}
+
+function mostrarSugestoesApelidos(sugestoes) {
+  if (!sugestoes.length) return;
+  const container = document.getElementById('aiAliasSuggestions');
+  if (!container) return;
+  container.innerHTML = `
+    <div style="background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.18);border-radius:12px;padding:12px 14px;margin-top:10px">
+      <p style="color:#a5b4fc;font-size:12px;font-weight:600;margin-bottom:8px">💡 Quer salvar esses apelidos?</p>
+      ${sugestoes.map((s, i) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="color:#94a3b8;font-size:12px">"<b style="color:#e2e8f0">${s.apelido}</b>" → ${s.tipo === 'cartão' ? '💳' : '🏷️'} <b style="color:#e2e8f0">${s.valor}</b></span>
+          <div style="display:flex;gap:6px">
+            <button onclick="salvarApelidoSugerido(${i})" style="font-size:11px;padding:3px 10px;border-radius:8px;background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;cursor:pointer;font-weight:600">Salvar</button>
+            <button onclick="ignorarApelidoSugerido(${i})" style="font-size:11px;padding:3px 8px;border-radius:8px;background:transparent;border:1px solid rgba(148,163,184,0.15);color:#475569;cursor:pointer">Não</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  container.style.display = 'block';
+  window._sugestoesAtivas = sugestoes;
+}
+
+window.salvarApelidoSugerido = function(i) {
+  const s = window._sugestoesAtivas[i];
+  if (!s) return;
+  const aliases = getAliases();
+  aliases[s.apelido] = s.valor;
+  saveAliases(aliases);
+  window._sugestoesAtivas.splice(i, 1);
+  mostrarSugestoesApelidos(window._sugestoesAtivas);
+  showToast(`Apelido "${s.apelido}" salvo ✓`, '#4ade80');
+};
+window.ignorarApelidoSugerido = function(i) {
+  window._sugestoesAtivas.splice(i, 1);
+  mostrarSugestoesApelidos(window._sugestoesAtivas);
+};
+
+
 // Inicia tudo ao carregar
 window.addEventListener('load', registerSWAndPBS);
 </script>
@@ -999,6 +1139,8 @@ select option{background:#1e293b;color:#e2e8f0}
 .icon-btn{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;transition:all .15s}
 .edit-btn{background:rgba(99,102,241,0.1);color:#818cf8}
 .edit-btn:active{transform:scale(0.88);background:rgba(99,102,241,0.22)}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 </style>
 </head>
 <body>
