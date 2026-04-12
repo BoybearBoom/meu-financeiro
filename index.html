@@ -1070,47 +1070,57 @@ window.ignorarApelidoSugerido = function(i) {
   mostrarSugestoesApelidos(window._sugestoesAtivas);
 };
 
-// ══════════════════════════════════════════════
-// ASSISTENTE IA — Motor Conversacional + Voz
-// ══════════════════════════════════════════════
-let _aiItems      = [];
-let _recognition  = null;
-let _gravando     = false;
-let _chatHistory  = [];
 
-// ── Máquina de Estados ──
-// idle | aguardando_confirmacao | aguardando_cartao | aguardando_valor | aguardando_descricao | escutando_resposta
-let _estado = 'idle';
-let _pendingItems = []; // itens aguardando confirmação de valor alto
-let _pendingCartao = null; // item aguardando nome do cartão
+// ══════════════════════════════════════════════════════════
+// ASSISTENTE IA — Reescrita completa
+// ══════════════════════════════════════════════════════════
 
-// ── Speech Synthesis ──
-function falar(texto, callback) {
-  if (!window.speechSynthesis) { callback && callback(); return; }
+// ── Estado global ──
+let _aiItems     = [];
+let _estado      = 'idle';
+// estados: idle | confirm_alto | aguarda_cartao | aguarda_valor | aguarda_desc | aguarda_sim_nao
+let _pendingData = {}; // dados parciais da despesa em construção
+let _rec         = null;
+let _gravando    = false;
+
+// ── speechSynthesis ──
+function falar(txt, cb) {
+  if (!window.speechSynthesis) { cb && cb(); return; }
   window.speechSynthesis.cancel();
-  const utter = new SpeechSynthesisUtterance(texto);
-  utter.lang = 'pt-BR';
-  utter.rate = 1.05;
-  utter.pitch = 1;
-  // Tenta usar voz PT-BR se disponível
-  const vozes = window.speechSynthesis.getVoices();
-  const voz = vozes.find(v => v.lang.startsWith('pt')) || vozes[0];
-  if (voz) utter.voice = voz;
-  utter.onend = () => callback && callback();
-  window.speechSynthesis.speak(utter);
+  const u = new SpeechSynthesisUtterance(txt);
+  u.lang = 'pt-BR'; u.rate = 1.05;
+  const vs = window.speechSynthesis.getVoices();
+  const v  = vs.find(x => x.lang.startsWith('pt')) || vs[0];
+  if (v) u.voice = v;
+  u.onend = () => cb && cb();
+  window.speechSynthesis.speak(u);
 }
 
-// Fala + bolha + (opcionalmente) reativa microfone
-function assistenteFala(texto, reativarMic = false) {
-  adicionarBolha(texto, 'ai');
-  falar(texto, () => {
-    if (reativarMic) {
-      setTimeout(() => iniciarGravacaoResposta(), 400);
-    }
-  });
+function dizer(txt, reativarMic) {
+  bolha(txt, 'ai');
+  falar(txt, reativarMic ? () => setTimeout(escutarResposta, 400) : null);
 }
 
-// ── Helpers do input ──
+// ── Bolhas de chat ──
+function bolha(txt, tipo) {
+  const h = document.getElementById('aiChatHistory');
+  if (!h) return;
+  h.style.display = 'flex';
+  const d = document.createElement('div');
+  const eu = tipo === 'user';
+  d.style.cssText = `display:flex;justify-content:${eu?'flex-end':'flex-start'}`;
+  d.innerHTML = `<div style="max-width:85%;padding:8px 11px;font-size:13px;line-height:1.4;
+    border-radius:${eu?'12px 12px 3px 12px':'12px 12px 12px 3px'};
+    background:${eu?'rgba(99,102,241,0.25)':'rgba(30,41,59,0.8)'};
+    border:1px solid ${eu?'rgba(99,102,241,0.3)':'rgba(148,163,184,0.1)'};
+    color:${eu?'#c7d2fe':'#cbd5e1'}">${txt}</div>`;
+  h.appendChild(d);
+  h.scrollTop = h.scrollHeight;
+  const rst = document.getElementById('btnResetChat');
+  if (rst) rst.style.display = 'inline-block';
+}
+
+// ── Helpers do campo de texto ──
 window.atualizarBtnClear = function() {
   const inp = document.getElementById('aiInput');
   const btn = document.getElementById('btnClearAI');
@@ -1121,19 +1131,25 @@ window.limparAIInput = function() {
   if (inp) { inp.value = ''; inp.focus(); }
   atualizarBtnClear();
 };
-
-window.openAIModal = function() {};
-window.closeAIModal = function() { cancelarAIResult(); pararGravacao(); };
+window.openAIModal       = function() {};
+window.closeAIModal      = function() { resetarTudo(); pararMic(); };
 window.closeAIModalOutside = function(e) {
   if (e.target === document.getElementById('aiModalOverlay')) window.closeAIModal();
 };
+window.resetarChat = window.cancelarAIResult = function() { resetarTudo(); };
+window.useExample  = function(el) {
+  const txt = el.textContent.replace(/^💬\s*"|"$/g,'').trim();
+  const inp = document.getElementById('aiInput');
+  if (inp) { inp.value = txt; atualizarBtnClear(); inp.focus(); }
+};
 
-window.cancelarAIResult = function() {
-  _aiItems = []; _chatHistory = []; _estado = 'idle'; _pendingItems = []; _pendingCartao = null;
+function resetarTudo() {
+  _aiItems = []; _estado = 'idle'; _pendingData = {};
   window.speechSynthesis && window.speechSynthesis.cancel();
+  pararMic();
   ['aiResult','aiAliasSuggestions','aiError','aiLoading'].forEach(id => {
     const el = document.getElementById(id);
-    if (el) { el.style.display = 'none'; if (id === 'aiAliasSuggestions') el.innerHTML = ''; }
+    if (el) { el.style.display = 'none'; if (id==='aiAliasSuggestions') el.innerHTML=''; }
   });
   const h = document.getElementById('aiChatHistory');
   if (h) { h.innerHTML = ''; h.style.display = 'none'; }
@@ -1141,311 +1157,330 @@ window.cancelarAIResult = function() {
   if (inp) { inp.value = ''; inp.placeholder = 'Ex: comprei um tênis por 200 reais...'; }
   const clr = document.getElementById('btnClearAI'); if (clr) clr.style.display = 'none';
   const rst = document.getElementById('btnResetChat'); if (rst) rst.style.display = 'none';
-};
-window.resetarChat = function() { window.cancelarAIResult(); };
-window.useExample = function(el) {
-  const txt = el.textContent.replace(/^💬\s*"|"$/g, '').trim();
-  document.getElementById('aiInput').value = txt;
-  document.getElementById('btnClearAI').style.display = 'flex';
-  document.getElementById('aiInput').focus();
-};
+}
 
 // ── Microfone principal (botão 🎤) ──
-window.toggleGravacao = function() {
-  if (_gravando) { pararGravacao(); return; }
-  iniciarGravacao();
-};
+window.toggleGravacao = function() { _gravando ? pararMic() : ligarMic(null); };
 
-function iniciarGravacao(callbackFinal) {
+function ligarMic(cbFinal) {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { showToast('Browser não suporta microfone', '#ef4444'); return; }
-  if (_recognition) { try { _recognition.abort(); } catch {} _recognition = null; }
-
-  _recognition = new SR();
-  _recognition.lang = 'pt-BR';
-  _recognition.continuous = false;
-  _recognition.interimResults = true;
-  _recognition.maxAlternatives = 1;
-
+  if (!SR) { showToast('Microfone não suportado','#ef4444'); return; }
+  if (_rec) { try { _rec.abort(); } catch{} _rec = null; }
+  _rec = new SR();
+  _rec.lang = 'pt-BR'; _rec.continuous = false;
+  _rec.interimResults = true; _rec.maxAlternatives = 1;
   const inp = document.getElementById('aiInput');
-  let acumulado = inp ? inp.value.trimEnd() : '';
-
-  _recognition.onstart = () => {
+  let acum = inp ? inp.value.trimEnd() : '';
+  _rec.onstart = () => {
     _gravando = true;
-    const btn = document.getElementById('btnGravar');
-    if (btn) { btn.style.background = 'rgba(239,68,68,0.25)'; btn.style.borderColor = 'rgba(239,68,68,0.5)'; }
-    const st = document.getElementById('aiRecStatus'); if (st) st.style.display = 'flex';
+    const b = document.getElementById('btnGravar');
+    if (b) { b.style.background='rgba(239,68,68,0.25)'; b.style.borderColor='rgba(239,68,68,0.5)'; }
+    const s = document.getElementById('aiRecStatus'); if (s) s.style.display='flex';
   };
-
-  _recognition.onresult = (e) => {
-    let interim = '', novoFinal = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      if (e.results[i].isFinal) novoFinal += e.results[i][0].transcript;
+  _rec.onresult = e => {
+    let interim='', final='';
+    for (let i=e.resultIndex;i<e.results.length;i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
       else interim = e.results[i][0].transcript;
     }
-    if (novoFinal) acumulado = (acumulado ? acumulado + ' ' : '') + novoFinal.trim();
-    if (inp) inp.value = acumulado + (interim ? ' ' + interim : '');
+    if (final) acum = (acum?acum+' ':'')+final.trim();
+    if (inp) inp.value = acum+(interim?' '+interim:'');
     atualizarBtnClear();
   };
-
-  _recognition.onerror = (e) => { if (e.error !== 'aborted') pararGravacao(); };
-
-  _recognition.onend = () => {
-    if (inp) inp.value = acumulado;
-    atualizarBtnClear();
-    pararGravacao();
-    if (callbackFinal && acumulado.trim()) callbackFinal(acumulado.trim());
+  _rec.onerror = e => { if (e.error!=='aborted') pararMic(); };
+  _rec.onend   = () => {
+    if (inp) inp.value = acum;
+    atualizarBtnClear(); pararMic();
+    if (cbFinal && acum.trim()) cbFinal(acum.trim());
   };
-
-  _recognition.start();
+  _rec.start();
 }
 
-// Microfone silencioso para respostas (Sim/Não/nome do cartão etc)
-function iniciarGravacaoResposta() {
+// Mic silencioso para respostas automáticas
+function escutarResposta() {
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) return;
-  if (_recognition) { try { _recognition.abort(); } catch {} _recognition = null; }
-
-  _recognition = new SR();
-  _recognition.lang = 'pt-BR';
-  _recognition.continuous = false;
-  _recognition.interimResults = false;
-  _recognition.maxAlternatives = 1;
-
-  // Indicador sutil de "ouvindo resposta"
-  const st = document.getElementById('aiRecStatus'); if (st) st.style.display = 'flex';
-
-  _recognition.onresult = (e) => {
-    const resposta = e.results[0][0].transcript.trim();
-    if (resposta) processarResposta(resposta);
-  };
-  _recognition.onerror = () => { const st = document.getElementById('aiRecStatus'); if (st) st.style.display = 'none'; };
-  _recognition.onend = () => { const st = document.getElementById('aiRecStatus'); if (st) st.style.display = 'none'; _gravando = false; };
-  _recognition.start();
-  _gravando = true;
+  if (_rec) { try { _rec.abort(); } catch{} _rec = null; }
+  _rec = new SR();
+  _rec.lang='pt-BR'; _rec.continuous=false; _rec.interimResults=false;
+  const s = document.getElementById('aiRecStatus'); if (s) s.style.display='flex';
+  _rec.onresult = e => { const r=e.results[0][0].transcript.trim(); if(r) processarResposta(r); };
+  _rec.onerror  = () => { const s=document.getElementById('aiRecStatus'); if(s) s.style.display='none'; _gravando=false; };
+  _rec.onend    = () => { const s=document.getElementById('aiRecStatus'); if(s) s.style.display='none'; _gravando=false; };
+  _rec.start(); _gravando=true;
 }
 
-function pararGravacao() {
+function pararMic() {
   _gravando = false;
-  if (_recognition) { try { _recognition.stop(); } catch {} _recognition = null; }
-  const btn = document.getElementById('btnGravar');
-  if (btn) { btn.style.background = 'rgba(239,68,68,0.1)'; btn.style.borderColor = 'rgba(239,68,68,0.2)'; }
-  const st = document.getElementById('aiRecStatus'); if (st) st.style.display = 'none';
+  if (_rec) { try { _rec.stop(); } catch{} _rec=null; }
+  const b = document.getElementById('btnGravar');
+  if (b) { b.style.background='rgba(239,68,68,0.1)'; b.style.borderColor='rgba(239,68,68,0.2)'; }
+  const s = document.getElementById('aiRecStatus'); if (s) s.style.display='none';
 }
 
-// ── Processador de Respostas (máquina de estados) ──
-function processarResposta(texto) {
-  adicionarBolha(texto, 'user');
-  const t = texto.toLowerCase().trim();
-  const sim = /^(sim|s|pode|pode ser|ok|okay|confirma|confirmado|isso|correto|certo|tá|ta|vai|bora)/.test(t);
-  const nao = /^(não|nao|n|cancela|errado|errada|negativo|pare|para)/.test(t);
-
-  if (_estado === 'aguardando_confirmacao') {
-    if (sim) {
-      // Confirma itens pendentes e salva
-      _aiItems = _pendingItems;
-      _pendingItems = [];
-      _estado = 'idle';
-      renderAIItems();
-      assistenteFala('Confirmado! Revise os itens e toque em Salvar tudo quando quiser.', false);
-    } else if (nao) {
-      _pendingItems = [];
-      _estado = 'idle';
-      assistenteFala('Entendido. Pode me informar o valor correto.', true);
-    } else {
-      assistenteFala('Não entendi. Diga "sim" para confirmar ou "não" para corrigir.', true);
-    }
-    return;
-  }
-
-  if (_estado === 'aguardando_cartao') {
-    _chatHistory.push({ role: 'user', content: texto });
-    _estado = 'idle';
-    interpretarTexto(''); // re-processa com histórico completo
-    return;
-  }
-
-  if (_estado === 'aguardando_valor' || _estado === 'aguardando_descricao') {
-    _chatHistory.push({ role: 'user', content: texto });
-    _estado = 'idle';
-    interpretarTexto(''); // re-processa com histórico completo
-    return;
-  }
-
-  // Estado idle — novo comando
-  interpretarTexto(texto);
+// ── Normaliza texto para extrair valor ──
+function extrairValor(txt) {
+  // substitui sinônimos
+  const t = txt.toLowerCase()
+    .replace(/\bpila(s)?\b/g,'reais').replace(/\bconto(s)?\b/g,'reais')
+    .replace(/\bgrana\b/g,'reais').replace(/\bmoney\b/g,'reais')
+    .replace(/\bbala(s)?\b/g,'reais').replace(/\bpau(s)?\b/g,'reais');
+  // padrões: R$ 150, 150 reais, deu 150, custou 150, valor 150
+  const m = t.match(/r\$\s*([\d.,]+)|([\d.,]+)\s*reais|(deu|custou|valor\s+de?|foi|saiu)\s+([\d.,]+)|([\d.,]+)/);
+  if (!m) return null;
+  const raw = (m[1]||m[2]||m[4]||m[5]||'').replace(/\./g,'').replace(',','.');
+  const v = parseFloat(raw);
+  return isNaN(v)||v<=0 ? null : v;
 }
 
-// ── Resolve datas relativas ──
-function resolverData(texto, hoje) {
-  if (!texto || texto === hoje) return hoje;
-  const t = texto.toLowerCase().trim();
-  const base = new Date(hoje + 'T12:00:00');
-  if (t === 'hoje' || t === '') return hoje;
-  if (t === 'ontem') { base.setDate(base.getDate() - 1); return base.toISOString().split('T')[0]; }
-  if (t === 'anteontem') { base.setDate(base.getDate() - 2); return base.toISOString().split('T')[0]; }
-  const diaM = t.match(/dia\s+(\d{1,2})(?:\s+(?:do\s+)?m[eê]s\s+(\d{1,2}))?/);
-  if (diaM) {
-    const dia = parseInt(diaM[1]);
-    const mes = diaM[2] ? parseInt(diaM[2]) - 1 : base.getMonth();
-    return new Date(base.getFullYear(), mes, dia).toISOString().split('T')[0];
-  }
+function extrairParcelas(txt) {
+  const m = txt.match(/(\d+)\s*x\b|parcel(?:ei|ado)\s+em\s+(\d+)|em\s+(\d+)\s+vez/i);
+  if (!m) return 1;
+  return parseInt(m[1]||m[2]||m[3])||1;
+}
+
+function resolverData(txt, hoje) {
+  if (!txt||txt===hoje) return hoje;
+  const t=txt.toLowerCase().trim();
+  const base=new Date(hoje+'T12:00:00');
+  if (t==='hoje'||!t) return hoje;
+  if (t==='ontem'){base.setDate(base.getDate()-1);return base.toISOString().split('T')[0];}
+  if (t==='anteontem'){base.setDate(base.getDate()-2);return base.toISOString().split('T')[0];}
+  const dm=t.match(/dia\s+(\d{1,2})(?:\s+(?:do\s+)?m[eê]s\s+(\d{1,2}))?/);
+  if (dm){ const d=parseInt(dm[1]),m2=dm[2]?parseInt(dm[2])-1:base.getMonth(); return new Date(base.getFullYear(),m2,d).toISOString().split('T')[0]; }
   if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t;
   return hoje;
 }
 
-// ── Bolha de chat ──
-function adicionarBolha(texto, tipo) {
-  const h = document.getElementById('aiChatHistory');
-  h.style.display = 'flex';
-  const isUser = tipo === 'user';
-  const bolha = document.createElement('div');
-  bolha.style.cssText = `display:flex;justify-content:${isUser ? 'flex-end' : 'flex-start'}`;
-  bolha.innerHTML = `<div style="max-width:85%;padding:8px 11px;border-radius:${isUser ? '12px 12px 3px 12px' : '12px 12px 12px 3px'};background:${isUser ? 'rgba(99,102,241,0.25)' : 'rgba(30,41,59,0.8)'};border:1px solid ${isUser ? 'rgba(99,102,241,0.3)' : 'rgba(148,163,184,0.1)'};color:${isUser ? '#c7d2fe' : '#cbd5e1'};font-size:13px;line-height:1.4">${texto}</div>`;
-  h.appendChild(bolha);
-  h.scrollTop = h.scrollHeight;
-  const rst = document.getElementById('btnResetChat'); if (rst) rst.style.display = 'inline-block';
+function inferirCategoria(txt) {
+  const t=txt.toLowerCase();
+  if (/netflix|spotify|amazon|prime|disney|max|hbo|deezer|youtube/.test(t)) return 'Assinaturas';
+  if (/farmácia|farmacia|remédio|remedio|médico|medico|consulta|dentist|hospital|saúde|saude/.test(t)) return 'Saúde';
+  if (/mercado|rancho|feira|compras|supermerc|hortifrut|açougue|acougue/.test(t)) return 'Mercado';
+  if (/aluguel|condomínio|condominio|luz|energia|água|agua|internet|gás|gas|iptu/.test(t)) return 'Moradia';
+  if (/uber|99|gasolina|combustível|combustivel|ônibus|onibus|metrô|metro|estacion/.test(t)) return 'Transporte';
+  if (/curso|livro|ação|acao|fundo|invest|poupança|poupanca/.test(t)) return 'Investimentos';
+  if (/restaurante|pizza|lanche|cinema|barzinho|bar |festa|lazer|show/.test(t)) return 'Lazer';
+  return 'Mercado';
 }
 
-// ── Interpretar via Claude API ──
-window.interpretarTexto = async function(textoExterno) {
-  const inp = document.getElementById('aiInput');
-  // textoExterno = veio de processarResposta; senão lê do campo
-  const texto = textoExterno || (inp ? inp.value.trim() : '');
+function inferirCartao(txt) {
+  const aliases = getAllAliases();
+  const t = txt.toLowerCase();
+  for (const [apelido, valor] of Object.entries(aliases)) {
+    if (t.includes(apelido)) {
+      // checa se é cartão
+      const cartoes = getCartoes().map(c=>c.nome);
+      if (cartoes.includes(valor)) return valor;
+    }
+  }
+  const cartoes = getCartoes();
+  for (const c of cartoes) {
+    if (t.includes(c.nome.toLowerCase())) return c.nome;
+  }
+  return null;
+}
 
-  if (!texto && !_chatHistory.length) {
-    showToast('Digite ou grave algo primeiro', '#ef4444');
+function ehComandoStatus(txt) {
+  return /pendente|fatura|conta(s)?|devo|quais|listar|mostrar|venc/.test(txt.toLowerCase());
+}
+
+function ehComandoPagar(txt) {
+  return /pagar|pague|marcar.*(pag|pago)|status.*pago|marcar.*como.*pago/.test(txt.toLowerCase());
+}
+
+// ── Processador de respostas (máquina de estados) ──
+function processarResposta(txt) {
+  bolha(txt, 'user');
+  const t = txt.toLowerCase().trim();
+  const sim = /^(sim|s|pode|pode ser|ok|okay|isso|correto|certo|tá|ta|vai|bora|confirm|certo)/.test(t);
+  const nao = /^(não|nao|n\b|cancela|errado|negativo|pare|para)/.test(t);
+
+  if (_estado === 'confirm_alto') {
+    if (sim) {
+      _estado = 'idle';
+      _aiItems = [_pendingData.item];
+      exibirCards();
+      dizer(`Ok! Confira e toque em Salvar tudo.`, false);
+    } else {
+      _estado = 'idle'; _pendingData = {};
+      dizer('Entendido. Me informe o valor correto.', true);
+    }
     return;
   }
 
-  pararGravacao();
-
-  if (texto) {
-    // Novo comando independente em idle → limpa histórico anterior
-    if (_estado === 'idle' && _chatHistory.length) {
-      _chatHistory = [];
-      const h = document.getElementById('aiChatHistory');
-      if (h) { h.innerHTML = ''; h.style.display = 'none'; }
-      document.getElementById('aiResult').style.display = 'none';
-      document.getElementById('aiError').style.display = 'none';
-      document.getElementById('aiAliasSuggestions').style.display = 'none';
-    }
-    adicionarBolha(texto, 'user');
-    if (inp) { inp.value = ''; }
-    document.getElementById('btnClearAI').style.display = 'none';
-    _chatHistory.push({ role: 'user', content: texto });
-  }
-
-  document.getElementById('aiResult').style.display = 'none';
-  document.getElementById('aiError').style.display = 'none';
-  document.getElementById('aiLoading').style.display = 'block';
-  document.getElementById('btnInterpretar').disabled = true;
-
-  const aliasContext = buildAliasContext();
-  const hoje = new Date().toISOString().split('T')[0];
-  const [ano, mes, dia] = hoje.split('-').map(Number);
-  const ontem = new Date(new Date(hoje + 'T12:00:00').setDate(dia - 1)).toISOString().split('T')[0];
-  const anteontem = new Date(new Date(hoje + 'T12:00:00').setDate(dia - 2)).toISOString().split('T')[0];
-
-  const systemPrompt = `Você é um assistente de finanças pessoais conversacional em português brasileiro.
-Leia TODO o histórico da conversa e extraia despesas. Faça UMA pergunta por vez apenas quando realmente necessário.
-
-${aliasContext}
-Data de hoje: ${hoje} (${dia}/${mes}/${ano})
-Categorias: Moradia, Mercado, Transporte, Lazer, Cartão, Saúde, Assinaturas, Investimentos
-
-SINÔNIMOS DE VALOR: pila, pilas, conto, contos, grana, money, bala, pau
-- "165 pila" = 165, "2 conto" = 200, "deu 150" = 150, "custou X" = X
-
-REGRA PRINCIPAL: Se o histórico já tiver a resposta para uma pergunta anterior, USE-A e gere o JSON.
-
-QUANDO PERGUNTAR (só uma por vez):
-1. Falta descrição E valor → "Pagamento de quê e qual valor?"
-2. Só falta valor → "Qual o valor?"
-3. Só falta descrição → "Pagamento de quê?"
-4. Mencionou "cartão" sem nome E cartão não está no histórico → "Qual cartão?"
-5. Tem tudo → JSON imediatamente
-
-DATAS: "ontem"=${ontem}, "anteontem"=${anteontem}, "dia X"=${ano}-${String(mes).padStart(2, '0')}-XX, sem menção=${hoje}
-VENCIMENTO: "vence dia X" → "vencimento":"YYYY-MM-DD"
-
-FORMATO FINAL (SOMENTE o array, nada mais):
-[{"nome":"string","valor":number,"data":"YYYY-MM-DD","vencimento":"","categoria":"string","parcelas":1,"cartaoNome":""}]`;
-
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: systemPrompt,
-        messages: _chatHistory
-      })
-    });
-    if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error?.message || `HTTP ${res.status}`); }
-
-    const data = await res.json();
-    const raw = data.content.map(b => b.text || '').join('').trim();
-    _chatHistory.push({ role: 'assistant', content: raw });
-
-    const match = raw.match(/\[[\s\S]*?\]/);
-    if (match) {
-      let items = JSON.parse(match[0]);
-      items = items.map(item => ({
-        nome: item.nome || 'Despesa',
-        valor: parseFloat(item.valor) || 0,
-        data: resolverData(item.data, hoje),
-        vencimento: item.vencimento ? resolverData(item.vencimento, hoje) : '',
-        categoria: item.categoria || 'Mercado',
-        parcelas: parseInt(item.parcelas) || 1,
-        cartaoNome: item.cartaoNome || ''
-      })).filter(i => i.valor > 0);
-
-      if (!items.length) throw new Error('Sem valor');
-
-      // Prevenção de erros: valor muito alto (> R$ 10.000)
-      const itemAlto = items.find(i => i.valor > 10000);
-      if (itemAlto) {
-        _pendingItems = items;
-        _estado = 'aguardando_confirmacao';
-        document.getElementById('aiLoading').style.display = 'none';
-        const msg = `Você disse ${fmt(itemAlto.valor)} para "${itemAlto.nome}"? Está correto?`;
-        assistenteFala(msg, true);
-        return;
-      }
-
-      _aiItems = items;
-      document.getElementById('aiLoading').style.display = 'none';
-      renderAIItems();
-      mostrarSugestoesApelidos(detectarNovosApelidos(ehNovoTexto ? texto : '', _aiItems));
-
-      // Lê os itens em voz
-      const nomes = items.map(i => `${i.nome} por ${fmt(i.valor)}`).join(', ');
-      assistenteFala(`Encontrei: ${nomes}. Confira e toque em Salvar tudo.`, false);
-
+  if (_estado === 'confirm_pagar') {
+    if (sim) {
+      const item = _pendingData.item;
+      _estado = 'idle'; _pendingData = {};
+      // Marca como pago
+      const all = getData();
+      const idx = all.findIndex(x=>x.id===item.id);
+      if (idx>=0) { all[idx].pago=true; saveData(all); syncToCloud().catch(()=>{}); render(); }
+      dizer(`Confirmado, alterei o status de ${item.nome} para pago. Mais alguma coisa?`, true);
     } else {
-      // É uma pergunta — detecta estado
-      document.getElementById('aiLoading').style.display = 'none';
-      const pergunta = raw.replace(/\*\*/g, '').replace(/`/g, '').trim();
-
-      if (/qual cart[aã]o/i.test(pergunta)) _estado = 'aguardando_cartao';
-      else if (/qual.*(valor|preço)/i.test(pergunta)) _estado = 'aguardando_valor';
-      else if (/pagamento de qu[eê]/i.test(pergunta)) _estado = 'aguardando_descricao';
-
-      assistenteFala(pergunta, true); // fala e reativa mic automaticamente
-      document.getElementById('aiInput').placeholder = 'Responda aqui ou fale...';
+      _estado='idle'; _pendingData={};
+      dizer('Ok, cancelado. Mais alguma coisa?', true);
     }
-  } catch (e) {
-    document.getElementById('aiLoading').style.display = 'none';
-    document.getElementById('aiError').style.display = 'block';
-    document.getElementById('aiErrorMsg').textContent = e.message.includes('HTTP') ? `Erro: ${e.message}` : 'Não identifiquei. Tente: "tênis 200 reais"';
-    console.error('AI:', e);
-  } finally {
-    document.getElementById('btnInterpretar').disabled = false;
+    return;
   }
+
+  if (_estado === 'aguarda_cartao') {
+    _pendingData.cartao = txt.trim();
+    _estado = 'idle';
+    finalizarCadastro();
+    return;
+  }
+
+  if (_estado === 'aguarda_valor') {
+    const v = extrairValor(txt);
+    if (!v) { dizer('Não entendi o valor. Pode repetir?', true); return; }
+    _pendingData.valor = v;
+    _estado = 'idle';
+    finalizarCadastro();
+    return;
+  }
+
+  if (_estado === 'aguarda_desc') {
+    _pendingData.desc = txt.trim();
+    _estado = 'idle';
+    finalizarCadastro();
+    return;
+  }
+
+  // Estado idle — novo comando
+  interpretarComando(txt);
+}
+
+// ── Monta e valida despesa ──
+function finalizarCadastro() {
+  const hoje = new Date().toISOString().split('T')[0];
+  const d    = _pendingData;
+  const item = {
+    nome       : d.desc || 'Despesa',
+    valor      : d.valor || 0,
+    data       : resolverData(d.data, hoje),
+    vencimento : d.vencimento ? resolverData(d.vencimento, hoje) : '',
+    categoria  : d.cartao ? 'Cartão' : (d.categoria || inferirCategoria(d.desc||'')),
+    parcelas   : d.parcelas || 1,
+    cartaoNome : d.cartao || ''
+  };
+  _pendingData = {};
+
+  // Prevenção: valor muito alto
+  if (item.valor > 10000) {
+    _pendingData.item = item;
+    _estado = 'confirm_alto';
+    dizer(`Você disse ${fmt(item.valor)} para ${item.nome}? Está correto?`, true);
+    return;
+  }
+
+  _aiItems = [item];
+  exibirCards();
+  const voz = `${item.nome} por ${fmt(item.valor)}. Confira e toque em Salvar tudo.`;
+  dizer(voz, false);
+}
+
+// ── Interpreta comando livre ──
+function interpretarComando(txt) {
+  const hoje = new Date().toISOString().split('T')[0];
+
+  // Comando de status (listar pendentes)
+  if (ehComandoStatus(txt)) {
+    const all = getData().filter(x => x.monthKey === currentMonthKey() && !x.pago);
+    if (!all.length) { dizer('Não há contas pendentes este mês!', false); return; }
+    const lista = all.slice(0,3).map(x=>`${x.nome} de ${fmt(x.valor)}`).join(', ');
+    const primeiro = all[0];
+    _pendingData.item = primeiro; _estado = 'confirm_pagar';
+    dizer(`Você tem ${all.length} conta(s) pendente(s): ${lista}. Deseja pagar ${primeiro.nome} agora?`, true);
+    return;
+  }
+
+  // Comando de pagar item específico
+  if (ehComandoPagar(txt)) {
+    const all = getData().filter(x => x.monthKey === currentMonthKey() && !x.pago);
+    // tenta achar o item mencionado
+    const match = all.find(x => txt.toLowerCase().includes(x.nome.toLowerCase().split(' ')[0]));
+    const item  = match || all[0];
+    if (!item) { dizer('Não encontrei conta pendente para pagar.', false); return; }
+    _pendingData.item = item; _estado = 'confirm_pagar';
+    dizer(`Confirma pagamento de ${item.nome} no valor de ${fmt(item.valor)}?`, true);
+    return;
+  }
+
+  // Cadastro de despesa
+  const valor    = extrairValor(txt);
+  const parcelas = extrairParcelas(txt);
+  const cartao   = inferirCartao(txt);
+
+  // Extrai descrição: remove valores, palavras de ação e conectivos
+  let desc = txt
+    .replace(/r\$\s*[\d.,]+/gi,'').replace(/[\d.,]+\s*(reais|pila[s]?|conto[s]?|grana|money|bala[s]?)/gi,'')
+    .replace(/\b(comprei|paguei|gastei|foi|saiu|deu|custou|fiz|no|na|do|da|de|um|uma|em|com|pelo|pela)\b/gi,' ')
+    .replace(/\b\d+\s*x\b/gi,'').replace(/cart[aã]o\s*(de\s*cr[eé]dito)?/gi,'').trim()
+    .replace(/\s+/g,' ').trim();
+  if (desc.length < 2) desc = '';
+
+  // Extrai vencimento
+  let vencimento = '';
+  const vm = txt.match(/venc[e|imento]*\s+dia\s+(\d{1,2})/i);
+  if (vm) {
+    const [a,m2] = hoje.split('-').map(Number);
+    vencimento = new Date(a, m2-1, parseInt(vm[1])).toISOString().split('T')[0];
+  }
+
+  // Monta dados parciais
+  _pendingData = { valor, desc, parcelas, cartao, vencimento,
+    categoria: cartao ? 'Cartão' : inferirCategoria(txt),
+    data: hoje };
+
+  // Determina o que falta
+  if (!desc && !valor) {
+    _estado = 'aguarda_desc';
+    dizer('Pagamento de quê e qual o valor?', true);
+    return;
+  }
+  if (!desc) {
+    _estado = 'aguarda_desc';
+    dizer('Pagamento de quê?', true);
+    return;
+  }
+  if (!valor) {
+    _estado = 'aguarda_valor';
+    dizer('Qual o valor?', true);
+    return;
+  }
+  if (cartao===null && /cart[aã]o/i.test(txt)) {
+    _estado = 'aguarda_cartao';
+    dizer('Qual cartão?', true);
+    return;
+  }
+
+  // Tem tudo — finaliza
+  finalizarCadastro();
+}
+
+function currentMonthKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+}
+
+// ── Ponto de entrada do botão Enviar / Enter ──
+window.interpretarTexto = function() {
+  const inp = document.getElementById('aiInput');
+  const txt = inp ? inp.value.trim() : '';
+  if (!txt) { showToast('Digite ou grave algo primeiro','#ef4444'); return; }
+  pararMic();
+  bolha(txt, 'user');
+  inp.value = ''; atualizarBtnClear();
+  document.getElementById('aiError').style.display = 'none';
+  document.getElementById('aiResult').style.display = 'none';
+  interpretarComando(txt);
 };
 
+
+
+function exibirCards() { renderAIItems(); }
 
 function renderAIItems() {
   document.getElementById('aiLoading').style.display = 'none';
@@ -1532,9 +1567,11 @@ window.confirmarAIItems = function() {
   });
 
   saveData(all);
+  syncToCloud().catch(() => {});
   cancelarAIResult();
   render();
-  showToast(`${_aiItems.length} despesa(s) adicionada(s) ✓`, '#4ade80');
+  const n = _aiItems.length;
+  dizer(`${n} despesa${n>1?'s':''} salva${n>1?'s':''}. Mais alguma coisa?`, true);
   _aiItems = [];
 };
 
