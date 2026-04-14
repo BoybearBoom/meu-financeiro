@@ -491,6 +491,36 @@ window.toggleRecorrente=function(){
 };
 
 // ── Cartões Modal ──
+
+// Calcula a data ISO do próximo fechamento de um cartão
+function calcFechamentoDate(cartao){
+  if(!cartao||!cartao.fechamento) return '';
+  const today=new Date(); today.setHours(0,0,0,0);
+  const dia=cartao.fechamento;
+  let candidate=new Date(today.getFullYear(),today.getMonth(),dia);
+  if(candidate<=today) candidate=new Date(today.getFullYear(),today.getMonth()+1,dia);
+  const y=candidate.getFullYear();
+  const m=String(candidate.getMonth()+1).padStart(2,'0');
+  const d=String(candidate.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+
+// Preenche vencimento com fechamento do cartão. forceOverwrite=true troca mesmo se já tem valor
+function autoFillVencimentoCartao(nomeCartao, forceOverwrite){
+  const campo=document.getElementById('inputVencimento');
+  if(!campo) return;
+  const cartao=getCartoes().find(c=>c.nome===nomeCartao);
+  if(!cartao) return;
+  const dataFech=calcFechamentoDate(cartao);
+  if(!dataFech) return;
+  if(!campo.value||forceOverwrite) campo.value=dataFech;
+}
+
+// Chamado pelo onchange do select de cartão
+window.onCartaoSelectChange=function(nomeCartao){
+  autoFillVencimentoCartao(nomeCartao, true);
+};
+
 window.updateCartaoSelect=function(cat, selectedNome){
   const grp=document.getElementById('cartaoSelectGrp');
   const sel=document.getElementById('inputCartaoNome');
@@ -501,6 +531,9 @@ window.updateCartaoSelect=function(cat, selectedNome){
       ?cartoes.map(c=>`<option value="${c.nome}"${c.nome===selectedNome?' selected':''}>${c.icone||'💳'} ${c.nome} — fecha dia ${c.fechamento}${c.vencimento?' / vence dia '+c.vencimento:''}</option>`).join('')
       :'<option value="">Nenhum cartão cadastrado</option>';
     grp.style.display='block';
+    // Auto-preenche vencimento com fechamento do cartão (só se o campo estiver vazio)
+    const nomeAtual=selectedNome||(cartoes.length?cartoes[0].nome:'');
+    autoFillVencimentoCartao(nomeAtual, false);
   }else{
     grp.style.display='none';
   }
@@ -1416,7 +1449,7 @@ select option{background:#1e293b;color:#e2e8f0}
       <!-- Cartão select -->
       <div id="cartaoSelectGrp" style="display:none">
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">💳 Qual cartão?</label>
-        <select id="inputCartaoNome"></select>
+        <select id="inputCartaoNome" onchange="onCartaoSelectChange(this.value)"></select>
         <p class="text-slate-600 text-xs mt-1 ml-1">Compras a partir do fechamento vão para a fatura do mês seguinte</p>
       </div>
 
