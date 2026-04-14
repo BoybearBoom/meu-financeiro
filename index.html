@@ -291,7 +291,6 @@ onAuthStateChanged(auth,user=>{
       // Agenda checkDueAlerts e primeiro PBS se já passou o intervalo
       setTimeout(async()=>{
         checkDueAlerts();
-        checkDueTomorrowBalloon();
         if(Date.now()-_lastSyncAt >= PBS_MIN_INTERVAL){
           await runPeriodicSync();
         }
@@ -492,6 +491,41 @@ window.toggleRecorrente=function(){
 };
 
 // ── Cartões Modal ──
+
+// Dado um cartão, calcula a data ISO de fechamento da fatura mais próxima (mês atual ou próximo)
+function calcFechamentoDate(cartao){
+  if(!cartao||!cartao.fechamento) return '';
+  const today=new Date(); today.setHours(0,0,0,0);
+  const dia=cartao.fechamento;
+  // Tenta o fechamento no mês atual
+  let candidate=new Date(today.getFullYear(), today.getMonth(), dia);
+  // Se já passou, usa o próximo mês
+  if(candidate<=today) candidate=new Date(today.getFullYear(), today.getMonth()+1, dia);
+  const y=candidate.getFullYear();
+  const m=String(candidate.getMonth()+1).padStart(2,'0');
+  const d=String(candidate.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+
+// Preenche o campo de vencimento com a data de fechamento do cartão selecionado
+function autoFillVencimentoCartao(nomeCartao){
+  const campo=document.getElementById('inputVencimento');
+  if(!campo) return;
+  // Só preenche automaticamente se o campo estiver vazio (não sobrescreve edição)
+  if(campo.value) return;
+  const cartao=getCartoes().find(c=>c.nome===nomeCartao);
+  if(!cartao) return;
+  const dataFech=calcFechamentoDate(cartao);
+  if(dataFech){campo.value=dataFech;campo.dataset.autoFilled='1';}
+}
+
+window.onCartaoSelectChange=function(nomeCartao){
+  const campo=document.getElementById('inputVencimento');
+  // Ao trocar de cartão, limpa o valor anterior e preenche o novo
+  if(campo){campo.value='';campo.dataset.autoFilled='';}
+  autoFillVencimentoCartao(nomeCartao);
+};
+
 window.updateCartaoSelect=function(cat, selectedNome){
   const grp=document.getElementById('cartaoSelectGrp');
   const sel=document.getElementById('inputCartaoNome');
@@ -502,8 +536,14 @@ window.updateCartaoSelect=function(cat, selectedNome){
       ?cartoes.map(c=>`<option value="${c.nome}"${c.nome===selectedNome?' selected':''}>${c.icone||'💳'} ${c.nome} — fecha dia ${c.fechamento}${c.vencimento?' / vence dia '+c.vencimento:''}</option>`).join('')
       :'<option value="">Nenhum cartão cadastrado</option>';
     grp.style.display='block';
+    // Preenche vencimento automaticamente com o fechamento do cartão selecionado
+    const nomeAtual=selectedNome||(cartoes.length?cartoes[0].nome:'');
+    autoFillVencimentoCartao(nomeAtual);
   }else{
     grp.style.display='none';
+    // Limpa o vencimento auto-preenchido ao trocar de categoria
+    const campo=document.getElementById('inputVencimento');
+    if(campo&&campo.dataset.autoFilled==='1'){campo.value='';campo.dataset.autoFilled='';}
   }
 };
 
@@ -602,6 +642,7 @@ window.openModal=function(editId){
   document.getElementById('inputValor').value=item?item.valor:'';
   document.getElementById('inputData').value=item?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
   document.getElementById('inputVencimento').value=item&&item.vencimento?item.vencimento:'';
+  if(!item){const cv=document.getElementById('inputVencimento');if(cv)cv.dataset.autoFilled='';}
   document.getElementById('inputCategoria').value=item?item.categoria:'Moradia';
   updateCartaoSelect(item?item.categoria:'Moradia', item?item.cartaoNome:'');
   document.getElementById('inputParcelas').value='1';
@@ -875,8 +916,6 @@ async function runPeriodicSync() {
     processRecurring();
     // 4. Checa alertas de vencimento
     if (notifsEnabled) await checkDueAlerts();
-    // 5. Checa balão de vencimento amanhã
-    checkDueTomorrowBalloon();
     // 5. Registra timestamp do último sync
     _lastSyncAt = Date.now();
     localStorage.setItem('fpro_last_sync', String(_lastSyncAt));
@@ -934,108 +973,145 @@ async function unregisterPBS() {
 window._runPeriodicSync = runPeriodicSync;
 window._unregisterPBS   = unregisterPBS;
 
-// ── Balão de Vencimento Amanhã ──
-let _dueBalloonItems = [];
-let _dueBalloonIdx = 0;
-
-function getDueTomorrowDismissed() {
-  try { return JSON.parse(localStorage.getItem('fpro_due_dismissed') || '{}'); } catch { return {}; }
-}
-
-function checkDueTomorrowBalloon() {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const todayStr = today.toISOString().split('T')[0];
-  const dismissed = getDueTomorrowDismissed();
-
-  const items = getData().filter(i => {
-    if (i.pago || !i.vencimento) return false;
-    const v = new Date(i.vencimento + 'T00:00:00');
-    const diff = Math.round((v - today) / 86400000);
-    if (diff !== 1) return false;
-    // só mostra se não foi dispensado hoje
-    const key = `${i.id}-${todayStr}`;
-    return !dismissed[key];
-  });
-
-  if (!items.length) return;
-  _dueBalloonItems = items;
-  _dueBalloonIdx = 0;
-  showDueBalloon();
-}
-
-function showDueBalloon() {
-  const overlay = document.getElementById('dueBalloonOverlay');
-  const list = document.getElementById('dueBalloonList');
-  const countEl = document.getElementById('dueBalloonCount');
-  if (!overlay || !list) return;
-
-  const items = _dueBalloonItems;
-  const total = items.reduce((s, i) => s + parseFloat(i.valor), 0);
-
-  countEl.textContent = items.length > 1 ? `${items.length} contas` : '1 conta';
-
-  list.innerHTML = items.map(i => `
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(148,163,184,0.07)">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:20px">${CATS[i.categoria]||'💸'}</span>
-        <div>
-          <p style="color:#e2e8f0;font-size:14px;font-weight:600;margin:0">${i.nome}</p>
-          <p style="color:#64748b;font-size:12px;margin:2px 0 0">${i.cartaoNome||i.categoria} · vence ${fmtDate(i.vencimento)}</p>
-        </div>
-      </div>
-      <p style="color:#fbbf24;font-size:14px;font-weight:700;margin:0;flex-shrink:0;margin-left:10px">${fmt(i.valor)}</p>
-    </div>`).join('');
-
-  const totalEl = document.getElementById('dueBalloonTotal');
-  if (totalEl) {
-    totalEl.style.display = items.length > 1 ? 'flex' : 'none';
-    if (items.length > 1) totalEl.querySelector('span:last-child').textContent = fmt(total);
-  }
-
-  overlay.style.display = 'flex';
-  // pequeno delay para animar
-  requestAnimationFrame(() => {
-    const sheet = overlay.querySelector('.due-balloon-sheet');
-    if (sheet) sheet.classList.add('animate-in');
-  });
-}
-
-window.dueBalloonConfirm = function() {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const todayStr = today.toISOString().split('T')[0];
-  const dismissed = getDueTomorrowDismissed();
-  const all = getData();
-
-  _dueBalloonItems.forEach(item => {
-    const idx = all.findIndex(x => x.id === item.id);
-    if (idx >= 0) all[idx].pago = true;
-    dismissed[`${item.id}-${todayStr}`] = true;
-  });
-
-  saveData(all);
-  localStorage.setItem('fpro_due_dismissed', JSON.stringify(dismissed));
-  document.getElementById('dueBalloonOverlay').style.display = 'none';
-  render();
-  const n = _dueBalloonItems.length;
-  showToast(n > 1 ? `${n} contas marcadas como pagas ✓` : `${_dueBalloonItems[0].nome} marcada como paga ✓`, '#4ade80');
+// ── Sistema de Apelidos ──
+const ALIASES_DEFAULT = {
+  // Cartões
+  'roxo':'Nubank','roxinho':'Nubank','nubank':'Nubank',
+  'inter':'Inter','laranja':'Inter',
+  'itau':'Itaú','itaú':'Itaú',
+  'bradesco':'Bradesco',
+  'santander':'Santander','vermelho':'Santander',
+  'c6':'C6 Bank','c6bank':'C6 Bank',
+  'picpay':'PicPay',
+  'xp':'XP',
+  // Categorias
+  'rancho':'Mercado','feira':'Mercado','mercadinho':'Mercado','supermercado':'Mercado','compras':'Mercado',
+  'luz':'Moradia','energia':'Moradia','água':'Moradia','agua':'Moradia','aluguel':'Moradia','condomínio':'Moradia','condominio':'Moradia','internet':'Moradia',
+  'uber':'Transporte','99':'Transporte','gasolina':'Transporte','combustível':'Transporte','combustivel':'Transporte','ônibus':'Transporte','onibus':'Transporte','metrô':'Transporte','metro':'Transporte',
+  'farmácia':'Saúde','farmacia':'Saúde','remédio':'Saúde','remedio':'Saúde','médico':'Saúde','medico':'Saúde','consulta':'Saúde','dentista':'Saúde',
+  'netflix':'Assinaturas','spotify':'Assinaturas','amazon':'Assinaturas','prime':'Assinaturas','disney':'Assinaturas','hbo':'Assinaturas','max':'Assinaturas',
+  'academia':'Lazer','restaurante':'Lazer','lanche':'Lazer','pizza':'Lazer','cinema':'Lazer','bar':'Lazer',
+  'curso':'Investimentos','livro':'Investimentos','ação':'Investimentos','acao':'Investimentos','fundo':'Investimentos'
 };
 
-window.dueBalloonDismiss = function() {
-  const today = new Date(); today.setHours(0,0,0,0);
-  const todayStr = today.toISOString().split('T')[0];
-  const dismissed = getDueTomorrowDismissed();
-  _dueBalloonItems.forEach(item => { dismissed[`${item.id}-${todayStr}`] = true; });
-  localStorage.setItem('fpro_due_dismissed', JSON.stringify(dismissed));
-  document.getElementById('dueBalloonOverlay').style.display = 'none';
+function getAliases() {
+  try { return JSON.parse(localStorage.getItem('fpro_aliases') || '{}'); } catch { return {}; }
+}
+function saveAliases(a) { localStorage.setItem('fpro_aliases', JSON.stringify(a)); }
+function getAllAliases() {
+  // Merge: defaults + cartões cadastrados + apelidos do usuário
+  const merged = { ...ALIASES_DEFAULT };
+  // Adiciona nomes de cartões cadastrados como apelidos de si mesmos
+  getCartoes().forEach(c => { merged[c.nome.toLowerCase()] = c.nome; });
+  // Apelidos do usuário sobrescrevem os defaults
+  Object.assign(merged, getAliases());
+  return merged;
+}
+function buildAliasContext() {
+  const aliases = getAllAliases();
+  const cartoes = getCartoes().map(c => c.nome);
+  const lines = Object.entries(aliases).map(([k, v]) => `"${k}" → "${v}"`);
+  return `Apelidos conhecidos:\n${lines.join('\n')}\nCartões cadastrados: ${cartoes.join(', ') || 'nenhum'}`;
+}
+
+// Detecta possíveis novos apelidos no texto vs o que a IA retornou
+function detectarNovosApelidos(texto, itens) {
+  const aliases = getAllAliases();
+  const sugestoes = [];
+  const palavras = texto.toLowerCase().match(/\b[a-záàâãéêíóôõúçüñ]+\b/g) || [];
+
+  itens.forEach(item => {
+    // Sugestão de apelido para cartão
+    if (item.cartaoNome) {
+      palavras.forEach(p => {
+        if (
+          p.length >= 3 &&
+          !aliases[p] &&
+          !['no','na','do','da','de','em','um','uma','por','com','que','reais','real','paguei','gastei','comprei','foi','fiz'].includes(p) &&
+          item.cartaoNome.toLowerCase().includes(p) === false &&
+          texto.toLowerCase().includes(p)
+        ) {
+          // Heurística: palavra está perto de mencionar o cartão no texto?
+          const idx = texto.toLowerCase().indexOf(p);
+          const trecho = texto.toLowerCase().slice(Math.max(0, idx - 30), idx + 30);
+          if (trecho.includes(item.cartaoNome.toLowerCase()) ||
+              trecho.match(/cart[aã]o|nubank|inter|roxo|roxinho|visa|master/)) {
+            sugestoes.push({ apelido: p, valor: item.cartaoNome, tipo: 'cartão' });
+          }
+        }
+      });
+    }
+    // Sugestão de apelido para categoria
+    palavras.forEach(p => {
+      if (
+        p.length >= 4 &&
+        !aliases[p] &&
+        !['reais','real','paguei','gastei','comprei','parcelei','vezes','parcelas','hoje','semana','mês','mes'].includes(p)
+      ) {
+        const catMap = {
+          'Mercado': ['mercado','supermercado','rancho','feira','compras'],
+          'Moradia': ['aluguel','luz','água','condominio','internet'],
+          'Saúde': ['farmacia','remedio','medico','consulta','dentista'],
+          'Transporte': ['uber','gasolina','combustivel','onibus','metro'],
+          'Lazer': ['restaurante','pizza','cinema','academia','lanche'],
+          'Assinaturas': ['netflix','spotify','amazon','disney'],
+          'Investimentos': ['curso','livro','acao','fundo']
+        };
+        // Se a palavra aparece no texto e a IA mapeou para uma categoria, sugere
+        if (catMap[item.categoria] && texto.toLowerCase().includes(p)) {
+          const jaExiste = catMap[item.categoria].some(s => p.includes(s) || s.includes(p));
+          if (!jaExiste && p !== item.nome.toLowerCase()) {
+            sugestoes.push({ apelido: p, valor: item.categoria, tipo: 'categoria' });
+          }
+        }
+      }
+    });
+  });
+
+  // Deduplica
+  const vistos = new Set();
+  return sugestoes.filter(s => {
+    const k = s.apelido + s.valor;
+    if (vistos.has(k)) return false;
+    vistos.add(k); return true;
+  }).slice(0, 3); // máx 3 sugestões por vez
+}
+
+function mostrarSugestoesApelidos(sugestoes) {
+  if (!sugestoes.length) return;
+  const container = document.getElementById('aiAliasSuggestions');
+  if (!container) return;
+  container.innerHTML = `
+    <div style="background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.18);border-radius:12px;padding:12px 14px;margin-top:10px">
+      <p style="color:#a5b4fc;font-size:12px;font-weight:600;margin-bottom:8px">💡 Quer salvar esses apelidos?</p>
+      ${sugestoes.map((s, i) => `
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="color:#94a3b8;font-size:12px">"<b style="color:#e2e8f0">${s.apelido}</b>" → ${s.tipo === 'cartão' ? '💳' : '🏷️'} <b style="color:#e2e8f0">${s.valor}</b></span>
+          <div style="display:flex;gap:6px">
+            <button onclick="salvarApelidoSugerido(${i})" style="font-size:11px;padding:3px 10px;border-radius:8px;background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;cursor:pointer;font-weight:600">Salvar</button>
+            <button onclick="ignorarApelidoSugerido(${i})" style="font-size:11px;padding:3px 8px;border-radius:8px;background:transparent;border:1px solid rgba(148,163,184,0.15);color:#475569;cursor:pointer">Não</button>
+          </div>
+        </div>`).join('')}
+    </div>`;
+  container.style.display = 'block';
+  window._sugestoesAtivas = sugestoes;
+}
+
+window.salvarApelidoSugerido = function(i) {
+  const s = window._sugestoesAtivas[i];
+  if (!s) return;
+  const aliases = getAliases();
+  aliases[s.apelido] = s.valor;
+  saveAliases(aliases);
+  window._sugestoesAtivas.splice(i, 1);
+  mostrarSugestoesApelidos(window._sugestoesAtivas);
+  showToast(`Apelido "${s.apelido}" salvo ✓`, '#4ade80');
+};
+window.ignorarApelidoSugerido = function(i) {
+  window._sugestoesAtivas.splice(i, 1);
+  mostrarSugestoesApelidos(window._sugestoesAtivas);
 };
 
-window.closeDueBalloonOutside = function(e) {
-  if (e.target === document.getElementById('dueBalloonOverlay')) window.dueBalloonDismiss();
-};
-
-
-// Expõe balão para uso externo (ex: clique na notificação via SW)
-window.checkDueTomorrowBalloon = checkDueTomorrowBalloon;
 
 // Inicia tudo ao carregar
 window.addEventListener('load', registerSWAndPBS);
@@ -1107,7 +1183,6 @@ select option{background:#1e293b;color:#e2e8f0}
 .edit-btn:active{transform:scale(0.88);background:rgba(99,102,241,0.22)}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.due-balloon-sheet{width:100%;max-width:560px;border-radius:24px 24px 0 0;padding:24px;background:rgba(8,14,28,0.97);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid rgba(245,158,11,0.2);border-bottom:none}
 </style>
 </head>
 <body>
@@ -1383,7 +1458,7 @@ select option{background:#1e293b;color:#e2e8f0}
       <!-- Cartão select -->
       <div id="cartaoSelectGrp" style="display:none">
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">💳 Qual cartão?</label>
-        <select id="inputCartaoNome"></select>
+        <select id="inputCartaoNome" onchange="onCartaoSelectChange(this.value)"></select>
         <p class="text-slate-600 text-xs mt-1 ml-1">Compras a partir do fechamento vão para a fatura do mês seguinte</p>
       </div>
 
@@ -1476,37 +1551,6 @@ select option{background:#1e293b;color:#e2e8f0}
         <button onclick="closeProfileModal()" class="btn-secondary w-full py-3 rounded-xl font-bold text-sm">Cancelar</button>
         <button onclick="saveProfile()" class="btn-primary w-full py-3 rounded-xl font-bold text-sm">Salvar</button>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- ══ BALÃO VENCE AMANHÃ ══ -->
-<div class="modal-overlay" id="dueBalloonOverlay" style="display:none" onclick="closeDueBalloonOutside(event)">
-  <div class="due-balloon-sheet animate-in">
-    <div class="modal-handle"></div>
-    <!-- Título -->
-    <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
-      <span style="font-size:26px">⏰</span>
-      <div>
-        <p style="color:#fbbf24;font-size:16px;font-weight:700;margin:0">Vence amanhã!</p>
-        <p style="color:#64748b;font-size:12px;margin:2px 0 0"><span id="dueBalloonCount"></span> pendente(s) — deseja confirmar como paga(s)?</p>
-      </div>
-    </div>
-    <!-- Lista de itens -->
-    <div id="dueBalloonList" style="margin:16px 0 4px;max-height:220px;overflow-y:auto"></div>
-    <!-- Total (só quando múltiplos) -->
-    <div id="dueBalloonTotal" style="display:none;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid rgba(148,163,184,0.07);margin-bottom:4px">
-      <span style="color:#94a3b8;font-size:13px;font-weight:600">Total</span>
-      <span style="color:#fbbf24;font-size:15px;font-weight:700"></span>
-    </div>
-    <!-- Botões -->
-    <div style="display:flex;flex-direction:column;gap:10px;margin-top:16px">
-      <button onclick="dueBalloonConfirm()" class="btn-primary w-full py-3.5 rounded-xl font-bold text-sm" style="font-size:15px">
-        ✓ Confirmar como paga(s)
-      </button>
-      <button onclick="dueBalloonDismiss()" class="btn-secondary w-full py-3 rounded-xl font-bold text-sm" style="font-size:14px">
-        Agora não
-      </button>
     </div>
   </div>
 </div>
