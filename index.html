@@ -492,38 +492,33 @@ window.toggleRecorrente=function(){
 
 // ── Cartões Modal ──
 
-// Dado um cartão, calcula a data ISO de fechamento da fatura mais próxima (mês atual ou próximo)
+// Calcula a data ISO do próximo fechamento de um cartão
 function calcFechamentoDate(cartao){
   if(!cartao||!cartao.fechamento) return '';
   const today=new Date(); today.setHours(0,0,0,0);
   const dia=cartao.fechamento;
-  // Tenta o fechamento no mês atual
-  let candidate=new Date(today.getFullYear(), today.getMonth(), dia);
-  // Se já passou, usa o próximo mês
-  if(candidate<=today) candidate=new Date(today.getFullYear(), today.getMonth()+1, dia);
+  let candidate=new Date(today.getFullYear(),today.getMonth(),dia);
+  if(candidate<=today) candidate=new Date(today.getFullYear(),today.getMonth()+1,dia);
   const y=candidate.getFullYear();
   const m=String(candidate.getMonth()+1).padStart(2,'0');
   const d=String(candidate.getDate()).padStart(2,'0');
   return `${y}-${m}-${d}`;
 }
 
-// Preenche o campo de vencimento com a data de fechamento do cartão selecionado
-function autoFillVencimentoCartao(nomeCartao){
+// Preenche vencimento com fechamento do cartão. forceOverwrite=true troca mesmo se já tem valor
+function autoFillVencimentoCartao(nomeCartao, forceOverwrite){
   const campo=document.getElementById('inputVencimento');
   if(!campo) return;
-  // Só preenche automaticamente se o campo estiver vazio (não sobrescreve edição)
-  if(campo.value) return;
   const cartao=getCartoes().find(c=>c.nome===nomeCartao);
   if(!cartao) return;
   const dataFech=calcFechamentoDate(cartao);
-  if(dataFech){campo.value=dataFech;campo.dataset.autoFilled='1';}
+  if(!dataFech) return;
+  if(!campo.value||forceOverwrite) campo.value=dataFech;
 }
 
+// Chamado pelo onchange do select de cartão
 window.onCartaoSelectChange=function(nomeCartao){
-  const campo=document.getElementById('inputVencimento');
-  // Ao trocar de cartão, limpa o valor anterior e preenche o novo
-  if(campo){campo.value='';campo.dataset.autoFilled='';}
-  autoFillVencimentoCartao(nomeCartao);
+  autoFillVencimentoCartao(nomeCartao, true);
 };
 
 window.updateCartaoSelect=function(cat, selectedNome){
@@ -536,14 +531,11 @@ window.updateCartaoSelect=function(cat, selectedNome){
       ?cartoes.map(c=>`<option value="${c.nome}"${c.nome===selectedNome?' selected':''}>${c.icone||'💳'} ${c.nome} — fecha dia ${c.fechamento}${c.vencimento?' / vence dia '+c.vencimento:''}</option>`).join('')
       :'<option value="">Nenhum cartão cadastrado</option>';
     grp.style.display='block';
-    // Preenche vencimento automaticamente com o fechamento do cartão selecionado
+    // Auto-preenche vencimento com fechamento do cartão (só se o campo estiver vazio)
     const nomeAtual=selectedNome||(cartoes.length?cartoes[0].nome:'');
-    autoFillVencimentoCartao(nomeAtual);
+    autoFillVencimentoCartao(nomeAtual, false);
   }else{
     grp.style.display='none';
-    // Limpa o vencimento auto-preenchido ao trocar de categoria
-    const campo=document.getElementById('inputVencimento');
-    if(campo&&campo.dataset.autoFilled==='1'){campo.value='';campo.dataset.autoFilled='';}
   }
 };
 
@@ -642,7 +634,6 @@ window.openModal=function(editId){
   document.getElementById('inputValor').value=item?item.valor:'';
   document.getElementById('inputData').value=item?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
   document.getElementById('inputVencimento').value=item&&item.vencimento?item.vencimento:'';
-  if(!item){const cv=document.getElementById('inputVencimento');if(cv)cv.dataset.autoFilled='';}
   document.getElementById('inputCategoria').value=item?item.categoria:'Moradia';
   updateCartaoSelect(item?item.categoria:'Moradia', item?item.cartaoNome:'');
   document.getElementById('inputParcelas').value='1';
