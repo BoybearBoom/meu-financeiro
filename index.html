@@ -627,20 +627,23 @@ window.saveCartao=function(){
 
 // ── Modal ──
 window.openModal=function(editId){
-  const item=editId?getData().find(x=>x.id===editId):null;
-  document.getElementById('editId').value=editId||'';
-  document.getElementById('inputNome').value=item?item.nome:'';
-  document.getElementById('inputValor').value=item?item.valor:'';
-  document.getElementById('inputData').value=item?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
-  document.getElementById('inputVencimento').value=item&&item.vencimento?item.vencimento:'';
-  document.getElementById('inputCategoria').value=item?item.categoria:'Moradia';
-  updateCartaoSelect(item?item.categoria:'Moradia', item?item.cartaoNome:'');
+  const id=editId||null;
+  const item=id?getData().find(x=>x.id===id):null;
+  const isEdit=!!(id&&item);
+
+  document.getElementById('editId').value=isEdit?id:'';
+  document.getElementById('inputNome').value=isEdit?item.nome:'';
+  document.getElementById('inputValor').value=isEdit?item.valor:'';
+  document.getElementById('inputData').value=isEdit?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
+  document.getElementById('inputVencimento').value=isEdit&&item.vencimento?item.vencimento:'';
+  document.getElementById('inputCategoria').value=isEdit?item.categoria:'Moradia';
+  updateCartaoSelect(isEdit?item.categoria:'Moradia', isEdit?item.cartaoNome:'');
   document.getElementById('inputParcelas').value='1';
-  document.getElementById('parcelasGrp').style.display=item?'none':'';
-  document.getElementById('inputObs').value=item&&item.obs?item.obs:'';
-  document.getElementById('modalTitle').textContent=item?'Editar Despesa':'Nova Despesa';
-  document.getElementById('btnSalvar').textContent=item?'Salvar Alterações':'Salvar Despesa';
-  const isRec=item?!!item.recorrente:false;
+  document.getElementById('parcelasGrp').style.display=isEdit?'none':'';
+  document.getElementById('inputObs').value=isEdit&&item.obs?item.obs:'';
+  document.getElementById('modalTitle').textContent=isEdit?'Editar Despesa':'Nova Despesa';
+  document.getElementById('btnSalvar').textContent=isEdit?'Salvar Alterações':'Salvar Despesa';
+  const isRec=isEdit?!!item.recorrente:false;
   const recBox=document.getElementById('recCheckbox');
   const recIcon=document.getElementById('recCheckIcon');
   window._recorrente=isRec;
@@ -873,7 +876,13 @@ window.openDetail=function(id){
 window.closeDetail=function(){document.getElementById('detailOverlay').style.display='none';_detailId=null;}
 window.closeDetailOutside=function(e){if(e.target===document.getElementById('detailOverlay'))window.closeDetail();}
 window.detailTogglePago=function(){if(_detailId)window.togglePago(_detailId);}
-window.detailEdit=function(){if(_detailId){window.closeDetail();window.openModal(_detailId);}}
+window.detailEdit=function(){
+  const id=_detailId;
+  if(!id)return;
+  document.getElementById('detailOverlay').style.display='none';
+  _detailId=null;
+  setTimeout(()=>window.openModal(id),50);
+}
 window.detailDelete=function(){if(_detailId){window.closeDetail();window.deleteItem(_detailId);}}
 
 window.deleteItem=function(id){
