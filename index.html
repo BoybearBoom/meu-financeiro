@@ -17,7 +17,7 @@
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
-const BUILD_VERSION='20260411013047';
+const BUILD_VERSION='20260419000000';
 
 const FC={apiKey:"AIzaSyCdoV1JyYL6Nkg7_yLcqjR47xZi2gT2irU",authDomain:"financespro-8a4f9.firebaseapp.com",projectId:"financespro-8a4f9",storageBucket:"financespro-8a4f9.firebasestorage.app",messagingSenderId:"367204094477",appId:"1:367204094477:web:233b576c8a214dfd36fb44"};
 const app=initializeApp(FC);
@@ -652,6 +652,46 @@ window.openModal=function(editId){
 window.closeModal=function(){document.getElementById('modalOverlay').style.display='none';}
 window.closeModalOutside=function(e){if(e.target===document.getElementById('modalOverlay'))window.closeModal();}
 
+// ── Helpers para recorrentes ──
+// Retorna todos os itens de um recGroup ordenados por monthKey
+function getRecGroupItems(all, recGroupId){
+  return all.filter(x=>x.recGroupId===recGroupId).sort((a,b)=>a.monthKey>b.monthKey?1:-1);
+}
+// Cria entradas recorrentes a partir de um item-base para os próximos N meses
+function buildFutureRecurring(base, fromMonthOffset, totalMonths){
+  const items=[];
+  const[baseY,baseM,baseDay]=base.data.split('-').map(Number);
+  const[,, vDay]=base.vencimento?(base.vencimento.split('-').map(Number)):[];
+  const fechamento=base.categoria==='Cartão'&&base.cartaoNome?getFechamento(base.cartaoNome):null;
+  for(let p=fromMonthOffset;p<totalMonths;p++){
+    const d=new Date(baseY,baseM-1+p,1);
+    const y=d.getFullYear(),m=d.getMonth()+1;
+    const mStr=String(m).padStart(2,'0');
+    // Mantém o dia original, clamped ao último dia do mês
+    const maxDay=new Date(y,m,0).getDate();
+    const day=Math.min(baseDay,maxDay);
+    const dayStr=String(day).padStart(2,'0');
+    const itemDataStr=`${y}-${mStr}-${dayStr}`;
+    let mKey=`${y}-${mStr}`;
+    if(fechamento){mKey=monthKeyParaCartao(itemDataStr,fechamento);}
+    let vencStr='';
+    if(base.vencimento&&vDay){
+      const maxVDay=new Date(y,m,0).getDate();
+      const vd=Math.min(vDay,maxVDay);
+      vencStr=`${y}-${mStr}-${String(vd).padStart(2,'0')}`;
+    }
+    items.push({
+      id:`${Date.now()}-rec-${p}-${Math.random().toString(36).slice(2,6)}`,
+      nome:base.nome,valor:base.valor,data:itemDataStr,
+      categoria:base.categoria,pago:false,monthKey:mKey,
+      recorrente:true,recGroupId:base.recGroupId,
+      ...(base.cartaoNome?{cartaoNome:base.cartaoNome}:{}),
+      ...(vencStr?{vencimento:vencStr}:{})
+    });
+  }
+  return items;
+}
+
 window.saveItem=function(){
   const nome=document.getElementById('inputNome').value.trim();
   const valor=parseFloat(document.getElementById('inputValor').value);
@@ -664,38 +704,66 @@ window.saveItem=function(){
   if(!nome){showToast('Informe a descrição','#ef4444');return}
   if(!valor||valor<=0){showToast('Informe um valor válido','#ef4444');return}
   if(!data){showToast('Informe a data','#ef4444');return}
-  const all=getData();
+  let all=getData();
 
   if(editId){
     const idx=all.findIndex(x=>x.id===editId);
     if(idx<0){saveData(all);window.closeModal();render();return;}
+    const oldItem=all[idx];
+    const wasRec=!!oldItem.recorrente;
     all[idx].nome=nome;all[idx].valor=valor;all[idx].data=data;all[idx].categoria=cat;
     all[idx].recorrente=recorrente;
     if(cartaoNome)all[idx].cartaoNome=cartaoNome; else delete all[idx].cartaoNome;
     if(venc)all[idx].vencimento=venc; else delete all[idx].vencimento;
-    // Apply fechamento logic on edit
     if(cat==='Cartão'&&cartaoNome){
       const fech=getFechamento(cartaoNome);
       if(fech)all[idx].monthKey=monthKeyParaCartao(data,fech);
       else{const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;}
     }else{const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;}
-    saveData(all);window.closeModal();render();showToast('Atualizado ✓');return;
+
+    // Se tem recGroupId, atualiza todos os futuros do mesmo grupo
+    if(recorrente&&all[idx].recGroupId){
+      const thisKey=all[idx].monthKey;
+      all=all.filter(x=>!(x.recGroupId===all[idx].recGroupId&&x.monthKey>thisKey));
+      // Rebuilds future entries from next month
+      const[ey,em]=thisKey.split('-').map(Number);
+      const todayKey=`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
+      const futureBase={...all[idx]};
+      const futureItems=buildFutureRecurring(futureBase,1,13);
+      all=[...all,...futureItems];
+      showToast('Recorrente e futuros atualizados ↻','#6366f1');
+    }else if(!wasRec&&recorrente){
+      // Tornou-se recorrente agora: gera group e futuros
+      const recGroupId='recgrp-'+Date.now();
+      all[idx].recGroupId=recGroupId;
+      const futureItems=buildFutureRecurring({...all[idx]},1,13);
+      all=[...all,...futureItems];
+      showToast('Recorrente criado + lançado nos próximos 12 meses ↻','#6366f1');
+    }else if(wasRec&&!recorrente&&oldItem.recGroupId){
+      // Removeu recorrência: remove futuros do grupo
+      const thisKey=all[idx].monthKey;
+      all=all.filter(x=>!(x.recGroupId===oldItem.recGroupId&&x.monthKey>thisKey));
+      delete all[idx].recGroupId;
+      showToast('Recorrência removida. Futuros excluídos.','#f59e0b');
+    }else{
+      showToast('Atualizado ✓');
+    }
+    saveData(all);window.closeModal();render();return;
   }
 
   const parc=parseInt(document.getElementById('inputParcelas').value);
   const baseDate=new Date(data+'T12:00:00');
   const parcVal=parseFloat((valor/parc).toFixed(2));
   const groupId='grp-'+Date.now();
-
-  // Fechamento do cartão
   const fechamento=cat==='Cartão'&&cartaoNome?getFechamento(cartaoNome):null;
+  // Se recorrente (e 1 parcela), cria recGroupId e gera futuros
+  const recGroupId=(recorrente&&parc===1)?'recgrp-'+Date.now():null;
 
   for(let p=0;p<parc;p++){
     const d=new Date(baseDate);d.setMonth(d.getMonth()+p);
     const y=d.getFullYear(),m=d.getMonth();
     const mStr=String(m+1).padStart(2,'0'),dayStr=String(d.getDate()).padStart(2,'0');
     const itemDataStr=`${y}-${mStr}-${dayStr}`;
-    // monthKey: aplica regra de fechamento em cada parcela
     let mKey=`${y}-${mStr}`;
     if(fechamento){mKey=monthKeyParaCartao(itemDataStr,fechamento);}
     let vencStr='';
@@ -707,11 +775,23 @@ window.saveItem=function(){
       data:itemDataStr,
       categoria:cat,pago:false,monthKey:mKey,
       recorrente:parc===1?recorrente:false,
+      ...(recGroupId?{recGroupId}:{}),
       ...(cartaoNome?{cartaoNome}:{}),
       ...(parc>1?{groupId,parcelNum:p+1,totalParcelas:parc}:{}),
       ...(vencStr?{vencimento:vencStr}:{})
     });
   }
+
+  // Se recorrente, gera os próximos 12 meses automaticamente
+  if(recGroupId){
+    const baseItem=all[all.length-1]; // o item que acabou de ser inserido
+    const futureItems=buildFutureRecurring(baseItem,1,13);
+    all=[...all,...futureItems];
+    saveData(all);window.closeModal();render();
+    showToast(`Recorrente criado + lançado nos próximos 12 meses ↻`,'#6366f1');
+    return;
+  }
+
   saveData(all);window.closeModal();render();
   showToast(parc>1?`${parc} parcelas criadas ✓`:'Salvo ✓');
 }
@@ -722,13 +802,28 @@ window.togglePago=function(id){
 }
 
 window.deleteItem=function(id){
-  const all=getData(),item=all.find(x=>x.id===id);if(!item)return;
+  let all=getData();const item=all.find(x=>x.id===id);if(!item)return;
+  // Parcelado
   if(item.groupId&&item.parcelNum&&item.totalParcelas){
     const siblings=all.filter(x=>x.groupId===item.groupId&&x.parcelNum>=item.parcelNum);
     if(siblings.length>1){
       if(confirm(`Remover esta e as ${siblings.length-1} parcela(s) seguinte(s)?\n\nOK = sim\nCancelar = só esta`)){
         saveData(all.filter(x=>!(x.groupId===item.groupId&&x.parcelNum>=item.parcelNum)));
         showToast(`${siblings.length} parcelas removidas`,'#ef4444');render();return;
+      }
+    }
+  }
+  // Recorrente com grupo
+  if(item.recorrente&&item.recGroupId){
+    const futureItems=all.filter(x=>x.recGroupId===item.recGroupId&&x.monthKey>item.monthKey);
+    if(futureItems.length>0){
+      const choice=confirm(`Este é um gasto recorrente.\n\nOK = excluir este mês + os ${futureItems.length} meses seguintes\nCancelar = excluir só este mês`);
+      if(choice){
+        saveData(all.filter(x=>!(x.recGroupId===item.recGroupId&&x.monthKey>=item.monthKey)));
+        showToast(`Recorrente removido: este mês + ${futureItems.length} seguintes`,'#ef4444');render();return;
+      }else{
+        if(!confirm('Remover só este mês?'))return;
+        saveData(all.filter(x=>x.id!==id));render();showToast('Mês removido ✓','#f59e0b');return;
       }
     }
   }
@@ -760,19 +855,34 @@ window.toggleSelect=function(id){
 window.selectAll=function(){const it=getFilteredItems();if(selected.size===it.length)selected.clear();else it.forEach(i=>selected.add(i.id));render();}
 window.deleteSelected=function(){
   if(!selected.size){showToast('Nenhum selecionado','#ef4444');return}
-  const all=getData();
-  // Expand selection: for any parcelado item selected, include all following parcelas of same group
+  let all=getData();
+  // Expand selection: for parcelado → include following parcelas; for recorrente → ask
   const expanded=new Set(selected);
+  let hasRecurring=false;
   selected.forEach(id=>{
     const item=all.find(x=>x.id===id);
     if(item&&item.groupId){
       all.filter(x=>x.groupId===item.groupId&&x.parcelNum>=item.parcelNum)
          .forEach(x=>expanded.add(x.id));
     }
+    if(item&&item.recorrente&&item.recGroupId) hasRecurring=true;
   });
+  // If any recurring selected, ask about future months
+  if(hasRecurring){
+    const choice=confirm('Alguns itens são recorrentes.\n\nOK = excluir este mês + todos os meses seguintes desses recorrentes\nCancelar = excluir só os meses selecionados');
+    if(choice){
+      selected.forEach(id=>{
+        const item=all.find(x=>x.id===id);
+        if(item&&item.recGroupId){
+          all.filter(x=>x.recGroupId===item.recGroupId&&x.monthKey>=item.monthKey)
+             .forEach(x=>expanded.add(x.id));
+        }
+      });
+    }
+  }
   const extra=expanded.size-selected.size;
   const msg=extra>0
-    ?`Remover ${selected.size} item(ns) selecionado(s) + ${extra} parcela(s) seguinte(s) do mesmo grupo?`
+    ?`Remover ${selected.size} item(ns) selecionado(s) + ${extra} seguinte(s)?`
     :`Remover ${selected.size} item(ns)?`;
   if(!confirm(msg))return;
   saveData(all.filter(x=>!expanded.has(x.id)));
@@ -1460,7 +1570,7 @@ select option{background:#1e293b;color:#e2e8f0}
         </div>
         <div>
           <p class="text-slate-300 text-sm font-semibold">↻ Gasto Recorrente</p>
-          <p class="text-slate-500 text-xs mt-0.5">Lança automaticamente todo mês</p>
+          <p class="text-slate-500 text-xs mt-0.5">Lança agora nos próximos 12 meses</p>
         </div>
       </div>
 
