@@ -637,7 +637,8 @@ window.openModal=function(editId){
   updateCartaoSelect(item?item.categoria:'Moradia', item?item.cartaoNome:'');
   document.getElementById('inputParcelas').value='1';
   document.getElementById('parcelasGrp').style.display=item?'none':'';
-  document.getElementById('inputObs').value=item&&item.obs?item.obs:'';  document.getElementById('modalTitle').textContent=item?'Editar Despesa':'Nova Despesa';
+  document.getElementById('inputObs').value=item&&item.obs?item.obs:'';
+  document.getElementById('modalTitle').textContent=item?'Editar Despesa':'Nova Despesa';
   document.getElementById('btnSalvar').textContent=item?'Salvar Alterações':'Salvar Despesa';
   const isRec=item?!!item.recorrente:false;
   const recBox=document.getElementById('recCheckbox');
