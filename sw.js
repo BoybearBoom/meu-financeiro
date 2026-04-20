@@ -1,4 +1,4 @@
-const CACHE='fpro-20260409151441';
+const CACHE='fpro-20260420120000';
 const FILES=['/meu-financeiro/','/meu-financeiro/index.html','/meu-financeiro/manifest.json'];
 
 self.addEventListener('install',e=>{

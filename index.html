@@ -464,6 +464,25 @@ function render(){
   document.getElementById('progressFill').style.width=pct+'%';
   document.getElementById('progressLabel').textContent=`${allItems.filter(i=>i.pago).length} de ${allItems.length} pagas`;
   document.getElementById('progressPct').textContent=pct+'%';
+  // Move o gatinho — vai de 2% até ~82% (para não sobrepor a casinha)
+  const cat=document.getElementById('catPet');
+  if(cat){
+    const catPos=pct===0?2:Math.min(2+pct*0.80,82);
+    cat.style.left=catPos+'%';
+    if(pct===100){
+      cat.textContent='😸';
+      cat.style.animation='catCelebrate 0.4s ease-in-out infinite';
+      cat.style.filter='drop-shadow(0 0 6px #fbbf24)';
+    }else if(pct===0){
+      cat.textContent='🐱';
+      cat.style.animation='none';
+      cat.style.filter='none';
+    }else{
+      cat.textContent='🐱';
+      cat.style.animation='catWalk 0.5s ease-in-out infinite';
+      cat.style.filter='none';
+    }
+  }
   document.getElementById('cardSaldo').textContent=fmt(paidTotal);
   document.getElementById('cardGastos').textContent=fmt(total);
   document.getElementById('cardPending').textContent=fmt(pendingTotal);
@@ -1471,6 +1490,9 @@ body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .status-paid{background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80}
 .progress-bar{height:4px;background:#1e293b;position:sticky;top:0;z-index:60}
 .progress-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#6366f1,#8b5cf6,#ec4899);transition:width .6s cubic-bezier(.4,0,.2,1);border-radius:0 2px 2px 0}
+@keyframes catWalk{0%,100%{transform:translateY(-50%)}50%{transform:translateY(-58%)}}
+@keyframes catCelebrate{0%,100%{transform:translateY(-50%) scale(1)}50%{transform:translateY(-65%) scale(1.2)}}
+#catPet{animation:catWalk 0.5s ease-in-out infinite}
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.8);z-index:100;display:flex;align-items:flex-end;justify-content:center}
 .menu-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.65);z-index:90;display:flex;align-items:flex-end;justify-content:center}
 .modal-sheet{width:100%;max-width:560px;max-height:92vh;overflow-y:auto;border-radius:24px 24px 0 0;padding:24px}
@@ -1563,7 +1585,6 @@ select option{background:#1e293b;color:#e2e8f0}
 
 <!-- ══ APP ══ -->
 <div id="mainApp" style="display:none">
-  <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
 
   <!-- Header -->
   <div class="glass sticky top-1 z-40 mx-3 mt-2 rounded-2xl px-3 py-2.5 mb-3">
@@ -1600,13 +1621,23 @@ select option{background:#1e293b;color:#e2e8f0}
     <div class="card-violet p-3"><p class="text-violet-400 text-xs font-semibold mb-0.5">💳 Cartão Pend.</p><p class="text-violet-300 font-bold text-lg leading-tight" id="cardCartao">R$ 0,00</p></div>
   </div>
 
-  <!-- Progress -->
-  <div class="mx-3 mb-3 total-bar rounded-2xl px-4 py-2.5 flex items-center justify-between">
-    <div class="flex items-center gap-2">
-      <svg width="15" height="15" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4M22 12a10 10 0 11-20 0 10 10 0 0120 0z"/></svg>
+  <!-- Progress com gatinho -->
+  <div class="mx-3 mb-3 total-bar rounded-2xl px-4 py-3">
+    <div class="flex items-center justify-between mb-2">
       <span class="text-slate-300 text-sm" id="progressLabel">0 de 0 pagas</span>
+      <span class="text-violet-400 text-sm font-bold" id="progressPct">0%</span>
     </div>
-    <span class="text-violet-400 text-sm font-bold" id="progressPct">0%</span>
+    <!-- Trilha do gatinho -->
+    <div id="catTrack" style="position:relative;height:28px;background:rgba(15,23,42,0.5);border-radius:20px;overflow:hidden;border:1px solid rgba(148,163,184,0.08)">
+      <!-- Barra de progresso -->
+      <div id="progressFill" style="position:absolute;inset:0;width:0%;background:linear-gradient(90deg,#3b82f6,#6366f1,#8b5cf6,#ec4899);border-radius:20px;transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
+      <!-- Chãozinho pontilhado -->
+      <div style="position:absolute;bottom:6px;left:10px;right:34px;height:1px;border-top:1px dashed rgba(148,163,184,0.15)"></div>
+      <!-- Casinha -->
+      <div style="position:absolute;right:4px;top:50%;transform:translateY(-50%);font-size:16px;line-height:1;z-index:2" title="Meta!">🏠</div>
+      <!-- Gatinho -->
+      <div id="catPet" style="position:absolute;left:2%;top:50%;transform:translateY(-50%);font-size:16px;line-height:1;z-index:3;transition:left .6s cubic-bezier(.4,0,.2,1)">🐱</div>
+    </div>
   </div>
 
   <!-- Search -->
