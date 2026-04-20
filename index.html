@@ -1781,9 +1781,9 @@ select option{background:#1e293b;color:#e2e8f0}
       <p style="color:#a5b4fc;font-size:12px;font-weight:600">↻ Gasto Recorrente — lançado nos próximos meses</p>
     </div>
     <div style="display:flex;gap:10px;margin-top:4px">
-      <button id="detailBtnPago" onclick="detailTogglePago()" style="flex:1;padding:12px;border-radius:14px;border:none;cursor:pointer;font-weight:700;font-size:13px;transition:all .15s"></button>
-      <button onclick="detailEdit()" style="flex:1;padding:12px;border-radius:14px;background:rgba(99,102,241,0.13);color:#a5b4fc;border:1px solid rgba(99,102,241,0.2);cursor:pointer;font-weight:700;font-size:13px">✏️ Editar</button>
-      <button onclick="detailDelete()" style="width:46px;padding:12px;border-radius:14px;background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center">
+      <button id="detailBtnPago" onclick="event.stopPropagation();detailTogglePago()" style="flex:1;padding:12px;border-radius:14px;border:none;cursor:pointer;font-weight:700;font-size:13px;transition:all .15s"></button>
+      <button onclick="event.stopPropagation();detailEdit()" style="flex:1;padding:12px;border-radius:14px;background:rgba(99,102,241,0.13);color:#a5b4fc;border:1px solid rgba(99,102,241,0.2);cursor:pointer;font-weight:700;font-size:13px">✏️ Editar</button>
+      <button onclick="event.stopPropagation();detailDelete()" style="width:46px;padding:12px;border-radius:14px;background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center">
         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
       </button>
     </div>
