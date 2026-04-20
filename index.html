@@ -626,13 +626,16 @@ window.saveCartao=function(){
 };
 
 // ── Modal ──
+// Remove o sufixo "(x/y)" do nome para exibição limpa
+function nomeBase(nome){return nome?nome.replace(/\s*\(\d+\/\d+\)$/,'').trim():'';}
+
 window.openModal=function(editId){
   const id=editId||null;
   const item=id?getData().find(x=>x.id===id):null;
   const isEdit=!!(id&&item);
 
   document.getElementById('editId').value=isEdit?id:'';
-  document.getElementById('inputNome').value=isEdit?item.nome:'';
+  document.getElementById('inputNome').value=isEdit?nomeBase(item.nome):'';
   document.getElementById('inputValor').value=isEdit?item.valor:'';
   document.getElementById('inputData').value=isEdit?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
   document.getElementById('inputVencimento').value=isEdit&&item.vencimento?item.vencimento:'';
@@ -872,7 +875,7 @@ window.openDetail=function(id){
   const isDueSoon=item.vencimento&&!item.pago&&!isOverdue&&new Date(item.vencimento+'T00:00:00')<=new Date(Date.now()+3*86400000);
 
   document.getElementById('detailIcon').textContent=icon;
-  document.getElementById('detailNome').textContent=item.nome;
+  document.getElementById('detailNome').textContent=nomeBase(item.nome);
   document.getElementById('detailCategoria').textContent=(item.cartaoNome||item.categoria)+(item.recorrente?' · ↻ Recorrente':'');
   document.getElementById('detailValor').textContent=fmt(item.valor);
 
