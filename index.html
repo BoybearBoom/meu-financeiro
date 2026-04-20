@@ -836,7 +836,7 @@ window.saveItem=function(){
       categoria:cat,pago:false,monthKey:mKey,
       recorrente:parc===1?recorrente:false,
       ...(recGroupId?{recGroupId}:{}),
-      ...(obs&&parc===1?{obs}:{}),
+      ...(obs?{obs}:{}),
       ...(cartaoNome?{cartaoNome}:{}),
       ...(parc>1?{groupId,parcelNum:p+1,totalParcelas:parc}:{}),
       ...(vencStr?{vencimento:vencStr}:{})
