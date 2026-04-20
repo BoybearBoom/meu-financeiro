@@ -222,18 +222,105 @@ async function checkDueAlerts(){
       const alertKey=`${i.id}-${todayStr}`;
       if(!alerted[alertKey]){
         let msg='';
-        if(diff<0) msg=`⚠️ VENCIDA há ${Math.abs(diff)} dia(s): ${i.nome} (${fmt(i.valor)})`;
-        else if(diff===0) msg=`🔴 Vence HOJE: ${i.nome} (${fmt(i.valor)})`;
-        else if(diff===1) msg=`🟡 Vence amanhã: ${i.nome} (${fmt(i.valor)})`;
-        else               msg=`🔔 Vence em ${diff} dias: ${i.nome} (${fmt(i.valor)})`;
+        if(diff<0) msg=`⚠️ VENCIDA há ${Math.abs(diff)} dia(s): ${nomeBase(i.nome)} (${fmt(i.valor)})`;
+        else if(diff===0) msg=`🔴 Vence HOJE: ${nomeBase(i.nome)} (${fmt(i.valor)})`;
+        else if(diff===1) msg=`🟡 Vence amanhã: ${nomeBase(i.nome)} (${fmt(i.valor)})`;
+        else               msg=`🔔 Vence em ${diff} dias: ${nomeBase(i.nome)} (${fmt(i.valor)})`;
         await sendNotif('FinancesPro',msg,alertKey);
         alerted[alertKey]=true;
         localStorage.setItem('fpro_alerted',JSON.stringify(alerted));
-        idbSet('fpro_alerted',alerted); // espelha para o SW
+        idbSet('fpro_alerted',alerted);
       }
     }
   }
 }
+
+// ── Tela flutuante de vencimentos ──
+function showDueAlertsModal(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const shownKey='fpro_due_shown_'+today.toISOString().split('T')[0];
+  if(localStorage.getItem(shownKey))return; // já mostrou hoje
+
+  const items=getData().filter(i=>{
+    if(i.pago||!i.vencimento)return false;
+    const v=new Date(i.vencimento+'T00:00:00');
+    const diff=Math.round((v-today)/86400000);
+    return diff<=3;
+  }).sort((a,b)=>{
+    const da=new Date(a.vencimento+'T00:00:00'),db=new Date(b.vencimento+'T00:00:00');
+    return da-db;
+  });
+
+  if(!items.length)return;
+  localStorage.setItem(shownKey,'1');
+
+  const overlay=document.getElementById('dueAlertsOverlay');
+  const list=document.getElementById('dueAlertsList');
+
+  list.innerHTML=items.map(item=>{
+    const v=new Date(item.vencimento+'T00:00:00');
+    const diff=Math.round((v-today)/86400000);
+    const icon=CATS[item.categoria]||'💸';
+    let badge='',borderColor='rgba(148,163,184,0.1)';
+    if(diff<0){badge=`<span style="font-size:10px;background:rgba(239,68,68,0.15);color:#f87171;padding:2px 8px;border-radius:10px;font-weight:700">⚠️ VENCIDA há ${Math.abs(diff)}d</span>`;borderColor='rgba(239,68,68,0.25)';}
+    else if(diff===0){badge='<span style="font-size:10px;background:rgba(239,68,68,0.15);color:#f87171;padding:2px 8px;border-radius:10px;font-weight:700">🔴 VENCE HOJE</span>';borderColor='rgba(239,68,68,0.25)';}
+    else if(diff===1){badge='<span style="font-size:10px;background:rgba(251,191,36,0.15);color:#fbbf24;padding:2px 8px;border-radius:10px;font-weight:700">🟡 VENCE AMANHÃ</span>';borderColor='rgba(251,191,36,0.3)';}
+    else{badge=`<span style="font-size:10px;background:rgba(99,102,241,0.15);color:#a5b4fc;padding:2px 8px;border-radius:10px;font-weight:700">🔔 VENCE EM ${diff} DIAS</span>`;borderColor='rgba(99,102,241,0.2)';}
+    return`<div style="background:rgba(15,23,42,0.7);border:1px solid ${borderColor};border-radius:14px;padding:13px 14px;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <span style="font-size:20px">${icon}</span>
+        <div style="flex:1;min-width:0">
+          <p style="color:#e2e8f0;font-size:14px;font-weight:700;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nomeBase(item.nome)}</p>
+          <p style="color:#64748b;font-size:12px;margin:2px 0 0">${fmt(item.valor)} · Venc. ${fmtDate(item.vencimento)}</p>
+        </div>
+        ${badge}
+      </div>
+      <div style="display:flex;gap:8px">
+        <button onclick="dueAlertPago('${item.id}')" style="flex:1;padding:9px;border-radius:10px;background:rgba(74,222,128,0.13);color:#4ade80;border:1px solid rgba(74,222,128,0.2);cursor:pointer;font-weight:700;font-size:12px">✓ JÁ PAGUEI</button>
+        <button onclick="dueAlertSkip('${item.id}')" style="flex:1;padding:9px;border-radius:10px;background:rgba(239,68,68,0.08);color:#f87171;border:1px solid rgba(239,68,68,0.15);cursor:pointer;font-weight:700;font-size:12px">✗ AINDA NÃO</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  overlay.style.display='flex';
+}
+
+window.dueAlertPago=function(id){
+  window.togglePago(id);
+  // Remove o item da lista flutuante
+  const all=getData();
+  const item=all.find(x=>x.id===id);
+  // Rerender a lista sem o item pago
+  const today=new Date();today.setHours(0,0,0,0);
+  const remaining=getData().filter(i=>{
+    if(i.pago||!i.vencimento)return false;
+    const v=new Date(i.vencimento+'T00:00:00');
+    return Math.round((v-today)/86400000)<=3;
+  });
+  if(!remaining.length){
+    document.getElementById('dueAlertsOverlay').style.display='none';
+    showToast('Tudo em dia! 🎉','#4ade80');
+  }else{
+    showDueAlertsModal._rebuild();
+  }
+}
+// Rebuild sem fechar o modal
+showDueAlertsModal._rebuild=function(){
+  const today=new Date();today.setHours(0,0,0,0);
+  const shownKey='fpro_due_shown_'+today.toISOString().split('T')[0];
+  localStorage.removeItem(shownKey); // permite re-abrir
+  showDueAlertsModal();
+}
+
+window.dueAlertSkip=function(id){
+  // Marca como "não responder agora" removendo da lista sem pagar
+  const el=document.querySelector(`button[onclick="dueAlertSkip('${id}')"]`);
+  if(el){const card=el.closest('div[style*="border-radius:14px"]');if(card)card.remove();}
+  const list=document.getElementById('dueAlertsList');
+  if(!list.children.length)document.getElementById('dueAlertsOverlay').style.display='none';
+}
+
+window.closeDueAlerts=function(){document.getElementById('dueAlertsOverlay').style.display='none';}
 
 // ── Menu ──
 function updateMenu(){
@@ -291,10 +378,11 @@ onAuthStateChanged(auth,user=>{
       // Agenda checkDueAlerts e primeiro PBS se já passou o intervalo
       setTimeout(async()=>{
         checkDueAlerts();
+        showDueAlertsModal();
         if(Date.now()-_lastSyncAt >= PBS_MIN_INTERVAL){
           await runPeriodicSync();
         }
-      },4000);
+      },1500);
     });
   }else{
     document.getElementById('authScreen').style.display='flex';
@@ -1131,6 +1219,7 @@ function startPBSFallback() {
   // Checa ao retornar ao app (visibilitychange)
   document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
+      if(currentUser) showDueAlertsModal();
       const elapsed = Date.now() - _lastSyncAt;
       if (elapsed >= PBS_MIN_INTERVAL) {
         console.log('[PBS Fallback] App voltou ao foco — sincronizando');
@@ -1853,5 +1942,21 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
   </div>
 </div>
+<!-- ══ DUE ALERTS MODAL ══ -->
+<div class="modal-overlay" id="dueAlertsOverlay" style="display:none;align-items:flex-end">
+  <div class="glass-modal modal-sheet animate-in" style="max-height:85vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <h2 style="color:#e2e8f0;font-weight:800;font-size:17px;margin:0">⚠️ CONTAS A VENCER</h2>
+        <p style="color:#64748b;font-size:12px;margin:3px 0 0">Confirme o status de cada uma</p>
+      </div>
+      <button onclick="closeDueAlerts()" style="background:rgba(148,163,184,0.08);border:none;color:#64748b;width:32px;height:32px;border-radius:10px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center">×</button>
+    </div>
+    <div id="dueAlertsList"></div>
+    <button onclick="closeDueAlerts()" style="width:100%;margin-top:4px;padding:12px;border-radius:14px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:13px">NÃO RESPONDER AGORA</button>
+  </div>
+</div>
+
 </body>
 </html>
