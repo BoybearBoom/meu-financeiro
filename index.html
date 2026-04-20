@@ -402,29 +402,28 @@ function render(){
     const isSel=selected.has(item.id);
     const isOverdue=item.vencimento&&!item.pago&&new Date(item.vencimento+'T00:00:00')<new Date();
     const isDueSoon=item.vencimento&&!item.pago&&!isOverdue&&new Date(item.vencimento+'T00:00:00')<=new Date(Date.now()+3*86400000);
-    return`<div class="item-row px-3 py-3.5 flex items-center gap-2.5${isSel?' selected':''}${isOverdue?' overdue':''}${isDueSoon?' due-soon':''}">
-      ${selectMode?`<div class="checkbox-item${isSel?' checked':''}" onclick="toggleSelect('${item.id}')">
+    const clickable=!selectMode?`onclick="openDetail('${item.id}')" style="cursor:pointer"`:'';
+    return`<div class="item-row px-3 py-3.5 flex items-center gap-2.5${isSel?' selected':''}${isOverdue?' overdue':''}${isDueSoon?' due-soon':''}" ${clickable}>
+      ${selectMode?`<div class="checkbox-item${isSel?' checked':''}" onclick="event.stopPropagation();toggleSelect('${item.id}')">
         ${isSel?'<svg width="11" height="11" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>':''}
       </div>`:''}
-      <div class="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center" style="background:rgba(148,163,184,0.08);font-size:18px">${icon}</div>
-      <div class="flex-1 min-w-0"${selectMode?` onclick="toggleSelect('${item.id}')" style="cursor:pointer"`:''}>
+      <div class="shrink-0 w-10 h-10 rounded-xl flex items-center justify-content:center" style="background:rgba(148,163,184,0.08);font-size:18px;display:flex;align-items:center;justify-content:center">${icon}</div>
+      <div class="flex-1 min-w-0">
         <div class="flex items-center gap-1.5">
           <p class="text-slate-200 text-sm font-medium truncate">${item.nome}</p>
           ${item.recorrente?'<span style="font-size:9px;background:rgba(99,102,241,0.18);color:#a5b4fc;padding:1px 6px;border-radius:8px;font-weight:700;flex-shrink:0">↻</span>':''}
+          ${item.obs?'<span style="font-size:9px;background:rgba(148,163,184,0.1);color:#64748b;padding:1px 5px;border-radius:8px;flex-shrink:0">📝</span>':''}
         </div>
         <p class="text-slate-500 text-xs mt-0.5">${item.cartaoNome?item.cartaoNome:item.categoria} · ${fmtDate(item.data)}${item.vencimento?' · Venc: <span style="color:'+(isOverdue?'#f87171':isDueSoon?'#fbbf24':'#94a3b8')+'">'+fmtDate(item.vencimento)+'</span>':''}</p>
         ${isOverdue?'<p style="font-size:10px;color:#ef4444;font-weight:700;margin-top:1px">⚠️ VENCIDA</p>':''}
         ${isDueSoon?'<p style="font-size:10px;color:#f59e0b;font-weight:700;margin-top:1px">⏰ Vence em breve</p>':''}
       </div>
-      <div class="text-right shrink-0 flex flex-col items-end gap-1">
+      <div class="text-right shrink-0 flex flex-col items-end gap-1" onclick="event.stopPropagation()">
         <p class="text-slate-200 text-sm font-semibold">${fmt(item.valor)}</p>
         <button onclick="togglePago('${item.id}')" class="badge cursor-pointer${item.pago?' status-paid':' status-pending'}" style="font-size:10px">
           ${item.pago?'✓ Pago':'⏳ Pendente'}
         </button>
       </div>
-      ${!selectMode?`<button onclick="openModal('${item.id}')" class="icon-btn edit-btn ml-1.5 shrink-0" title="Editar">
-        <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-      </button>`:''}
     </div>`;
   }).join('');
   if(selectMode)document.getElementById('selectCount').textContent=selected.size+' selecionado'+(selected.size!==1?'s':'');
@@ -627,20 +626,41 @@ window.saveCartao=function(){
 };
 
 // ── Modal ──
+// Remove o sufixo "(x/y)" do nome para exibição limpa
+function nomeBase(nome){return nome?nome.replace(/\s*\(\d+\/\d+\)$/,'').trim():'';}
+
 window.openModal=function(editId){
-  const item=editId?getData().find(x=>x.id===editId):null;
-  document.getElementById('editId').value=editId||'';
-  document.getElementById('inputNome').value=item?item.nome:'';
-  document.getElementById('inputValor').value=item?item.valor:'';
-  document.getElementById('inputData').value=item?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
-  document.getElementById('inputVencimento').value=item&&item.vencimento?item.vencimento:'';
-  document.getElementById('inputCategoria').value=item?item.categoria:'Moradia';
-  updateCartaoSelect(item?item.categoria:'Moradia', item?item.cartaoNome:'');
+  const id=editId||null;
+  const item=id?getData().find(x=>x.id===id):null;
+  const isEdit=!!(id&&item);
+
+  document.getElementById('editId').value=isEdit?id:'';
+  document.getElementById('inputNome').value=isEdit?nomeBase(item.nome):'';
+  document.getElementById('inputValor').value=isEdit?item.valor:'';
+  document.getElementById('inputData').value=isEdit?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
+  document.getElementById('inputVencimento').value=isEdit&&item.vencimento?item.vencimento:'';
+  document.getElementById('inputCategoria').value=isEdit?item.categoria:'Moradia';
+  updateCartaoSelect(isEdit?item.categoria:'Moradia', isEdit?item.cartaoNome:'');
   document.getElementById('inputParcelas').value='1';
-  document.getElementById('parcelasGrp').style.display=item?'none':'';
-  document.getElementById('modalTitle').textContent=item?'Editar Despesa':'Nova Despesa';
-  document.getElementById('btnSalvar').textContent=item?'Salvar Alterações':'Salvar Despesa';
-  const isRec=item?!!item.recorrente:false;
+  document.getElementById('parcelasGrp').style.display=isEdit?'none':'';
+  document.getElementById('inputObs').value=isEdit&&item.obs?item.obs:'';
+  const isParcela=isEdit&&!!(item.groupId&&item.parcelNum&&item.totalParcelas);
+  const parcelaInfo=document.getElementById('modalParcelaInfo');
+  const recInfo=document.getElementById('modalRecInfo');
+  if(parcelaInfo){
+    if(isParcela){
+      parcelaInfo.style.display='block';
+      parcelaInfo.textContent=`📦 Parcela ${item.parcelNum}/${item.totalParcelas} — ao salvar você pode atualizar esta e as seguintes`;
+    }else{parcelaInfo.style.display='none';}
+  }
+  if(recInfo){
+    if(isEdit&&item.recorrente&&item.recGroupId){
+      recInfo.style.display='block';
+    }else{recInfo.style.display='none';}
+  }
+  document.getElementById('modalTitle').textContent=isEdit?'Editar Despesa':'Nova Despesa';
+  document.getElementById('btnSalvar').textContent=isEdit?'Salvar Alterações':'Salvar Despesa';
+  const isRec=isEdit?!!item.recorrente:false;
   const recBox=document.getElementById('recCheckbox');
   const recIcon=document.getElementById('recCheckIcon');
   window._recorrente=isRec;
@@ -701,6 +721,7 @@ window.saveItem=function(){
   const cartaoNome=cat==='Cartão'?(document.getElementById('inputCartaoNome').value||''):'';
   const editId=document.getElementById('editId').value;
   const recorrente=!!window._recorrente;
+  const obs=document.getElementById('inputObs').value.trim();
   if(!nome){showToast('Informe a descrição','#ef4444');return}
   if(!valor||valor<=0){showToast('Informe um valor válido','#ef4444');return}
   if(!data){showToast('Informe a data','#ef4444');return}
@@ -709,10 +730,14 @@ window.saveItem=function(){
   if(editId){
     const idx=all.findIndex(x=>x.id===editId);
     if(idx<0){saveData(all);window.closeModal();render();return;}
-    const oldItem=all[idx];
+    const oldItem={...all[idx]};
     const wasRec=!!oldItem.recorrente;
+    const isParcela=!!(oldItem.groupId&&oldItem.parcelNum&&oldItem.totalParcelas);
+
+    // Atualiza o item editado
     all[idx].nome=nome;all[idx].valor=valor;all[idx].data=data;all[idx].categoria=cat;
     all[idx].recorrente=recorrente;
+    if(obs)all[idx].obs=obs; else delete all[idx].obs;
     if(cartaoNome)all[idx].cartaoNome=cartaoNome; else delete all[idx].cartaoNome;
     if(venc)all[idx].vencimento=venc; else delete all[idx].vencimento;
     if(cat==='Cartão'&&cartaoNome){
@@ -721,34 +746,69 @@ window.saveItem=function(){
       else{const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;}
     }else{const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;}
 
-    // Se tem recGroupId, atualiza todos os futuros do mesmo grupo
-    if(recorrente&&all[idx].recGroupId){
-      const thisKey=all[idx].monthKey;
-      all=all.filter(x=>!(x.recGroupId===all[idx].recGroupId&&x.monthKey>thisKey));
-      // Rebuilds future entries from next month
-      const[ey,em]=thisKey.split('-').map(Number);
-      const todayKey=`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
-      const futureBase={...all[idx]};
-      const futureItems=buildFutureRecurring(futureBase,1,13);
-      all=[...all,...futureItems];
-      showToast('Recorrente e futuros atualizados ↻','#6366f1');
+    const editedItem={...all[idx]};
+
+    // Parcelas: pergunta se quer atualizar só esta ou as seguintes também
+    if(isParcela){
+      const siblings=all.filter(x=>x.groupId===oldItem.groupId&&x.parcelNum>oldItem.parcelNum).sort((a,b)=>a.parcelNum-b.parcelNum);
+      if(siblings.length>0){
+        const cascata=confirm(`DESEJA ATUALIZAR APENAS ESTA PARCELA OU TAMBÉM AS ${siblings.length} SEGUINTES?\n\nOK = atualizar esta + as ${siblings.length} seguintes\nCancelar = só esta parcela`);
+        if(cascata){
+          siblings.forEach(s=>{
+            const si=all.findIndex(x=>x.id===s.id);
+            if(si<0)return;
+            // Atualiza tudo exceto o número da parcela no nome
+            const numMatch=all[si].nome.match(/\((\d+)\/(\d+)\)$/);
+            all[si].nome=numMatch?`${nome} (${numMatch[1]}/${numMatch[2]})`:nome;
+            all[si].valor=valor;
+            all[si].categoria=cat;
+            if(obs)all[si].obs=obs; else delete all[si].obs;
+            if(cartaoNome)all[si].cartaoNome=cartaoNome; else delete all[si].cartaoNome;
+            if(venc){
+              // Avança o vencimento proporcionalmente
+              const baseVenc=new Date(venc+'T12:00:00');
+              const diff=all[si].parcelNum-oldItem.parcelNum;
+              baseVenc.setMonth(baseVenc.getMonth()+diff);
+              all[si].vencimento=`${baseVenc.getFullYear()}-${String(baseVenc.getMonth()+1).padStart(2,'0')}-${String(baseVenc.getDate()).padStart(2,'0')}`;
+            }else{delete all[si].vencimento;}
+          });
+          saveData(all);window.closeModal();render();showToast(`Esta + ${siblings.length} parcelas seguintes atualizadas ✓`,'#6366f1');return;
+        }
+      }
+      saveData(all);window.closeModal();render();showToast('Parcela atualizada ✓ (só esta)');return;
+    }
+
+    // Recorrente com grupo: atualiza futuros em cascata (mantém pago/obs dos futuros individualmente)
+    if(recorrente&&editedItem.recGroupId){
+      const thisKey=editedItem.monthKey;
+      const futureOld=all.filter(x=>x.recGroupId===editedItem.recGroupId&&x.monthKey>thisKey);
+      // Remove futuros antigos
+      all=all.filter(x=>!(x.recGroupId===editedItem.recGroupId&&x.monthKey>thisKey));
+      // Recria futuros preservando pago e obs de cada mês
+      const futureNew=buildFutureRecurring(editedItem,1,13);
+      futureNew.forEach(fn=>{
+        const old=futureOld.find(fo=>fo.monthKey===fn.monthKey);
+        if(old){fn.pago=old.pago;if(old.obs)fn.obs=old.obs;}
+      });
+      all=[...all,...futureNew];
+      saveData(all);window.closeModal();render();showToast('Recorrente e futuros atualizados ↻','#6366f1');return;
     }else if(!wasRec&&recorrente){
-      // Tornou-se recorrente agora: gera group e futuros
+      // Tornou-se recorrente: gera group e futuros
       const recGroupId='recgrp-'+Date.now();
-      all[idx].recGroupId=recGroupId;
-      const futureItems=buildFutureRecurring({...all[idx]},1,13);
+      all[all.findIndex(x=>x.id===editId)].recGroupId=recGroupId;
+      editedItem.recGroupId=recGroupId;
+      const futureItems=buildFutureRecurring(editedItem,1,13);
       all=[...all,...futureItems];
-      showToast('Recorrente criado + lançado nos próximos 12 meses ↻','#6366f1');
+      saveData(all);window.closeModal();render();showToast('Recorrente criado + lançado nos próximos 12 meses ↻','#6366f1');return;
     }else if(wasRec&&!recorrente&&oldItem.recGroupId){
       // Removeu recorrência: remove futuros do grupo
-      const thisKey=all[idx].monthKey;
+      const thisKey=editedItem.monthKey;
       all=all.filter(x=>!(x.recGroupId===oldItem.recGroupId&&x.monthKey>thisKey));
-      delete all[idx].recGroupId;
-      showToast('Recorrência removida. Futuros excluídos.','#f59e0b');
-    }else{
-      showToast('Atualizado ✓');
+      delete all[all.findIndex(x=>x.id===editId)].recGroupId;
+      saveData(all);window.closeModal();render();showToast('Recorrência removida. Futuros excluídos.','#f59e0b');return;
     }
-    saveData(all);window.closeModal();render();return;
+
+    saveData(all);window.closeModal();render();showToast('Atualizado ✓');return;
   }
 
   const parc=parseInt(document.getElementById('inputParcelas').value);
@@ -776,6 +836,7 @@ window.saveItem=function(){
       categoria:cat,pago:false,monthKey:mKey,
       recorrente:parc===1?recorrente:false,
       ...(recGroupId?{recGroupId}:{}),
+      ...(obs?{obs}:{}),
       ...(cartaoNome?{cartaoNome}:{}),
       ...(parc>1?{groupId,parcelNum:p+1,totalParcelas:parc}:{}),
       ...(vencStr?{vencimento:vencStr}:{})
@@ -798,7 +859,91 @@ window.saveItem=function(){
 
 window.togglePago=function(id){
   const all=getData(),i=all.findIndex(x=>x.id===id);
-  if(i>=0){all[i].pago=!all[i].pago;saveData(all);render();}
+  if(i>=0){all[i].pago=!all[i].pago;saveData(all);render();
+    // Update detail modal if open
+    if(document.getElementById('detailOverlay').style.display!=='none') openDetail(id);
+  }
+}
+
+// ── Detail Modal ──
+let _detailId=null;
+window.openDetail=function(id){
+  const item=getData().find(x=>x.id===id);if(!item)return;
+  _detailId=id;
+  const icon=CATS[item.categoria]||'💸';
+  const isOverdue=item.vencimento&&!item.pago&&new Date(item.vencimento+'T00:00:00')<new Date();
+  const isDueSoon=item.vencimento&&!item.pago&&!isOverdue&&new Date(item.vencimento+'T00:00:00')<=new Date(Date.now()+3*86400000);
+
+  document.getElementById('detailIcon').textContent=icon;
+  document.getElementById('detailNome').textContent=nomeBase(item.nome);
+  document.getElementById('detailCategoria').textContent=(item.cartaoNome||item.categoria)+(item.recorrente?' · ↻ Recorrente':'');
+  document.getElementById('detailValor').textContent=fmt(item.valor);
+
+  // Status badge
+  const badge=document.getElementById('detailStatusBadge');
+  if(item.pago){
+    badge.innerHTML='<span style="background:rgba(74,222,128,0.15);color:#4ade80;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid rgba(74,222,128,0.25)">✓ Pago</span>';
+  }else if(isOverdue){
+    badge.innerHTML='<span style="background:rgba(239,68,68,0.15);color:#f87171;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid rgba(239,68,68,0.25)">⚠️ Vencida</span>';
+  }else if(isDueSoon){
+    badge.innerHTML='<span style="background:rgba(251,191,36,0.15);color:#fbbf24;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid rgba(251,191,36,0.25)">⏰ Vence em breve</span>';
+  }else{
+    badge.innerHTML='<span style="background:rgba(251,191,36,0.12);color:#fbbf24;padding:6px 14px;border-radius:20px;font-size:12px;font-weight:700;border:1px solid rgba(251,191,36,0.2)">⏳ Pendente</span>';
+  }
+
+  // Info grid
+  const infoItems=[
+    {label:'Data',value:fmtDate(item.data)},
+    {label:'Categoria',value:item.categoria},
+    ...(item.vencimento?[{label:'Vencimento',value:fmtDate(item.vencimento),alert:isOverdue?'red':isDueSoon?'amber':null}]:[]),
+    ...(item.cartaoNome?[{label:'Cartão',value:item.cartaoNome}]:[]),
+    ...(item.totalParcelas?[{label:'Parcela',value:`${item.parcelNum}/${item.totalParcelas}`}]:[]),
+  ];
+  document.getElementById('detailInfoGrid').innerHTML=infoItems.map(info=>`
+    <div style="background:rgba(30,41,59,0.6);border-radius:12px;padding:12px 14px;border:1px solid rgba(148,163,184,0.07)">
+      <p style="color:#475569;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${info.label}</p>
+      <p style="color:${info.alert==='red'?'#f87171':info.alert==='amber'?'#fbbf24':'#e2e8f0'};font-size:13px;font-weight:600">${info.value}</p>
+    </div>`).join('');
+
+  // Observação
+  const obsBox=document.getElementById('detailObsBox');
+  if(item.obs&&item.obs.trim()){
+    obsBox.style.display='block';
+    document.getElementById('detailObs').textContent=item.obs;
+  }else{obsBox.style.display='none';}
+
+  // Recorrente
+  const recBox=document.getElementById('detailRecBox');
+  recBox.style.display=item.recorrente?'block':'none';
+
+  // Botão pago
+  const btn=document.getElementById('detailBtnPago');
+  if(item.pago){
+    btn.textContent='↩ Marcar Pendente';
+    btn.style.cssText='flex:1;padding:12px;border-radius:14px;background:rgba(148,163,184,0.08);color:#94a3b8;border:1px solid rgba(148,163,184,0.15);cursor:pointer;font-weight:700;font-size:13px';
+  }else{
+    btn.textContent='✓ Marcar como Pago';
+    btn.style.cssText='flex:1;padding:12px;border-radius:14px;background:rgba(74,222,128,0.13);color:#4ade80;border:1px solid rgba(74,222,128,0.2);cursor:pointer;font-weight:700;font-size:13px';
+  }
+
+  document.getElementById('detailOverlay').style.display='flex';
+}
+window.closeDetail=function(){document.getElementById('detailOverlay').style.display='none';_detailId=null;}
+window.closeDetailOutside=function(e){if(e.target===document.getElementById('detailOverlay'))window.closeDetail();}
+window.detailTogglePago=function(){if(_detailId)window.togglePago(_detailId);}
+window.detailEdit=function(){
+  const id=_detailId;
+  if(!id)return;
+  document.getElementById('detailOverlay').style.display='none';
+  _detailId=null;
+  setTimeout(()=>window.openModal(id),50);
+}
+window.detailDelete=function(){
+  const id=_detailId;
+  if(!id)return;
+  document.getElementById('detailOverlay').style.display='none';
+  _detailId=null;
+  setTimeout(()=>window.deleteItem(id),50);
 }
 
 window.deleteItem=function(id){
@@ -1247,8 +1392,9 @@ body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .item-row.selected{background:rgba(99,102,241,0.1)!important;border-left:3px solid #6366f1}
 .item-row.overdue{border-left:3px solid rgba(239,68,68,0.65);background:rgba(239,68,68,0.025)}
 .item-row.due-soon{border-left:3px solid rgba(245,158,11,0.55);background:rgba(245,158,11,0.025)}
-input:not([type=checkbox]),select{background:rgba(15,23,42,0.85)!important;border:1px solid rgba(148,163,184,0.18)!important;color:#e2e8f0!important;border-radius:10px!important;padding:11px 13px!important;width:100%;outline:none;transition:border-color .2s;font-size:15px}
-input:not([type=checkbox]):focus,select:focus{border-color:rgba(99,102,241,0.5)!important;box-shadow:0 0 0 3px rgba(99,102,241,0.1)}
+input:not([type=checkbox]),select,textarea{background:rgba(15,23,42,0.85)!important;border:1px solid rgba(148,163,184,0.18)!important;color:#e2e8f0!important;border-radius:10px!important;padding:11px 13px!important;width:100%;outline:none;transition:border-color .2s;font-size:15px}
+input:not([type=checkbox]):focus,select:focus,textarea:focus{border-color:rgba(99,102,241,0.5)!important;box-shadow:0 0 0 3px rgba(99,102,241,0.1)}
+textarea{font-family:inherit;line-height:1.5}
 input[type=checkbox]{display:none!important;width:0!important;height:0!important;padding:0!important;border:none!important}
 select option{background:#1e293b;color:#e2e8f0}
 .badge{font-size:10px;padding:3px 8px;border-radius:20px;font-weight:600}
@@ -1524,6 +1670,9 @@ select option{background:#1e293b;color:#e2e8f0}
       </button>
     </div>
     <input type="hidden" id="editId"/>
+    <!-- Info banners -->
+    <div id="modalParcelaInfo" style="display:none;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;padding:9px 13px;font-size:12px;color:#fbbf24;margin-bottom:4px"></div>
+    <div id="modalRecInfo" style="display:none;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.18);border-radius:10px;padding:9px 13px;font-size:12px;color:#a5b4fc;margin-bottom:4px">↻ Recorrente — salvar vai atualizar todos os meses seguintes em cascata</div>
     <div class="space-y-3">
       <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Descrição *</label>
       <input type="text" id="inputNome" placeholder="Ex: Netflix, Aluguel, Mercado..."/></div>
@@ -1561,6 +1710,12 @@ select option{background:#1e293b;color:#e2e8f0}
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">💳 Qual cartão?</label>
         <select id="inputCartaoNome" onchange="onCartaoSelectChange(this.value)"></select>
         <p class="text-slate-600 text-xs mt-1 ml-1">Compras a partir do fechamento vão para a fatura do mês seguinte</p>
+      </div>
+
+      <!-- Observação -->
+      <div>
+        <label class="text-slate-400 text-xs block mb-1.5 ml-1">📝 Observação <span style="color:#475569">(opcional)</span></label>
+        <textarea id="inputObs" placeholder="Anote detalhes, o que foi feito, informações extras..." rows="2" style="resize:none;padding-bottom:8px"></textarea>
       </div>
 
       <!-- Checkbox Gasto Recorrente -->
@@ -1657,5 +1812,46 @@ select option{background:#1e293b;color:#e2e8f0}
 </div>
 
 <div id="toast" class="toast" style="opacity:0"></div>
+
+<!-- ══ DETAIL MODAL ══ -->
+<div class="modal-overlay" id="detailOverlay" style="display:none" onclick="closeDetailOutside(event)">
+  <div class="glass-modal modal-sheet animate-in" style="max-height:90vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div class="flex items-center justify-between mb-5">
+      <div class="flex items-center gap-3">
+        <div id="detailIcon" style="width:44px;height:44px;border-radius:14px;background:rgba(99,102,241,0.13);display:flex;align-items:center;justify-content:center;font-size:22px"></div>
+        <div>
+          <h2 class="text-slate-100 font-bold text-lg leading-tight" id="detailNome"></h2>
+          <p class="text-slate-500 text-xs mt-0.5" id="detailCategoria"></p>
+        </div>
+      </div>
+      <button onclick="closeDetail()" class="text-slate-500 p-1.5 rounded-lg" style="background:rgba(148,163,184,0.08)">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.18);border-radius:16px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <p class="text-slate-500 text-xs mb-1">Valor</p>
+        <p id="detailValor" style="font-size:26px;font-weight:800;color:#e2e8f0;line-height:1"></p>
+      </div>
+      <div id="detailStatusBadge"></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px" id="detailInfoGrid"></div>
+    <div id="detailObsBox" style="display:none;background:rgba(148,163,184,0.05);border:1px solid rgba(148,163,184,0.1);border-radius:14px;padding:14px;margin-bottom:16px">
+      <p style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📝 Observação</p>
+      <p id="detailObs" style="color:#cbd5e1;font-size:13px;line-height:1.5;white-space:pre-wrap"></p>
+    </div>
+    <div id="detailRecBox" style="display:none;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:14px;padding:12px;margin-bottom:16px">
+      <p style="color:#a5b4fc;font-size:12px;font-weight:600">↻ Gasto Recorrente — lançado nos próximos meses</p>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:4px">
+      <button id="detailBtnPago" onclick="event.stopPropagation();detailTogglePago()" style="flex:1;padding:12px;border-radius:14px;border:none;cursor:pointer;font-weight:700;font-size:13px;transition:all .15s"></button>
+      <button onclick="event.stopPropagation();detailEdit()" style="flex:1;padding:12px;border-radius:14px;background:rgba(99,102,241,0.13);color:#a5b4fc;border:1px solid rgba(99,102,241,0.2);cursor:pointer;font-weight:700;font-size:13px">✏️ Editar</button>
+      <button onclick="event.stopPropagation();detailDelete()" style="width:46px;padding:12px;border-radius:14px;background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center">
+        <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
