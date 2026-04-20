@@ -641,6 +641,20 @@ window.openModal=function(editId){
   document.getElementById('inputParcelas').value='1';
   document.getElementById('parcelasGrp').style.display=isEdit?'none':'';
   document.getElementById('inputObs').value=isEdit&&item.obs?item.obs:'';
+  const isParcela=isEdit&&!!(item.groupId&&item.parcelNum&&item.totalParcelas);
+  const parcelaInfo=document.getElementById('modalParcelaInfo');
+  const recInfo=document.getElementById('modalRecInfo');
+  if(parcelaInfo){
+    if(isParcela){
+      parcelaInfo.style.display='block';
+      parcelaInfo.textContent=`📦 Parcela ${item.parcelNum}/${item.totalParcelas} — ao salvar você pode atualizar esta e as seguintes`;
+    }else{parcelaInfo.style.display='none';}
+  }
+  if(recInfo){
+    if(isEdit&&item.recorrente&&item.recGroupId){
+      recInfo.style.display='block';
+    }else{recInfo.style.display='none';}
+  }
   document.getElementById('modalTitle').textContent=isEdit?'Editar Despesa':'Nova Despesa';
   document.getElementById('btnSalvar').textContent=isEdit?'Salvar Alterações':'Salvar Despesa';
   const isRec=isEdit?!!item.recorrente:false;
@@ -713,8 +727,11 @@ window.saveItem=function(){
   if(editId){
     const idx=all.findIndex(x=>x.id===editId);
     if(idx<0){saveData(all);window.closeModal();render();return;}
-    const oldItem=all[idx];
+    const oldItem={...all[idx]};
     const wasRec=!!oldItem.recorrente;
+    const isParcela=!!(oldItem.groupId&&oldItem.parcelNum&&oldItem.totalParcelas);
+
+    // Atualiza o item editado
     all[idx].nome=nome;all[idx].valor=valor;all[idx].data=data;all[idx].categoria=cat;
     all[idx].recorrente=recorrente;
     if(obs)all[idx].obs=obs; else delete all[idx].obs;
@@ -726,34 +743,69 @@ window.saveItem=function(){
       else{const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;}
     }else{const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;}
 
-    // Se tem recGroupId, atualiza todos os futuros do mesmo grupo
-    if(recorrente&&all[idx].recGroupId){
-      const thisKey=all[idx].monthKey;
-      all=all.filter(x=>!(x.recGroupId===all[idx].recGroupId&&x.monthKey>thisKey));
-      // Rebuilds future entries from next month
-      const[ey,em]=thisKey.split('-').map(Number);
-      const todayKey=`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
-      const futureBase={...all[idx]};
-      const futureItems=buildFutureRecurring(futureBase,1,13);
-      all=[...all,...futureItems];
-      showToast('Recorrente e futuros atualizados ↻','#6366f1');
+    const editedItem={...all[idx]};
+
+    // Parcelas: pergunta se quer atualizar só esta ou as seguintes também
+    if(isParcela){
+      const siblings=all.filter(x=>x.groupId===oldItem.groupId&&x.parcelNum>oldItem.parcelNum).sort((a,b)=>a.parcelNum-b.parcelNum);
+      if(siblings.length>0){
+        const cascata=confirm(`DESEJA ATUALIZAR APENAS ESTA PARCELA OU TAMBÉM AS ${siblings.length} SEGUINTES?\n\nOK = atualizar esta + as ${siblings.length} seguintes\nCancelar = só esta parcela`);
+        if(cascata){
+          siblings.forEach(s=>{
+            const si=all.findIndex(x=>x.id===s.id);
+            if(si<0)return;
+            // Atualiza tudo exceto o número da parcela no nome
+            const numMatch=all[si].nome.match(/\((\d+)\/(\d+)\)$/);
+            all[si].nome=numMatch?`${nome} (${numMatch[1]}/${numMatch[2]})`:nome;
+            all[si].valor=valor;
+            all[si].categoria=cat;
+            if(obs)all[si].obs=obs; else delete all[si].obs;
+            if(cartaoNome)all[si].cartaoNome=cartaoNome; else delete all[si].cartaoNome;
+            if(venc){
+              // Avança o vencimento proporcionalmente
+              const baseVenc=new Date(venc+'T12:00:00');
+              const diff=all[si].parcelNum-oldItem.parcelNum;
+              baseVenc.setMonth(baseVenc.getMonth()+diff);
+              all[si].vencimento=`${baseVenc.getFullYear()}-${String(baseVenc.getMonth()+1).padStart(2,'0')}-${String(baseVenc.getDate()).padStart(2,'0')}`;
+            }else{delete all[si].vencimento;}
+          });
+          saveData(all);window.closeModal();render();showToast(`Esta + ${siblings.length} parcelas seguintes atualizadas ✓`,'#6366f1');return;
+        }
+      }
+      saveData(all);window.closeModal();render();showToast('Parcela atualizada ✓ (só esta)');return;
+    }
+
+    // Recorrente com grupo: atualiza futuros em cascata (mantém pago/obs dos futuros individualmente)
+    if(recorrente&&editedItem.recGroupId){
+      const thisKey=editedItem.monthKey;
+      const futureOld=all.filter(x=>x.recGroupId===editedItem.recGroupId&&x.monthKey>thisKey);
+      // Remove futuros antigos
+      all=all.filter(x=>!(x.recGroupId===editedItem.recGroupId&&x.monthKey>thisKey));
+      // Recria futuros preservando pago e obs de cada mês
+      const futureNew=buildFutureRecurring(editedItem,1,13);
+      futureNew.forEach(fn=>{
+        const old=futureOld.find(fo=>fo.monthKey===fn.monthKey);
+        if(old){fn.pago=old.pago;if(old.obs)fn.obs=old.obs;}
+      });
+      all=[...all,...futureNew];
+      saveData(all);window.closeModal();render();showToast('Recorrente e futuros atualizados ↻','#6366f1');return;
     }else if(!wasRec&&recorrente){
-      // Tornou-se recorrente agora: gera group e futuros
+      // Tornou-se recorrente: gera group e futuros
       const recGroupId='recgrp-'+Date.now();
-      all[idx].recGroupId=recGroupId;
-      const futureItems=buildFutureRecurring({...all[idx]},1,13);
+      all[all.findIndex(x=>x.id===editId)].recGroupId=recGroupId;
+      editedItem.recGroupId=recGroupId;
+      const futureItems=buildFutureRecurring(editedItem,1,13);
       all=[...all,...futureItems];
-      showToast('Recorrente criado + lançado nos próximos 12 meses ↻','#6366f1');
+      saveData(all);window.closeModal();render();showToast('Recorrente criado + lançado nos próximos 12 meses ↻','#6366f1');return;
     }else if(wasRec&&!recorrente&&oldItem.recGroupId){
       // Removeu recorrência: remove futuros do grupo
-      const thisKey=all[idx].monthKey;
+      const thisKey=editedItem.monthKey;
       all=all.filter(x=>!(x.recGroupId===oldItem.recGroupId&&x.monthKey>thisKey));
-      delete all[idx].recGroupId;
-      showToast('Recorrência removida. Futuros excluídos.','#f59e0b');
-    }else{
-      showToast('Atualizado ✓');
+      delete all[all.findIndex(x=>x.id===editId)].recGroupId;
+      saveData(all);window.closeModal();render();showToast('Recorrência removida. Futuros excluídos.','#f59e0b');return;
     }
-    saveData(all);window.closeModal();render();return;
+
+    saveData(all);window.closeModal();render();showToast('Atualizado ✓');return;
   }
 
   const parc=parseInt(document.getElementById('inputParcelas').value);
@@ -883,7 +935,13 @@ window.detailEdit=function(){
   _detailId=null;
   setTimeout(()=>window.openModal(id),50);
 }
-window.detailDelete=function(){if(_detailId){window.closeDetail();window.deleteItem(_detailId);}}
+window.detailDelete=function(){
+  const id=_detailId;
+  if(!id)return;
+  document.getElementById('detailOverlay').style.display='none';
+  _detailId=null;
+  setTimeout(()=>window.deleteItem(id),50);
+}
 
 window.deleteItem=function(id){
   let all=getData();const item=all.find(x=>x.id===id);if(!item)return;
@@ -1609,6 +1667,9 @@ select option{background:#1e293b;color:#e2e8f0}
       </button>
     </div>
     <input type="hidden" id="editId"/>
+    <!-- Info banners -->
+    <div id="modalParcelaInfo" style="display:none;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;padding:9px 13px;font-size:12px;color:#fbbf24;margin-bottom:4px"></div>
+    <div id="modalRecInfo" style="display:none;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.18);border-radius:10px;padding:9px 13px;font-size:12px;color:#a5b4fc;margin-bottom:4px">↻ Recorrente — salvar vai atualizar todos os meses seguintes em cascata</div>
     <div class="space-y-3">
       <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Descrição *</label>
       <input type="text" id="inputNome" placeholder="Ex: Netflix, Aluguel, Mercado..."/></div>
