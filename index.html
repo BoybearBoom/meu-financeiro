@@ -568,23 +568,33 @@ window.saveProfile=async function(){
   if(pass&&pass.length<6){showToast('Senha mín. 6 caracteres','#ef4444');return;}
   if(pass&&pass!==pass2){showToast('Senhas não coincidem','#ef4444');return;}
   try{
-    const{updateProfile:up,updatePassword:upw,updateEmail:ue}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    const{updateProfile:up,updatePassword:upw,updateEmail:ue,verifyBeforeUpdateEmail:vbue}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    // 1. Atualiza nome
     await up(currentUser,{displayName:name});
     document.getElementById('userDisplayName').textContent=name;
-    if(email!==currentUser.email){
-      await ue(currentUser,email);
-    }
+    // 2. Atualiza senha (antes do e-mail para evitar conflito de sessão)
     if(pass){
       await upw(currentUser,pass);
+    }
+    // 3. Troca e-mail apenas se foi alterado
+    if(email!==currentUser.email){
+      // Firebase 10+: envia verificação para o novo e-mail antes de trocar
+      await vbue(currentUser,email);
+      showToast('Verifique sua caixa de entrada para confirmar o novo e-mail 📧','#6366f1');
+      await syncToCloud();
+      window.closeProfileModal();
+      return;
     }
     await syncToCloud();
     window.closeProfileModal();
     showToast('Perfil atualizado ✓','#4ade80');
   }catch(e){
     if(e.code==='auth/requires-recent-login'){
-      showToast('Faça login novamente para alterar e-mail ou senha','#ef4444');
+      showToast('Faça login novamente para alterar senha','#ef4444');
     }else if(e.code==='auth/email-already-in-use'){
       showToast('Este e-mail já está em uso','#ef4444');
+    }else if(e.code==='auth/operation-not-allowed'){
+      showToast('Operação não permitida. Verifique as configurações do Firebase.','#ef4444');
     }else{
       showToast('Erro ao salvar: '+e.message,'#ef4444');
     }
