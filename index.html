@@ -100,19 +100,21 @@ function setSyncDot(c){
   ['syncDot','syncDot2'].forEach(id=>{const d=document.getElementById(id);if(d)d.style.background=c==='green'?'#4ade80':c==='amber'?'#f59e0b':'#ef4444';});
 }
 
+function getNotifEmail(){return localStorage.getItem('fpro_notif_email')||'';}
+function saveNotifEmail(e){localStorage.setItem('fpro_notif_email',e);}
+
 async function syncToCloud(){
   if(!currentUser)return;
   try{
-    await setDoc(doc(db,'users',currentUser.uid),{data:JSON.stringify(getData()),updatedAt:new Date().toISOString(),displayName:currentUser.displayName||''});
+    await setDoc(doc(db,'users',currentUser.uid),{data:JSON.stringify(getData()),updatedAt:new Date().toISOString(),displayName:currentUser.displayName||'',notifEmail:getNotifEmail()});
     setSyncDot('green');
   }catch{setSyncDot('red');}
 }
-
 async function loadFromCloud(){
   if(!currentUser)return;
   try{
     const snap=await getDoc(doc(db,'users',currentUser.uid));
-    if(snap.exists()&&snap.data().data){
+    if(snap.exists()){if(snap.data().notifEmail)saveNotifEmail(snap.data().notifEmail);if(snap.data().data){
       const cd=JSON.parse(snap.data().data),ld=getData();
       // Merge: prefer whichever has more items or cloud if equal
       if(cd.length>=ld.length){
@@ -120,7 +122,7 @@ async function loadFromCloud(){
         showToast('Dados sincronizados ☁️','#4ade80');
       }
       render();
-    }
+    }}
   }catch(e){console.log('Cloud load error:',e);}
 }
 
@@ -344,6 +346,38 @@ function updateMenu(){
     pbsStatus.textContent=`Último sync: ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
   }
 }
+window.exportData=function(){
+  const data=getData();
+  const cartoes=getCartoes();
+  const payload=JSON.stringify({data,cartoes,exportedAt:new Date().toISOString(),version:2});
+  const blob=new Blob([payload],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='financespro-backup-'+new Date().toISOString().split('T')[0]+'.json';
+  a.click();URL.revokeObjectURL(url);
+  showToast('Dados exportados! Salve o arquivo com segurança 📁','#4ade80');
+}
+
+window.importData=function(){
+  if(!confirm('ATENÇÃO: Importar vai SUBSTITUIR todos os dados atuais desta conta.\n\nTem certeza?'))return;
+  const input=document.createElement('input');
+  input.type='file';input.accept='.json';
+  input.onchange=async function(e){
+    const file=e.target.files[0];if(!file)return;
+    try{
+      const text=await file.text();
+      const payload=JSON.parse(text);
+      if(!payload.data||!Array.isArray(payload.data)){showToast('Arquivo inválido','#ef4444');return;}
+      localStorage.setItem('fpro_v2',JSON.stringify(payload.data));
+      if(payload.cartoes)localStorage.setItem('fpro_cartoes',JSON.stringify(payload.cartoes));
+      await syncToCloud();
+      render();
+      showToast(`${payload.data.length} registros importados com sucesso ✓`,'#4ade80');
+    }catch{showToast('Erro ao ler o arquivo','#ef4444');}
+  };
+  input.click();
+}
+
 window.openMenu=function(){
   document.getElementById('menuOverlay').style.display='flex';
   updateMenu();
@@ -359,6 +393,8 @@ window.menuAction=function(action){
     if(action==='sync')window.forcSync();
     else if(action==='pbssync')window._runPeriodicSync();
     else if(action==='pdf')window.exportPDF();
+    else if(action==='exportdata')window.exportData();
+    else if(action==='importdata')window.importData();
     else if(action==='select')window.toggleSelectMode();
     else if(action==='notifs')toggleNotifications();
     else if(action==='profile')window.openProfileModal();
@@ -399,13 +435,15 @@ window.doLogin=async function(){
   const u=document.getElementById('loginUser').value.trim(),p=document.getElementById('loginPass').value;
   if(!u||!p){showToast('Preencha todos os campos','#ef4444');return}
   setAL(true);
-  try{await signInWithEmailAndPassword(auth,(u.includes('@')?u:u+'@financespro.app'),p);showToast('Bem-vindo! 👋');}
-  catch{showToast('Usuário ou senha incorretos','#ef4444');}
+  // Aceita e-mail real ou usuário antigo (@financespro.app)
+  const loginEmail=u.includes('@')?u:u+'@financespro.app';
+  try{await signInWithEmailAndPassword(auth,loginEmail,p);showToast('Bem-vindo! 👋');}
+  catch{showToast('E-mail ou senha incorretos','#ef4444');}
   finally{setAL(false);}
 }
 window.doForgotPassword=async function(){
   const u=document.getElementById('loginUser').value.trim();
-  if(!u){showToast('Digite seu usuário primeiro','#ef4444');return;}
+  if(!u){showToast('Digite seu e-mail ou usuário primeiro','#ef4444');return;}
   const email=u.includes('@')?u:u+'@financespro.app';
   setAL(true);
   try{
@@ -418,16 +456,20 @@ window.doForgotPassword=async function(){
   finally{setAL(false);}
 }
 window.doRegister=async function(){
-  const u=document.getElementById('regUser').value.trim(),p=document.getElementById('regPass').value,p2=document.getElementById('regPass2').value;
-  if(!u||u.length<3){showToast('Usuário muito curto (mín. 3)','#ef4444');return}
+  const u=document.getElementById('regUser').value.trim();
+  const email=document.getElementById('regEmail').value.trim();
+  const p=document.getElementById('regPass').value,p2=document.getElementById('regPass2').value;
+  if(!u||u.length<3){showToast('Nome muito curto (mín. 3)','#ef4444');return}
+  if(!email||!email.includes('@')){showToast('Informe um e-mail válido','#ef4444');return}
   if(p.length<6){showToast('Senha mín. 6 caracteres','#ef4444');return}
   if(p!==p2){showToast('Senhas não coincidem','#ef4444');return}
   setAL(true);
   try{
-    const c=await createUserWithEmailAndPassword(auth,u+'@financespro.app',p);
+    const c=await createUserWithEmailAndPassword(auth,email,p);
     await updateProfile(c.user,{displayName:u});
+    saveNotifEmail(email);
     showToast('Conta criada com sucesso! 🎉','#4ade80');
-  }catch(e){showToast(e.code==='auth/email-already-in-use'?'Usuário já existe':'Erro ao criar conta','#ef4444');}
+  }catch(e){showToast(e.code==='auth/email-already-in-use'?'E-mail já cadastrado':'Erro ao criar conta','#ef4444');}
   finally{setAL(false);}
 }
 window.doLogout=async function(){
@@ -550,51 +592,67 @@ window.changeMonth=function(dir){
 
 // ── Profile Modal ──
 window.openProfileModal=function(){
-  document.getElementById('profileEmail').value=currentUser?currentUser.email:'';
+  document.getElementById('profileEmail').value=getNotifEmail()||'';
   document.getElementById('profileName').value=currentUser?(currentUser.displayName||''):'';
   document.getElementById('profilePass').value='';
   document.getElementById('profilePass2').value='';
+  // Mostra status de verificação do e-mail de login
+  const verified=currentUser&&currentUser.emailVerified;
+  const box=document.getElementById('emailVerifyBox');
+  const loginEmailEl=document.getElementById('loginEmailDisplay');
+  if(box){box.style.display='block';}
+  if(loginEmailEl){loginEmailEl.textContent=currentUser?currentUser.email:'';}
+  const verifiedBadge=document.getElementById('verifiedBadge');
+  const unverifiedBadge=document.getElementById('unverifiedBadge');
+  if(verifiedBadge)verifiedBadge.style.display=verified?'flex':'none';
+  if(unverifiedBadge)unverifiedBadge.style.display=verified?'none':'flex';
   document.getElementById('profileOverlay').style.display='flex';
+}
+
+window.sendVerificationEmail=async function(){
+  if(!currentUser)return;
+  try{
+    const{sendEmailVerification}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    await sendEmailVerification(currentUser);
+    showToast('E-mail de verificação enviado! Verifique sua caixa de entrada 📧','#4ade80');
+    document.getElementById('unverifiedBadge').querySelector('button').disabled=true;
+    document.getElementById('unverifiedBadge').querySelector('button').textContent='Enviado ✓';
+  }catch(e){
+    if(e.code==='auth/too-many-requests'){
+      showToast('Aguarde alguns minutos antes de tentar novamente','#f59e0b');
+    }else{
+      showToast('Erro ao enviar: '+e.message,'#ef4444');
+    }
+  }
 }
 window.closeProfileModal=function(){document.getElementById('profileOverlay').style.display='none';}
 window.closeProfileOutside=function(e){if(e.target===document.getElementById('profileOverlay'))window.closeProfileModal();}
 window.saveProfile=async function(){
   const name=document.getElementById('profileName').value.trim();
-  const email=document.getElementById('profileEmail').value.trim();
+  const notifEmail=document.getElementById('profileEmail').value.trim();
   const pass=document.getElementById('profilePass').value;
   const pass2=document.getElementById('profilePass2').value;
   if(!name){showToast('Informe o nome de exibição','#ef4444');return;}
-  if(!email||!email.includes('@')){showToast('Informe um e-mail válido','#ef4444');return;}
+  if(!notifEmail||!notifEmail.includes('@')){showToast('Informe um e-mail válido','#ef4444');return;}
   if(pass&&pass.length<6){showToast('Senha mín. 6 caracteres','#ef4444');return;}
   if(pass&&pass!==pass2){showToast('Senhas não coincidem','#ef4444');return;}
   try{
-    const{updateProfile:up,updatePassword:upw,updateEmail:ue,verifyBeforeUpdateEmail:vbue}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
-    // 1. Atualiza nome
+    const{updateProfile:up,updatePassword:upw}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    // 1. Atualiza nome de exibição
     await up(currentUser,{displayName:name});
     document.getElementById('userDisplayName').textContent=name;
-    // 2. Atualiza senha (antes do e-mail para evitar conflito de sessão)
+    // 2. Salva e-mail de notificação localmente (usado para alertas futuros)
+    saveNotifEmail(notifEmail);
+    // 3. Atualiza senha se informada
     if(pass){
       await upw(currentUser,pass);
-    }
-    // 3. Troca e-mail apenas se foi alterado
-    if(email!==currentUser.email){
-      // Firebase 10+: envia verificação para o novo e-mail antes de trocar
-      await vbue(currentUser,email);
-      showToast('Verifique sua caixa de entrada para confirmar o novo e-mail 📧','#6366f1');
-      await syncToCloud();
-      window.closeProfileModal();
-      return;
     }
     await syncToCloud();
     window.closeProfileModal();
     showToast('Perfil atualizado ✓','#4ade80');
   }catch(e){
     if(e.code==='auth/requires-recent-login'){
-      showToast('Faça login novamente para alterar senha','#ef4444');
-    }else if(e.code==='auth/email-already-in-use'){
-      showToast('Este e-mail já está em uso','#ef4444');
-    }else if(e.code==='auth/operation-not-allowed'){
-      showToast('Operação não permitida. Verifique as configurações do Firebase.','#ef4444');
+      showToast('Faça login novamente para alterar a senha','#ef4444');
     }else{
       showToast('Erro ao salvar: '+e.message,'#ef4444');
     }
@@ -1584,8 +1642,8 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
     <div id="tabLogin">
       <div style="display:flex;flex-direction:column;gap:12px">
-        <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Usuário</label>
-        <input class="auth-input" type="text" id="loginUser" placeholder="seunome" autocapitalize="none" autocorrect="off"/></div>
+        <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">E-mail ou usuário</label>
+        <input class="auth-input" type="email" id="loginUser" placeholder="seu@email.com" autocapitalize="none" autocorrect="off"/></div>
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Senha</label>
         <input class="auth-input" type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
         <button onclick="doLogin()" class="auth-btn btn-primary" style="width:100%;padding:15px;border-radius:14px;font-size:16px;font-weight:700;margin-top:4px">Entrar</button>
@@ -1595,8 +1653,10 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
     <div id="tabRegister" style="display:none">
       <div style="display:flex;flex-direction:column;gap:12px">
-        <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Usuário (sem espaços)</label>
-        <input class="auth-input" type="text" id="regUser" placeholder="seunome" autocapitalize="none" autocorrect="off"/></div>
+        <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Nome de exibição</label>
+        <input class="auth-input" type="text" id="regUser" placeholder="Seu nome" autocapitalize="words" autocorrect="off"/></div>
+        <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">E-mail</label>
+        <input class="auth-input" type="email" id="regEmail" placeholder="seu@email.com" autocapitalize="none" autocorrect="off"/></div>
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Senha (mín. 6 caracteres)</label>
         <input class="auth-input" type="password" id="regPass" placeholder="••••••••"/></div>
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Confirmar senha</label>
@@ -1792,6 +1852,20 @@ select option{background:#1e293b;color:#e2e8f0}
       <span id="menuNotifDot" class="sync-dot" style="background:#475569;display:none"></span>
     </div>
 
+    <div onclick="menuAction('exportdata')" class="menu-item">
+      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
+        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      </div>
+      <span>Exportar dados (migrar conta)</span>
+    </div>
+
+    <div onclick="menuAction('importdata')" class="menu-item">
+      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
+        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      </div>
+      <span>Importar dados</span>
+    </div>
+
     <div class="menu-divider"></div>
 
     <div onclick="menuAction('logout')" class="menu-item" style="color:#f87171">
@@ -1931,10 +2005,22 @@ select option{background:#1e293b;color:#e2e8f0}
       </button>
     </div>
     <div class="space-y-3">
+      <!-- E-mail de login + status de verificação -->
+      <div id="emailVerifyBox" style="background:rgba(30,41,59,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:14px;padding:12px 14px">
+        <p style="color:#475569;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">E-mail de login</p>
+        <p id="loginEmailDisplay" style="color:#e2e8f0;font-size:13px;font-weight:600;margin-bottom:8px"></p>
+        <div id="verifiedBadge" style="display:none;align-items:center;gap:6px">
+          <span style="font-size:11px;background:rgba(74,222,128,0.13);color:#4ade80;padding:3px 10px;border-radius:20px;font-weight:700;border:1px solid rgba(74,222,128,0.2)">✓ E-mail verificado</span>
+        </div>
+        <div id="unverifiedBadge" style="display:none;align-items:center;gap-8px;flex-wrap:wrap;gap:8px">
+          <span style="font-size:11px;background:rgba(251,191,36,0.13);color:#fbbf24;padding:3px 10px;border-radius:20px;font-weight:700;border:1px solid rgba(251,191,36,0.2)">⚠️ Não verificado</span>
+          <button onclick="sendVerificationEmail()" style="font-size:11px;background:rgba(99,102,241,0.15);color:#a5b4fc;padding:3px 12px;border-radius:20px;font-weight:700;border:1px solid rgba(99,102,241,0.25);cursor:pointer">Enviar verificação</button>
+        </div>
+      </div>
       <div>
-        <label class="text-slate-400 text-xs block mb-1.5 ml-1">E-mail</label>
+        <label class="text-slate-400 text-xs block mb-1.5 ml-1">E-mail para notificações 🔔</label>
         <input type="email" id="profileEmail" placeholder="seu@email.com" autocapitalize="none" autocorrect="off"/>
-        <p class="text-slate-600 text-xs mt-1 ml-1">Alterar o e-mail exige login recente</p>
+        <p class="text-slate-600 text-xs mt-1 ml-1">Usado para alertas de vencimento — pode ser diferente do e-mail de login</p>
       </div>
       <div>
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">Nome de exibição</label>
