@@ -100,19 +100,21 @@ function setSyncDot(c){
   ['syncDot','syncDot2'].forEach(id=>{const d=document.getElementById(id);if(d)d.style.background=c==='green'?'#4ade80':c==='amber'?'#f59e0b':'#ef4444';});
 }
 
+function getNotifEmail(){return localStorage.getItem('fpro_notif_email')||'';}
+function saveNotifEmail(e){localStorage.setItem('fpro_notif_email',e);}
+
 async function syncToCloud(){
   if(!currentUser)return;
   try{
-    await setDoc(doc(db,'users',currentUser.uid),{data:JSON.stringify(getData()),updatedAt:new Date().toISOString(),displayName:currentUser.displayName||''});
+    await setDoc(doc(db,'users',currentUser.uid),{data:JSON.stringify(getData()),updatedAt:new Date().toISOString(),displayName:currentUser.displayName||'',notifEmail:getNotifEmail()});
     setSyncDot('green');
   }catch{setSyncDot('red');}
 }
-
 async function loadFromCloud(){
   if(!currentUser)return;
   try{
     const snap=await getDoc(doc(db,'users',currentUser.uid));
-    if(snap.exists()&&snap.data().data){
+    if(snap.exists()){if(snap.data().notifEmail)saveNotifEmail(snap.data().notifEmail);if(snap.data().data){
       const cd=JSON.parse(snap.data().data),ld=getData();
       // Merge: prefer whichever has more items or cloud if equal
       if(cd.length>=ld.length){
@@ -120,7 +122,7 @@ async function loadFromCloud(){
         showToast('Dados sincronizados ☁️','#4ade80');
       }
       render();
-    }
+    }}
   }catch(e){console.log('Cloud load error:',e);}
 }
 
@@ -550,7 +552,7 @@ window.changeMonth=function(dir){
 
 // ── Profile Modal ──
 window.openProfileModal=function(){
-  document.getElementById('profileEmail').value=currentUser?currentUser.email:'';
+  document.getElementById('profileEmail').value=getNotifEmail()||'';
   document.getElementById('profileName').value=currentUser?(currentUser.displayName||''):'';
   document.getElementById('profilePass').value='';
   document.getElementById('profilePass2').value='';
@@ -560,41 +562,30 @@ window.closeProfileModal=function(){document.getElementById('profileOverlay').st
 window.closeProfileOutside=function(e){if(e.target===document.getElementById('profileOverlay'))window.closeProfileModal();}
 window.saveProfile=async function(){
   const name=document.getElementById('profileName').value.trim();
-  const email=document.getElementById('profileEmail').value.trim();
+  const notifEmail=document.getElementById('profileEmail').value.trim();
   const pass=document.getElementById('profilePass').value;
   const pass2=document.getElementById('profilePass2').value;
   if(!name){showToast('Informe o nome de exibição','#ef4444');return;}
-  if(!email||!email.includes('@')){showToast('Informe um e-mail válido','#ef4444');return;}
+  if(!notifEmail||!notifEmail.includes('@')){showToast('Informe um e-mail válido','#ef4444');return;}
   if(pass&&pass.length<6){showToast('Senha mín. 6 caracteres','#ef4444');return;}
   if(pass&&pass!==pass2){showToast('Senhas não coincidem','#ef4444');return;}
   try{
-    const{updateProfile:up,updatePassword:upw,updateEmail:ue,verifyBeforeUpdateEmail:vbue}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
-    // 1. Atualiza nome
+    const{updateProfile:up,updatePassword:upw}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    // 1. Atualiza nome de exibição
     await up(currentUser,{displayName:name});
     document.getElementById('userDisplayName').textContent=name;
-    // 2. Atualiza senha (antes do e-mail para evitar conflito de sessão)
+    // 2. Salva e-mail de notificação localmente (usado para alertas futuros)
+    saveNotifEmail(notifEmail);
+    // 3. Atualiza senha se informada
     if(pass){
       await upw(currentUser,pass);
-    }
-    // 3. Troca e-mail apenas se foi alterado
-    if(email!==currentUser.email){
-      // Firebase 10+: envia verificação para o novo e-mail antes de trocar
-      await vbue(currentUser,email);
-      showToast('Verifique sua caixa de entrada para confirmar o novo e-mail 📧','#6366f1');
-      await syncToCloud();
-      window.closeProfileModal();
-      return;
     }
     await syncToCloud();
     window.closeProfileModal();
     showToast('Perfil atualizado ✓','#4ade80');
   }catch(e){
     if(e.code==='auth/requires-recent-login'){
-      showToast('Faça login novamente para alterar senha','#ef4444');
-    }else if(e.code==='auth/email-already-in-use'){
-      showToast('Este e-mail já está em uso','#ef4444');
-    }else if(e.code==='auth/operation-not-allowed'){
-      showToast('Operação não permitida. Verifique as configurações do Firebase.','#ef4444');
+      showToast('Faça login novamente para alterar a senha','#ef4444');
     }else{
       showToast('Erro ao salvar: '+e.message,'#ef4444');
     }
@@ -1932,9 +1923,9 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
     <div class="space-y-3">
       <div>
-        <label class="text-slate-400 text-xs block mb-1.5 ml-1">E-mail</label>
+        <label class="text-slate-400 text-xs block mb-1.5 ml-1">E-mail para notificações 🔔</label>
         <input type="email" id="profileEmail" placeholder="seu@email.com" autocapitalize="none" autocorrect="off"/>
-        <p class="text-slate-600 text-xs mt-1 ml-1">Alterar o e-mail exige login recente</p>
+        <p class="text-slate-600 text-xs mt-1 ml-1">Usado para alertas de vencimento — diferente do e-mail de login</p>
       </div>
       <div>
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">Nome de exibição</label>
