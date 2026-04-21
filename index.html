@@ -556,7 +556,34 @@ window.openProfileModal=function(){
   document.getElementById('profileName').value=currentUser?(currentUser.displayName||''):'';
   document.getElementById('profilePass').value='';
   document.getElementById('profilePass2').value='';
+  // Mostra status de verificação do e-mail de login
+  const verified=currentUser&&currentUser.emailVerified;
+  const box=document.getElementById('emailVerifyBox');
+  const loginEmailEl=document.getElementById('loginEmailDisplay');
+  if(box){box.style.display='block';}
+  if(loginEmailEl){loginEmailEl.textContent=currentUser?currentUser.email:'';}
+  const verifiedBadge=document.getElementById('verifiedBadge');
+  const unverifiedBadge=document.getElementById('unverifiedBadge');
+  if(verifiedBadge)verifiedBadge.style.display=verified?'flex':'none';
+  if(unverifiedBadge)unverifiedBadge.style.display=verified?'none':'flex';
   document.getElementById('profileOverlay').style.display='flex';
+}
+
+window.sendVerificationEmail=async function(){
+  if(!currentUser)return;
+  try{
+    const{sendEmailVerification}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    await sendEmailVerification(currentUser);
+    showToast('E-mail de verificação enviado! Verifique sua caixa de entrada 📧','#4ade80');
+    document.getElementById('unverifiedBadge').querySelector('button').disabled=true;
+    document.getElementById('unverifiedBadge').querySelector('button').textContent='Enviado ✓';
+  }catch(e){
+    if(e.code==='auth/too-many-requests'){
+      showToast('Aguarde alguns minutos antes de tentar novamente','#f59e0b');
+    }else{
+      showToast('Erro ao enviar: '+e.message,'#ef4444');
+    }
+  }
 }
 window.closeProfileModal=function(){document.getElementById('profileOverlay').style.display='none';}
 window.closeProfileOutside=function(e){if(e.target===document.getElementById('profileOverlay'))window.closeProfileModal();}
@@ -1922,10 +1949,22 @@ select option{background:#1e293b;color:#e2e8f0}
       </button>
     </div>
     <div class="space-y-3">
+      <!-- E-mail de login + status de verificação -->
+      <div id="emailVerifyBox" style="background:rgba(30,41,59,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:14px;padding:12px 14px">
+        <p style="color:#475569;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">E-mail de login</p>
+        <p id="loginEmailDisplay" style="color:#e2e8f0;font-size:13px;font-weight:600;margin-bottom:8px"></p>
+        <div id="verifiedBadge" style="display:none;align-items:center;gap:6px">
+          <span style="font-size:11px;background:rgba(74,222,128,0.13);color:#4ade80;padding:3px 10px;border-radius:20px;font-weight:700;border:1px solid rgba(74,222,128,0.2)">✓ E-mail verificado</span>
+        </div>
+        <div id="unverifiedBadge" style="display:none;align-items:center;gap-8px;flex-wrap:wrap;gap:8px">
+          <span style="font-size:11px;background:rgba(251,191,36,0.13);color:#fbbf24;padding:3px 10px;border-radius:20px;font-weight:700;border:1px solid rgba(251,191,36,0.2)">⚠️ Não verificado</span>
+          <button onclick="sendVerificationEmail()" style="font-size:11px;background:rgba(99,102,241,0.15);color:#a5b4fc;padding:3px 12px;border-radius:20px;font-weight:700;border:1px solid rgba(99,102,241,0.25);cursor:pointer">Enviar verificação</button>
+        </div>
+      </div>
       <div>
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">E-mail para notificações 🔔</label>
         <input type="email" id="profileEmail" placeholder="seu@email.com" autocapitalize="none" autocorrect="off"/>
-        <p class="text-slate-600 text-xs mt-1 ml-1">Usado para alertas de vencimento — diferente do e-mail de login</p>
+        <p class="text-slate-600 text-xs mt-1 ml-1">Usado para alertas de vencimento — pode ser diferente do e-mail de login</p>
       </div>
       <div>
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">Nome de exibição</label>
