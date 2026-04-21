@@ -153,6 +153,11 @@ function processRecurring(){
     if(src.vencimento){
       const[,,vDay]=src.vencimento.split('-');
       newVenc=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${vDay||'01'}`;
+    }else{
+      // Sem vencimento: padrão dia 1 do mês seguinte à data
+      const baseD=new Date(newData+'T12:00:00');
+      const nextM=new Date(baseD.getFullYear(),baseD.getMonth()+1,1);
+      newVenc=`${nextM.getFullYear()}-${String(nextM.getMonth()+1).padStart(2,'0')}-01`;
     }
     newItems.push({
       id:`${Date.now()}-rec-${Math.random().toString(36).slice(2,6)}`,
@@ -563,23 +568,33 @@ window.saveProfile=async function(){
   if(pass&&pass.length<6){showToast('Senha mín. 6 caracteres','#ef4444');return;}
   if(pass&&pass!==pass2){showToast('Senhas não coincidem','#ef4444');return;}
   try{
-    const{updateProfile:up,updatePassword:upw,updateEmail:ue}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    const{updateProfile:up,updatePassword:upw,updateEmail:ue,verifyBeforeUpdateEmail:vbue}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
+    // 1. Atualiza nome
     await up(currentUser,{displayName:name});
     document.getElementById('userDisplayName').textContent=name;
-    if(email!==currentUser.email){
-      await ue(currentUser,email);
-    }
+    // 2. Atualiza senha (antes do e-mail para evitar conflito de sessão)
     if(pass){
       await upw(currentUser,pass);
+    }
+    // 3. Troca e-mail apenas se foi alterado
+    if(email!==currentUser.email){
+      // Firebase 10+: envia verificação para o novo e-mail antes de trocar
+      await vbue(currentUser,email);
+      showToast('Verifique sua caixa de entrada para confirmar o novo e-mail 📧','#6366f1');
+      await syncToCloud();
+      window.closeProfileModal();
+      return;
     }
     await syncToCloud();
     window.closeProfileModal();
     showToast('Perfil atualizado ✓','#4ade80');
   }catch(e){
     if(e.code==='auth/requires-recent-login'){
-      showToast('Faça login novamente para alterar e-mail ou senha','#ef4444');
+      showToast('Faça login novamente para alterar senha','#ef4444');
     }else if(e.code==='auth/email-already-in-use'){
       showToast('Este e-mail já está em uso','#ef4444');
+    }else if(e.code==='auth/operation-not-allowed'){
+      showToast('Operação não permitida. Verifique as configurações do Firebase.','#ef4444');
     }else{
       showToast('Erro ao salvar: '+e.message,'#ef4444');
     }
@@ -806,6 +821,10 @@ function buildFutureRecurring(base, fromMonthOffset, totalMonths){
       const maxVDay=new Date(y,m,0).getDate();
       const vd=Math.min(vDay,maxVDay);
       vencStr=`${y}-${mStr}-${String(vd).padStart(2,'0')}`;
+    }else{
+      // Sem vencimento original: dia 1 do mês seguinte ao item
+      const nm=new Date(y,m,1);
+      vencStr=`${nm.getFullYear()}-${String(nm.getMonth()+1).padStart(2,'0')}-01`;
     }
     items.push({
       id:`${Date.now()}-rec-${p}-${Math.random().toString(36).slice(2,6)}`,
@@ -823,7 +842,13 @@ window.saveItem=function(){
   const nome=document.getElementById('inputNome').value.trim();
   const valor=parseFloat(document.getElementById('inputValor').value);
   const data=document.getElementById('inputData').value;
-  const venc=document.getElementById('inputVencimento').value;
+  let venc=document.getElementById('inputVencimento').value;
+  // Se vencimento não preenchido, define automaticamente como dia 1 do mês seguinte à data da despesa
+  if(!venc&&document.getElementById('inputData').value){
+    const baseD=new Date(document.getElementById('inputData').value+'T12:00:00');
+    const nextM=new Date(baseD.getFullYear(),baseD.getMonth()+1,1);
+    venc=`${nextM.getFullYear()}-${String(nextM.getMonth()+1).padStart(2,'0')}-01`;
+  }
   const cat=document.getElementById('inputCategoria').value;
   const cartaoNome=cat==='Cartão'?(document.getElementById('inputCartaoNome').value||''):'';
   const editId=document.getElementById('editId').value;
