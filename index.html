@@ -576,6 +576,7 @@ function render(){
           <p class="text-slate-200 text-sm font-medium truncate">${item.nome}</p>
           ${item.recorrente?'<span style="font-size:9px;background:rgba(99,102,241,0.18);color:#a5b4fc;padding:1px 6px;border-radius:8px;font-weight:700;flex-shrink:0">↻</span>':''}
           ${item.obs?'<span style="font-size:9px;background:rgba(148,163,184,0.1);color:#64748b;padding:1px 5px;border-radius:8px;flex-shrink:0">📝</span>':''}
+          ${item.comprovante?'<span style="font-size:9px;background:rgba(74,222,128,0.1);color:#4ade80;padding:1px 5px;border-radius:8px;flex-shrink:0">🧾</span>':''}
         </div>
         <p class="text-slate-500 text-xs mt-0.5">${item.cartaoNome?item.cartaoNome:item.categoria} · ${fmtDate(item.data)}${item.vencimento?' · Venc: <span style="color:'+(isOverdue?'#f87171':isDueSoon?'#fbbf24':'#94a3b8')+'">'+fmtDate(item.vencimento)+'</span>':''}</p>
         ${isOverdue?'<p style="font-size:10px;color:#ef4444;font-weight:700;margin-top:1px">⚠️ VENCIDA</p>':''}
@@ -833,6 +834,7 @@ window.openModal=function(editId){
   document.getElementById('inputParcelas').value='1';
   document.getElementById('parcelasGrp').style.display=isEdit?'none':'';
   document.getElementById('inputObs').value=isEdit&&item.obs?item.obs:'';
+  resetComprovanteUI(isEdit&&item.comprovante?item.comprovante:null);
   const isParcela=isEdit&&!!(item.groupId&&item.parcelNum&&item.totalParcelas);
   const parcelaInfo=document.getElementById('modalParcelaInfo');
   const recInfo=document.getElementById('modalRecInfo');
@@ -858,8 +860,75 @@ window.openModal=function(editId){
   document.getElementById('modalOverlay').style.display='flex';
   // Sem auto-focus para não abrir teclado automaticamente
 }
-window.closeModal=function(){document.getElementById('modalOverlay').style.display='none';}
+window.closeModal=function(){
+  document.getElementById('modalOverlay').style.display='none';
+  window._comprovanteData=null;
+}
 window.closeModalOutside=function(e){if(e.target===document.getElementById('modalOverlay'))window.closeModal();}
+
+// ── Comprovante ──
+window._comprovanteData=null; // base64 string or null
+
+window.handleComprovanteChange=function(input){
+  const file=input.files[0];
+  if(!file)return;
+  if(file.size>2*1024*1024){showToast('Imagem muito grande! Máx. 2MB','#ef4444');input.value='';return;}
+  const reader=new FileReader();
+  reader.onload=function(e){
+    window._comprovanteData=e.target.result; // base64
+    // Show thumb
+    document.getElementById('comprovantePreview').src=e.target.result;
+    document.getElementById('comprovanteThumb').style.display='block';
+    document.getElementById('comprovanteEmpty').style.display='none';
+    document.getElementById('comprovanteFileName').style.display='block';
+    document.getElementById('comprovanteFileName').textContent=file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
+window.clearComprovante=function(){
+  window._comprovanteData=null;
+  document.getElementById('inputComprovante').value='';
+  document.getElementById('comprovantePreview').src='';
+  document.getElementById('comprovanteThumb').style.display='none';
+  document.getElementById('comprovanteEmpty').style.display='flex';
+  document.getElementById('comprovanteFileName').style.display='none';
+}
+
+// Reset comprovante UI on modal open
+function resetComprovanteUI(imgSrc){
+  window._comprovanteData=imgSrc||null;
+  const preview=document.getElementById('comprovantePreview');
+  const thumb=document.getElementById('comprovanteThumb');
+  const empty=document.getElementById('comprovanteEmpty');
+  const fname=document.getElementById('comprovanteFileName');
+  document.getElementById('inputComprovante').value='';
+  if(imgSrc){
+    preview.src=imgSrc;
+    thumb.style.display='block';
+    empty.style.display='none';
+    fname.style.display='block';
+    fname.textContent='Comprovante salvo';
+  }else{
+    preview.src='';
+    thumb.style.display='none';
+    empty.style.display='flex';
+    fname.style.display='none';
+  }
+}
+
+window.toggleComprovanteZoom=function(){
+  const lb=document.getElementById('comprovanteLightbox');
+  const img=document.getElementById('detailComprovanteImg');
+  if(lb.style.display==='none'||!lb.style.display){
+    document.getElementById('lightboxImg').src=img.src;
+    lb.style.display='flex';
+    document.body.style.overflow='hidden';
+  }else{
+    lb.style.display='none';
+    document.body.style.overflow='';
+  }
+}
 
 // ── Helpers para recorrentes ──
 // Retorna todos os itens de um recGroup ordenados por monthKey
@@ -922,6 +991,7 @@ window.saveItem=function(){
   const editId=document.getElementById('editId').value;
   const recorrente=!!window._recorrente;
   const obs=document.getElementById('inputObs').value.trim();
+  const comprovante=window._comprovanteData||null;
   if(!nome){showToast('Informe a descrição','#ef4444');return}
   if(!valor||valor<=0){showToast('Informe um valor válido','#ef4444');return}
   if(!data){showToast('Informe a data','#ef4444');return}
@@ -938,6 +1008,7 @@ window.saveItem=function(){
     all[idx].nome=nome;all[idx].valor=valor;all[idx].data=data;all[idx].categoria=cat;
     all[idx].recorrente=recorrente;
     if(obs)all[idx].obs=obs; else delete all[idx].obs;
+    if(comprovante)all[idx].comprovante=comprovante; else delete all[idx].comprovante;
     if(cartaoNome)all[idx].cartaoNome=cartaoNome; else delete all[idx].cartaoNome;
     if(venc)all[idx].vencimento=venc; else delete all[idx].vencimento;
     if(cat==='Cartão'&&cartaoNome){
@@ -1037,6 +1108,7 @@ window.saveItem=function(){
       recorrente:parc===1?recorrente:false,
       ...(recGroupId?{recGroupId}:{}),
       ...(obs?{obs}:{}),
+      ...(comprovante&&p===0?{comprovante}:{}),
       ...(cartaoNome?{cartaoNome}:{}),
       ...(parc>1?{groupId,parcelNum:p+1,totalParcelas:parc}:{}),
       ...(vencStr?{vencimento:vencStr}:{})
@@ -1111,6 +1183,14 @@ window.openDetail=function(id){
     obsBox.style.display='block';
     document.getElementById('detailObs').textContent=item.obs;
   }else{obsBox.style.display='none';}
+
+  // Comprovante
+  const compBox=document.getElementById('detailComprovanteBox');
+  const compImg=document.getElementById('detailComprovanteImg');
+  if(item.comprovante){
+    compImg.src=item.comprovante;
+    compBox.style.display='block';
+  }else{compBox.style.display='none';}
 
   // Recorrente
   const recBox=document.getElementById('detailRecBox');
@@ -1920,6 +2000,28 @@ select option{background:#1e293b;color:#e2e8f0}
         <textarea id="inputObs" placeholder="Anote detalhes, o que foi feito, informações extras..." rows="2" style="resize:none;padding-bottom:8px"></textarea>
       </div>
 
+      <!-- Comprovante -->
+      <div>
+        <label class="text-slate-400 text-xs block mb-1.5 ml-1">🧾 Comprovante <span style="color:#475569">(opcional · máx. 2MB)</span></label>
+        <div id="comprovanteBox" onclick="document.getElementById('inputComprovante').click()" style="border:1.5px dashed rgba(148,163,184,0.2);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:border-color .15s;background:rgba(148,163,184,0.03)" onmouseover="this.style.borderColor='rgba(99,102,241,0.4)'" onmouseout="this.style.borderColor='rgba(148,163,184,0.2)'">
+          <div id="comprovanteThumb" style="display:none;position:relative;flex-shrink:0">
+            <img id="comprovantePreview" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid rgba(148,163,184,0.15)" src="" alt="Comprovante"/>
+            <button onclick="event.stopPropagation();clearComprovante()" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#ef4444;border:none;color:white;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>
+          </div>
+          <div id="comprovanteEmpty" style="display:flex;align-items:center;gap:10px;width:100%">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(99,102,241,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <svg width="16" height="16" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div>
+              <p style="color:#94a3b8;font-size:13px;font-weight:500;margin:0">Toque para anexar foto</p>
+              <p style="color:#475569;font-size:11px;margin:2px 0 0">JPG, PNG ou WEBP</p>
+            </div>
+          </div>
+          <p id="comprovanteFileName" style="display:none;color:#a5b4fc;font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></p>
+        </div>
+        <input type="file" id="inputComprovante" accept="image/*" style="display:none" onchange="handleComprovanteChange(this)"/>
+      </div>
+
       <!-- Checkbox Gasto Recorrente -->
       <div class="flex items-center gap-3 p-3 rounded-xl" style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);cursor:pointer" onclick="toggleRecorrente()">
         <div id="recCheckbox" style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(148,163,184,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;background:transparent">
@@ -2055,6 +2157,10 @@ select option{background:#1e293b;color:#e2e8f0}
       <p style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📝 Observação</p>
       <p id="detailObs" style="color:#cbd5e1;font-size:13px;line-height:1.5;white-space:pre-wrap"></p>
     </div>
+    <div id="detailComprovanteBox" style="display:none;margin-bottom:16px">
+      <p style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🧾 Comprovante</p>
+      <img id="detailComprovanteImg" src="" alt="Comprovante" onclick="window.toggleComprovanteZoom()" style="width:100%;max-height:180px;object-fit:cover;border-radius:12px;border:1px solid rgba(148,163,184,0.12);cursor:zoom-in;transition:all .2s"/>
+    </div>
     <div id="detailRecBox" style="display:none;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:14px;padding:12px;margin-bottom:16px">
       <p style="color:#a5b4fc;font-size:12px;font-weight:600">↻ Gasto Recorrente — lançado nos próximos meses</p>
     </div>
@@ -2067,6 +2173,12 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
   </div>
 </div>
+<!-- ══ COMPROVANTE LIGHTBOX ══ -->
+<div id="comprovanteLightbox" onclick="window.toggleComprovanteZoom()" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;padding:16px;cursor:zoom-out">
+  <img id="lightboxImg" src="" alt="Comprovante ampliado" style="max-width:100%;max-height:100%;border-radius:12px;object-fit:contain;box-shadow:0 0 60px rgba(0,0,0,0.8)"/>
+  <button onclick="event.stopPropagation();window.toggleComprovanteZoom()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:none;color:white;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
+</div>
+
 <!-- ══ DUE ALERTS MODAL ══ -->
 <div class="modal-overlay" id="dueAlertsOverlay" style="display:none;align-items:flex-end">
   <div class="glass-modal modal-sheet animate-in" style="max-height:85vh;overflow-y:auto">
