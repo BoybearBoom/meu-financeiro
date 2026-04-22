@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
-<meta name="theme-color" content="#0f172a"/>
+<meta name="theme-color" id="metaThemeColor" content="#0f172a"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="apple-mobile-web-app-title" content="FinancesPro"/>
@@ -24,8 +24,33 @@ const app=initializeApp(FC);
 const auth=getAuth(app);
 const db=getFirestore(app);
 
-const CATS={Moradia:'🏠',Mercado:'🛒',Transporte:'🚗',Lazer:'🍕',Cartão:'💳',Saúde:'🏥',Assinaturas:'🛡️',Investimentos:'💰'};
+const CATS_DEFAULT={Moradia:'🏠',Mercado:'🛒',Transporte:'🚗',Lazer:'🍕',Cartão:'💳',Saúde:'🏥',Assinaturas:'🛡️',Investimentos:'💰'};
+function getCustomCats(){try{return JSON.parse(localStorage.getItem('fpro_custom_cats')||'[]')}catch{return[]}}
+function saveCustomCats(c){localStorage.setItem('fpro_custom_cats',JSON.stringify(c));scheduleSync();}
+function getCATS(){const cats={...CATS_DEFAULT};getCustomCats().forEach(c=>{if(c.nome)cats[c.nome]=c.emoji||'🏷️';});return cats;}
+const CATS=new Proxy({},{get(_,k){return getCATS()[k];}});
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+function getTheme(){return localStorage.getItem('fpro_theme')||'violet'}
+function applyTheme(t){
+  const themes={
+    violet:{primary:'#6366f1',secondary:'#8b5cf6',bg:'#0f172a'},
+    blue:  {primary:'#3b82f6',secondary:'#2563eb',bg:'#0a1628'},
+    green: {primary:'#22c55e',secondary:'#16a34a',bg:'#061a0f'},
+    rose:  {primary:'#f43f5e',secondary:'#e11d48',bg:'#1a0610'},
+    amber: {primary:'#f59e0b',secondary:'#d97706',bg:'#1a1205'},
+  };
+  const th=themes[t]||themes.violet;
+  document.documentElement.style.setProperty('--clr-primary',th.primary);
+  document.documentElement.style.setProperty('--clr-secondary',th.secondary);
+  document.body.style.background=th.bg;
+  const m=document.getElementById('metaThemeColor');if(m)m.content=th.bg;
+  document.querySelectorAll('.btn-primary').forEach(b=>{b.style.background=`linear-gradient(135deg,${th.primary},${th.secondary})`;});
+  const fab=document.querySelector('.fab');if(fab)fab.style.background=`linear-gradient(135deg,${th.primary},${th.secondary})`;
+  localStorage.setItem('fpro_theme',t);
+}
+window.setTheme=function(t){applyTheme(t);renderThemePicker();}
+function getStartDay(){return parseInt(localStorage.getItem('fpro_start_day')||'1');}
+function saveStartDay(d){localStorage.setItem('fpro_start_day',String(d));}
 let curDate=new Date(),curYear=curDate.getFullYear(),curMonth=curDate.getMonth();
 let selectMode=false,selected=new Set(),currentUser=null,syncTimer=null;
 let activeFilter='all',searchQuery='',notifsEnabled=false;
@@ -346,9 +371,49 @@ function updateMenu(){
     pbsStatus.textContent=`Último sync: ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
   }
 }
+function renderThemePicker(){
+  const themes=[{id:'violet',color:'#6366f1',label:'Violeta'},{id:'blue',color:'#3b82f6',label:'Azul'},{id:'green',color:'#22c55e',label:'Verde'},{id:'rose',color:'#f43f5e',label:'Rosa'},{id:'amber',color:'#f59e0b',label:'Âmbar'}];
+  const cur=getTheme();
+  const el=document.getElementById('themePicker');
+  if(!el)return;
+  el.innerHTML=themes.map(t=>`<div style="text-align:center"><button onclick="window.setTheme('${t.id}')" title="${t.label}" style="width:38px;height:38px;border-radius:50%;background:${t.color};border:${cur===t.id?'3px solid white':'3px solid transparent'};cursor:pointer;box-shadow:0 0 10px ${t.color}55"></button><p style="color:#64748b;font-size:10px;margin-top:4px">${t.label}</p></div>`).join('');
+}
+function renderCustomCatsList(){
+  const el=document.getElementById('customCatsList');
+  if(!el)return;
+  const cats=getCustomCats();
+  if(!cats.length){el.innerHTML='<p style="color:#475569;font-size:12px;text-align:center;padding:4px 0">Nenhuma categoria personalizada ainda</p>';return;}
+  el.innerHTML=cats.map((c,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(148,163,184,0.07)"><span style="color:#e2e8f0;font-size:13px">${c.emoji||'🏷️'} ${c.nome}</span><button onclick="removeCustomCat(${i})" style="background:rgba(239,68,68,0.1);border:none;color:#f87171;border-radius:8px;width:28px;height:28px;cursor:pointer;font-size:15px">×</button></div>`).join('');
+}
+window.addCustomCat=function(){
+  const nome=document.getElementById('inputNewCatNome').value.trim();
+  const emoji=document.getElementById('inputNewCatEmoji').value.trim()||'🏷️';
+  if(!nome){showToast('Informe o nome da categoria','#ef4444');return;}
+  const cats=getCustomCats();
+  if(cats.some(c=>c.nome===nome)||CATS_DEFAULT[nome]){showToast('Categoria já existe','#ef4444');return;}
+  cats.push({nome,emoji});saveCustomCats(cats);
+  document.getElementById('inputNewCatNome').value='';
+  document.getElementById('inputNewCatEmoji').value='';
+  renderCustomCatsList();
+  showToast(`Categoria "${nome}" adicionada ✓`,'#4ade80');
+}
+window.removeCustomCat=function(i){
+  const cats=getCustomCats();cats.splice(i,1);saveCustomCats(cats);
+  renderCustomCatsList();showToast('Categoria removida','#ef4444');
+}
+window.saveStartDaySetting=function(){
+  const v=parseInt(document.getElementById('inputStartDay').value);
+  if(!v||v<1||v>28){showToast('Dia inválido (1–28)','#ef4444');return;}
+  saveStartDay(v);document.getElementById('startDayLabel').textContent=v;
+  showToast(`Mês financeiro começa no dia ${v} ✓`,'#4ade80');
+}
 window.openSettingsModal=function(){
   const vl=document.getElementById('buildVersionLabel');
   if(vl)vl.textContent=BUILD_VERSION;
+  document.getElementById('inputStartDay').value=getStartDay();
+  document.getElementById('startDayLabel').textContent=getStartDay();
+  renderThemePicker();
+  renderCustomCatsList();
   document.getElementById('settingsOverlay').style.display='flex';
 }
 window.closeSettingsModal=function(){document.getElementById('settingsOverlay').style.display='none';}
@@ -509,6 +574,8 @@ window.onSearch=function(v){searchQuery=v;render();}
 
 // ── Render ──
 function render(){
+  const fc=document.getElementById('dynamicFilterChips');
+  if(fc){fc.innerHTML=Object.entries(getCATS()).map(([n,e])=>`<button class="filter-btn${activeFilter===n?' filter-active':''}" data-cat="${n}" onclick="setFilter('${n}')">${e} ${n}</button>`).join('');}
   const allItems=getMonthItems();
   const items=getFilteredItems();
   const total=allItems.reduce((s,i)=>s+parseFloat(i.valor),0);
@@ -666,6 +733,23 @@ window.saveProfile=async function(){
       showToast('Erro ao salvar: '+e.message,'#ef4444');
     }
   }
+}
+
+// ── Comprovante ──
+window._comprovanteData=null;
+window.previewComprovante=function(input){
+  const file=input.files[0];if(!file)return;
+  if(file.size>2*1024*1024){showToast('Imagem muito grande (máx. 2MB)','#ef4444');return;}
+  const reader=new FileReader();
+  reader.onload=function(e){window._comprovanteData=e.target.result;document.getElementById('comprovanteImg').src=e.target.result;document.getElementById('comprovantePrev').style.display='block';document.getElementById('btnComprovante').style.display='none';};
+  reader.readAsDataURL(file);
+}
+window.removeComprovante=function(){
+  window._comprovanteData=null;
+  document.getElementById('comprovanteImg').src='';
+  document.getElementById('comprovantePrev').style.display='none';
+  document.getElementById('btnComprovante').style.display='block';
+  document.getElementById('inputComprovante').value='';
 }
 
 // ── Recorrente checkbox ──
@@ -828,11 +912,15 @@ window.openModal=function(editId){
   document.getElementById('inputValor').value=isEdit?item.valor:'';
   document.getElementById('inputData').value=isEdit?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
   document.getElementById('inputVencimento').value=isEdit&&item.vencimento?item.vencimento:'';
-  document.getElementById('inputCategoria').value=isEdit?item.categoria:'Moradia';
+  const catSel=document.getElementById('inputCategoria');
+  catSel.innerHTML=Object.entries(getCATS()).map(([n,e])=>`<option value="${n}">${e} ${n}</option>`).join('');
+  catSel.value=isEdit?item.categoria:'Moradia';
   updateCartaoSelect(isEdit?item.categoria:'Moradia', isEdit?item.cartaoNome:'');
   document.getElementById('inputParcelas').value='1';
   document.getElementById('parcelasGrp').style.display=isEdit?'none':'';
   document.getElementById('inputObs').value=isEdit&&item.obs?item.obs:'';
+  window._comprovanteData=isEdit&&item.comprovante?item.comprovante:null;
+  if(window._comprovanteData){document.getElementById('comprovanteImg').src=window._comprovanteData;document.getElementById('comprovantePrev').style.display='block';document.getElementById('btnComprovante').style.display='none';}else{document.getElementById('comprovantePrev').style.display='none';document.getElementById('btnComprovante').style.display='block';}
   const isParcela=isEdit&&!!(item.groupId&&item.parcelNum&&item.totalParcelas);
   const parcelaInfo=document.getElementById('modalParcelaInfo');
   const recInfo=document.getElementById('modalRecInfo');
@@ -937,6 +1025,7 @@ window.saveItem=function(){
     all[idx].nome=nome;all[idx].valor=valor;all[idx].data=data;all[idx].categoria=cat;
     all[idx].recorrente=recorrente;
     if(obs)all[idx].obs=obs; else delete all[idx].obs;
+  if(window._comprovanteData)all[idx].comprovante=window._comprovanteData; else delete all[idx].comprovante;
     if(cartaoNome)all[idx].cartaoNome=cartaoNome; else delete all[idx].cartaoNome;
     if(venc)all[idx].vencimento=venc; else delete all[idx].vencimento;
     if(cat==='Cartão'&&cartaoNome){
@@ -1038,7 +1127,8 @@ window.saveItem=function(){
       ...(obs?{obs}:{}),
       ...(cartaoNome?{cartaoNome}:{}),
       ...(parc>1?{groupId,parcelNum:p+1,totalParcelas:parc}:{}),
-      ...(vencStr?{vencimento:vencStr}:{})
+      ...(vencStr?{vencimento:vencStr}:{}),
+      ...(p===0&&window._comprovanteData?{comprovante:window._comprovanteData}:{})
     });
   }
 
@@ -1103,6 +1193,10 @@ window.openDetail=function(id){
       <p style="color:#475569;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${info.label}</p>
       <p style="color:${info.alert==='red'?'#f87171':info.alert==='amber'?'#fbbf24':'#e2e8f0'};font-size:13px;font-weight:600">${info.value}</p>
     </div>`).join('');
+
+  // Comprovante
+  const compBox=document.getElementById('detailCompBox');
+  if(item.comprovante&&compBox){compBox.style.display='block';document.getElementById('detailCompImg').src=item.comprovante;}else if(compBox){compBox.style.display='none';}
 
   // Observação
   const obsBox=document.getElementById('detailObsBox');
@@ -1560,7 +1654,10 @@ window.ignorarApelidoSugerido = function(i) {
 
 
 // Inicia tudo ao carregar
-window.addEventListener('load', registerSWAndPBS);
+window.addEventListener('load', ()=>{
+  registerSWAndPBS();
+  applyTheme(getTheme());
+});
 </script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -1744,14 +1841,7 @@ select option{background:#1e293b;color:#e2e8f0}
   <div class="filter-chips mb-3">
     <button class="filter-btn filter-active" data-cat="all" onclick="setFilter('all')">Todas</button>
     <button class="filter-btn" data-cat="pending" onclick="setFilter('pending')">⏳ Pendentes</button>
-    <button class="filter-btn" data-cat="Moradia" onclick="setFilter('Moradia')">🏠 Moradia</button>
-    <button class="filter-btn" data-cat="Mercado" onclick="setFilter('Mercado')">🛒 Mercado</button>
-    <button class="filter-btn" data-cat="Transporte" onclick="setFilter('Transporte')">🚗 Transporte</button>
-    <button class="filter-btn" data-cat="Lazer" onclick="setFilter('Lazer')">🍕 Lazer</button>
-    <button class="filter-btn" data-cat="Cartão" onclick="setFilter('Cartão')">💳 Cartão</button>
-    <button class="filter-btn" data-cat="Saúde" onclick="setFilter('Saúde')">🏥 Saúde</button>
-    <button class="filter-btn" data-cat="Assinaturas" onclick="setFilter('Assinaturas')">🛡️ Assinaturas</button>
-    <button class="filter-btn" data-cat="Investimentos" onclick="setFilter('Investimentos')">💰 Investimentos</button>
+    <span id="dynamicFilterChips"></span>
   </div>
 
   <!-- Pending header -->
@@ -1897,12 +1987,7 @@ select option{background:#1e293b;color:#e2e8f0}
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Categoria</label>
-        <select id="inputCategoria" onchange="updateCartaoSelect(this.value,'')">
-          <option value="Moradia">🏠 Moradia</option><option value="Mercado">🛒 Mercado</option>
-          <option value="Transporte">🚗 Transporte</option><option value="Lazer">🍕 Lazer</option>
-          <option value="Cartão">💳 Cartão</option><option value="Saúde">🏥 Saúde</option>
-          <option value="Assinaturas">🛡️ Assinaturas</option><option value="Investimentos">💰 Investimentos</option>
-        </select></div>
+        <select id="inputCategoria" onchange="updateCartaoSelect(this.value,'')"></select></div>
         <div id="parcelasGrp"><label class="text-slate-400 text-xs block mb-1.5 ml-1">Parcelas</label>
         <select id="inputParcelas">
           <option value="1">1x / À vista</option><option value="2">2x</option><option value="3">3x</option>
@@ -1924,6 +2009,16 @@ select option{background:#1e293b;color:#e2e8f0}
       <div>
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">📝 Observação <span style="color:#475569">(opcional)</span></label>
         <textarea id="inputObs" placeholder="Anote detalhes, o que foi feito, informações extras..." rows="2" style="resize:none;padding-bottom:8px"></textarea>
+      </div>
+      <!-- Comprovante -->
+      <div>
+        <label class="text-slate-400 text-xs block mb-1.5 ml-1">🧾 Comprovante <span style="color:#475569">(opcional)</span></label>
+        <div id="comprovantePrev" style="display:none;position:relative;margin-bottom:8px">
+          <img id="comprovanteImg" style="width:100%;border-radius:10px;max-height:180px;object-fit:cover;border:1px solid rgba(148,163,184,0.15)"/>
+          <button onclick="removeComprovante()" style="position:absolute;top:6px;right:6px;background:rgba(239,68,68,0.85);border:none;color:white;border-radius:50%;width:26px;height:26px;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center">×</button>
+        </div>
+        <button type="button" onclick="document.getElementById('inputComprovante').click()" id="btnComprovante" style="width:100%;padding:10px;border-radius:10px;background:rgba(15,23,42,0.85);border:1px dashed rgba(148,163,184,0.25);color:#64748b;cursor:pointer;font-size:13px;font-weight:500">📎 Anexar foto do comprovante</button>
+        <input type="file" id="inputComprovante" accept="image/*" style="display:none" onchange="previewComprovante(this)"/>
       </div>
 
       <!-- Checkbox Gasto Recorrente -->
@@ -2057,6 +2152,10 @@ select option{background:#1e293b;color:#e2e8f0}
       <div id="detailStatusBadge"></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px" id="detailInfoGrid"></div>
+    <div id="detailCompBox" style="display:none;margin-bottom:16px">
+      <p style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🧾 Comprovante</p>
+      <img id="detailCompImg" style="width:100%;border-radius:12px;max-height:220px;object-fit:cover;border:1px solid rgba(148,163,184,0.15)" onclick="this.style.maxHeight=this.style.maxHeight==='none'?'220px':'none'" title="Toque para ampliar"/>
+    </div>
     <div id="detailObsBox" style="display:none;background:rgba(148,163,184,0.05);border:1px solid rgba(148,163,184,0.1);border-radius:14px;padding:14px;margin-bottom:16px">
       <p style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📝 Observação</p>
       <p id="detailObs" style="color:#cbd5e1;font-size:13px;line-height:1.5;white-space:pre-wrap"></p>
@@ -2135,6 +2234,33 @@ select option{background:#1e293b;color:#e2e8f0}
       <div>
         <span style="display:block;color:#cbd5e1;font-size:14px;font-weight:500">Importar dados</span>
         <span style="font-size:11px;color:#475569">Carrega um backup .json (substitui dados atuais)</span>
+      </div>
+    </div>
+
+    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Aparência</p>
+    <div style="background:rgba(30,41,59,0.6);border:1px solid rgba(148,163,184,0.08);border-radius:14px;padding:14px 16px;margin-bottom:16px">
+      <p style="color:#94a3b8;font-size:13px;font-weight:500;margin-bottom:10px">Tema de cor</p>
+      <div id="themePicker" style="display:flex;gap:10px;flex-wrap:wrap"></div>
+    </div>
+
+    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Mês financeiro</p>
+    <div style="background:rgba(30,41,59,0.6);border:1px solid rgba(148,163,184,0.08);border-radius:14px;padding:14px 16px;margin-bottom:16px">
+      <p style="color:#94a3b8;font-size:13px;font-weight:500;margin-bottom:4px">Primeiro dia do mês</p>
+      <p style="color:#475569;font-size:11px;margin-bottom:10px">Define quando o mês financeiro começa (útil para quem fecha no dia 25, 28 etc.)</p>
+      <div style="display:flex;align-items:center;gap:10px">
+        <input type="number" id="inputStartDay" min="1" max="28" style="width:80px!important" placeholder="1"/>
+        <button onclick="saveStartDaySetting()" style="padding:9px 18px;border-radius:10px;background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25);cursor:pointer;font-weight:700;font-size:13px">Salvar</button>
+        <span style="color:#475569;font-size:12px">atual: dia <span id="startDayLabel">1</span></span>
+      </div>
+    </div>
+
+    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Categorias personalizadas</p>
+    <div style="background:rgba(30,41,59,0.6);border:1px solid rgba(148,163,184,0.08);border-radius:14px;padding:14px 16px;margin-bottom:16px">
+      <div id="customCatsList" style="margin-bottom:10px"></div>
+      <div style="display:flex;gap:8px">
+        <input type="text" id="inputNewCatEmoji" placeholder="🏷️" style="width:60px!important" maxlength="2"/>
+        <input type="text" id="inputNewCatNome" placeholder="Ex: Academia"/>
+        <button onclick="addCustomCat()" style="padding:9px 14px;border-radius:10px;background:rgba(99,102,241,0.15);color:#a5b4fc;border:1px solid rgba(99,102,241,0.25);cursor:pointer;font-weight:700;font-size:13px;white-space:nowrap">+ Add</button>
       </div>
     </div>
 
