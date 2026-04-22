@@ -30,6 +30,15 @@ let curDate=new Date(),curYear=curDate.getFullYear(),curMonth=curDate.getMonth()
 let selectMode=false,selected=new Set(),currentUser=null,syncTimer=null;
 let activeFilter='all',searchQuery='',notifsEnabled=false;
 
+// ── Nome customizado ──
+function getAppName(){return localStorage.getItem('fpro_appname')||'FinancesPro';}
+function saveAppName(n){localStorage.setItem('fpro_appname',n);}
+function applyAppName(name){
+  document.title=name;
+  document.querySelectorAll('.app-name').forEach(el=>el.textContent=name);
+}
+function initPersonalization(){applyAppName(getAppName());}
+
 // ── Cartões ──
 function getCartoes(){try{return JSON.parse(localStorage.getItem('fpro_cartoes')||'[]')}catch{return[]}}
 function saveCartoes(c){localStorage.setItem('fpro_cartoes',JSON.stringify(c));scheduleSync();}
@@ -242,7 +251,37 @@ async function checkDueAlerts(){
   }
 }
 
-// ── Tela flutuante de vencimentos ──
+// ── Alerta de fechamento de fatura de cartão ──
+async function checkFaturaAlerts(){
+  if(!notifsEnabled||!('Notification' in window)||Notification.permission!=='granted')return;
+  const cartoes=getCartoes();
+  if(!cartoes.length)return;
+  const today=new Date();today.setHours(0,0,0,0);
+  const todayStr=today.toISOString().split('T')[0];
+  const alerted=JSON.parse(localStorage.getItem('fpro_fatura_alerted')||'{}');
+  const diasAviso=parseInt(localStorage.getItem('fpro_fatura_aviso')||'3');
+
+  for(const c of cartoes){
+    if(!c.fechamento)continue;
+    // Descobre a próxima data de fechamento
+    let fechDay=c.fechamento;
+    let fechDate=new Date(today.getFullYear(),today.getMonth(),fechDay);
+    if(fechDate<today) fechDate=new Date(today.getFullYear(),today.getMonth()+1,fechDay);
+    const diff=Math.round((fechDate-today)/86400000);
+    if(diff<=diasAviso&&diff>=0){
+      const alertKey=`fatura-${c.nome}-${fechDate.toISOString().split('T')[0]}`;
+      if(!alerted[alertKey]){
+        let msg='';
+        if(diff===0) msg=`🔴 Fatura do ${c.icone||'💳'} ${c.nome} FECHA HOJE! Evite novas compras.`;
+        else if(diff===1) msg=`🟡 Fatura do ${c.icone||'💳'} ${c.nome} fecha amanhã.`;
+        else msg=`🔔 Fatura do ${c.icone||'💳'} ${c.nome} fecha em ${diff} dias (dia ${fechDay}).`;
+        await sendNotif('FinancesPro — Cartão',msg,alertKey);
+        alerted[alertKey]=true;
+        localStorage.setItem('fpro_fatura_alerted',JSON.stringify(alerted));
+      }
+    }
+  }
+}
 function showDueAlertsModal(){
   const today=new Date();today.setHours(0,0,0,0);
   const shownKey='fpro_due_shown_'+today.toISOString().split('T')[0];
@@ -354,6 +393,24 @@ window.openSettingsModal=function(){
 window.closeSettingsModal=function(){document.getElementById('settingsOverlay').style.display='none';}
 window.closeSettingsOutside=function(e){if(e.target===document.getElementById('settingsOverlay'))window.closeSettingsModal();}
 
+// ── Modal de Personalização ──
+window.openPersonalizacaoModal=function(){
+  document.getElementById('inputAppName').value=getAppName();
+  document.getElementById('inputFaturaAviso').value=localStorage.getItem('fpro_fatura_aviso')||'3';
+  document.getElementById('personalizacaoOverlay').style.display='flex';
+}
+window.closePersonalizacaoModal=function(){document.getElementById('personalizacaoOverlay').style.display='none';}
+window.closePersonalizacaoOutside=function(e){if(e.target===document.getElementById('personalizacaoOverlay'))window.closePersonalizacaoModal();}
+
+window.savePersonalizacao=function(){
+  const name=document.getElementById('inputAppName').value.trim()||'FinancesPro';
+  const dias=parseInt(document.getElementById('inputFaturaAviso').value)||3;
+  saveAppName(name);applyAppName(name);
+  localStorage.setItem('fpro_fatura_aviso',Math.min(Math.max(dias,1),7));
+  window.closePersonalizacaoModal();
+  showToast('Personalização salva ✓','#4ade80');
+}
+
 window.exportData=function(){
   const data=getData();
   const cartoes=getCartoes();
@@ -406,6 +463,7 @@ window.menuAction=function(action){
     else if(action==='exportdata')window.exportData();
     else if(action==='importdata')window.importData();
     else if(action==='settings')window.openSettingsModal();
+    else if(action==='personalizacao')window.openPersonalizacaoModal();
     else if(action==='select')window.toggleSelectMode();
     else if(action==='notifs')toggleNotifications();
     else if(action==='profile')window.openProfileModal();
@@ -430,6 +488,7 @@ onAuthStateChanged(auth,user=>{
       // Agenda checkDueAlerts e primeiro PBS se já passou o intervalo
       setTimeout(async()=>{
         checkDueAlerts();
+        checkFaturaAlerts();
         showDueAlertsModal();
         if(Date.now()-_lastSyncAt >= PBS_MIN_INTERVAL){
           await runPeriodicSync();
@@ -1701,7 +1760,7 @@ window.ignorarApelidoSugerido = function(i) {
 
 
 // Inicia tudo ao carregar
-window.addEventListener('load', registerSWAndPBS);
+window.addEventListener('load', ()=>{registerSWAndPBS();initPersonalization();});
 
 // ── Ripple effect nos botões primários ──
 document.addEventListener('click', function(e) {
@@ -1827,7 +1886,7 @@ select option{background:#1e293b;color:#e2e8f0}
   <div style="width:100%;max-width:400px">
     <div style="text-align:center;margin-bottom:32px">
       <img src="icon-192.png" style="width:84px;height:84px;border-radius:24px;margin:0 auto 14px;display:block;box-shadow:0 0 40px rgba(99,102,241,0.35),0 0 80px rgba(59,130,246,0.15)"/>
-      <h1 style="font-size:26px;font-weight:700;background:linear-gradient(135deg,#60a5fa,#a78bfa,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0">FinancesPro</h1>
+      <h1 style="font-size:26px;font-weight:700;background:linear-gradient(135deg,#60a5fa,#a78bfa,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0" class="app-name">FinancesPro</h1>
       <p style="color:#475569;font-size:13px;margin-top:5px">Controle total das suas finanças</p>
     </div>
     <div style="display:flex;border-bottom:1px solid rgba(148,163,184,0.1);margin-bottom:24px">
@@ -1909,7 +1968,7 @@ select option{background:#1e293b;color:#e2e8f0}
     <!-- Trilha do gatinho -->
     <div id="catTrack" style="position:relative;height:28px;background:rgba(15,23,42,0.5);border-radius:20px;overflow:hidden;border:1px solid rgba(148,163,184,0.08)">
       <!-- Barra de progresso -->
-      <div id="progressFill" style="position:absolute;inset:0;width:0%;background:linear-gradient(90deg,#3b82f6,#6366f1,#8b5cf6,#ec4899);border-radius:20px;transition:width .6s cubic-bezier(.4,0,.2,1)"></div>
+      <div id="progressFill" style="position:absolute;inset:0;width:0%;background:linear-gradient(90deg,#3b82f6,#6366f1,#8b5cf6,#ec4899);border-radius:20px;transition:width .65s cubic-bezier(.34,1.2,.64,1)"></div>
       <!-- Chãozinho pontilhado -->
       <div style="position:absolute;bottom:6px;left:10px;right:34px;height:1px;border-top:1px dashed rgba(148,163,184,0.15)"></div>
       <!-- Casinha -->
@@ -1979,7 +2038,7 @@ select option{background:#1e293b;color:#e2e8f0}
     <div style="display:flex;align-items:center;gap:12px;padding:4px 4px 14px;border-bottom:1px solid rgba(148,163,184,0.08)">
       <img src="icon-192.png" style="width:40px;height:40px;border-radius:12px;box-shadow:0 0 16px rgba(99,102,241,0.3)"/>
       <div>
-        <p style="font-size:15px;font-weight:700;color:#e2e8f0;margin:0">FinancesPro</p>
+        <p style="font-size:15px;font-weight:700;color:#e2e8f0;margin:0" class="app-name">FinancesPro</p>
         <p style="font-size:11px;color:#475569;margin:0" id="menuUserName"></p>
       </div>
       <span id="syncDot2" class="sync-dot ml-auto" style="background:#475569"></span>
@@ -2012,6 +2071,13 @@ select option{background:#1e293b;color:#e2e8f0}
         <svg width="17" height="17" fill="none" stroke="#f87171" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
       </div>
       <span>Selecionar e excluir</span>
+    </div>
+
+    <div onclick="menuAction('personalizacao')" class="menu-item">
+      <div class="menu-item-icon" style="background:rgba(236,72,153,0.13)">
+        <svg width="17" height="17" fill="none" stroke="#f472b6" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/></svg>
+      </div>
+      <span>Personalização</span>
     </div>
 
     <div onclick="menuAction('settings')" class="menu-item">
@@ -2296,6 +2362,42 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
     <div id="dueAlertsList"></div>
     <button onclick="closeDueAlerts()" style="width:100%;margin-top:4px;padding:12px;border-radius:14px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:13px">NÃO RESPONDER AGORA</button>
+  </div>
+</div>
+
+<!-- ══ PERSONALIZAÇÃO MODAL ══ -->
+<div class="modal-overlay" id="personalizacaoOverlay" style="display:none" onclick="closePersonalizacaoOutside(event)">
+  <div class="glass-modal modal-sheet animate-in" style="max-height:88vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h2 style="color:#e2e8f0;font-weight:800;font-size:17px;margin:0">🎨 Personalização</h2>
+      <button onclick="closePersonalizacaoModal()" style="background:rgba(148,163,184,0.08);border:none;color:#64748b;width:32px;height:32px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px">×</button>
+    </div>
+
+    <!-- Nome do app -->
+    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Nome do app</p>
+    <div style="margin-bottom:20px">
+      <input type="text" id="inputAppName" placeholder="FinancesPro" maxlength="24" style="margin-bottom:4px"/>
+      <p style="color:#475569;font-size:11px;margin:4px 0 0 2px">Aparece no topo e na aba do navegador</p>
+    </div>
+
+    <!-- Alerta de fechamento de fatura -->
+    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">💳 Alerta de fechamento de fatura</p>
+    <div style="background:rgba(30,41,59,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:14px;padding:14px 16px;margin-bottom:20px">
+      <p style="color:#cbd5e1;font-size:13px;font-weight:500;margin-bottom:10px">Avisar quantos dias antes do fechamento?</p>
+      <div style="display:flex;align-items:center;gap:12px">
+        <input type="number" id="inputFaturaAviso" min="1" max="7" placeholder="3" style="width:80px!important;text-align:center;font-size:18px!important;font-weight:700!important;padding:10px!important"/>
+        <div>
+          <p style="color:#94a3b8;font-size:13px;margin:0">dias antes</p>
+          <p style="color:#475569;font-size:11px;margin:2px 0 0">Requer notificações ativadas</p>
+        </div>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px">
+      <button onclick="closePersonalizacaoModal()" class="btn-secondary w-full py-3 rounded-xl font-bold text-sm">Cancelar</button>
+      <button onclick="savePersonalizacao()" class="btn-primary w-full py-3 rounded-xl font-bold text-sm">Salvar</button>
+    </div>
   </div>
 </div>
 
