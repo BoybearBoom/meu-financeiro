@@ -346,6 +346,14 @@ function updateMenu(){
     pbsStatus.textContent=`Último sync: ${d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})}`;
   }
 }
+window.openSettingsModal=function(){
+  const vl=document.getElementById('buildVersionLabel');
+  if(vl)vl.textContent=BUILD_VERSION;
+  document.getElementById('settingsOverlay').style.display='flex';
+}
+window.closeSettingsModal=function(){document.getElementById('settingsOverlay').style.display='none';}
+window.closeSettingsOutside=function(e){if(e.target===document.getElementById('settingsOverlay'))window.closeSettingsModal();}
+
 window.exportData=function(){
   const data=getData();
   const cartoes=getCartoes();
@@ -395,6 +403,7 @@ window.menuAction=function(action){
     else if(action==='pdf')window.exportPDF();
     else if(action==='exportdata')window.exportData();
     else if(action==='importdata')window.importData();
+    else if(action==='settings')window.openSettingsModal();
     else if(action==='select')window.toggleSelectMode();
     else if(action==='notifs')toggleNotifications();
     else if(action==='profile')window.openProfileModal();
@@ -567,6 +576,7 @@ function render(){
           <p class="text-slate-200 text-sm font-medium truncate">${item.nome}</p>
           ${item.recorrente?'<span style="font-size:9px;background:rgba(99,102,241,0.18);color:#a5b4fc;padding:1px 6px;border-radius:8px;font-weight:700;flex-shrink:0">↻</span>':''}
           ${item.obs?'<span style="font-size:9px;background:rgba(148,163,184,0.1);color:#64748b;padding:1px 5px;border-radius:8px;flex-shrink:0">📝</span>':''}
+          ${item.comprovante?'<span style="font-size:9px;background:rgba(74,222,128,0.1);color:#4ade80;padding:1px 5px;border-radius:8px;flex-shrink:0">🧾</span>':''}
         </div>
         <p class="text-slate-500 text-xs mt-0.5">${item.cartaoNome?item.cartaoNome:item.categoria} · ${fmtDate(item.data)}${item.vencimento?' · Venc: <span style="color:'+(isOverdue?'#f87171':isDueSoon?'#fbbf24':'#94a3b8')+'">'+fmtDate(item.vencimento)+'</span>':''}</p>
         ${isOverdue?'<p style="font-size:10px;color:#ef4444;font-weight:700;margin-top:1px">⚠️ VENCIDA</p>':''}
@@ -824,6 +834,7 @@ window.openModal=function(editId){
   document.getElementById('inputParcelas').value='1';
   document.getElementById('parcelasGrp').style.display=isEdit?'none':'';
   document.getElementById('inputObs').value=isEdit&&item.obs?item.obs:'';
+  resetComprovanteUI(isEdit&&item.comprovante?item.comprovante:null);
   const isParcela=isEdit&&!!(item.groupId&&item.parcelNum&&item.totalParcelas);
   const parcelaInfo=document.getElementById('modalParcelaInfo');
   const recInfo=document.getElementById('modalRecInfo');
@@ -847,10 +858,77 @@ window.openModal=function(editId){
   if(recBox){recBox.style.background=isRec?'#6366f1':'transparent';recBox.style.borderColor=isRec?'#6366f1':'rgba(148,163,184,0.35)';}
   if(recIcon)recIcon.style.display=isRec?'block':'none';
   document.getElementById('modalOverlay').style.display='flex';
-  setTimeout(()=>document.getElementById('inputNome').focus(),300);
+  // Sem auto-focus para não abrir teclado automaticamente
 }
-window.closeModal=function(){document.getElementById('modalOverlay').style.display='none';}
+window.closeModal=function(){
+  document.getElementById('modalOverlay').style.display='none';
+  window._comprovanteData=null;
+}
 window.closeModalOutside=function(e){if(e.target===document.getElementById('modalOverlay'))window.closeModal();}
+
+// ── Comprovante ──
+window._comprovanteData=null; // base64 string or null
+
+window.handleComprovanteChange=function(input){
+  const file=input.files[0];
+  if(!file)return;
+  if(file.size>2*1024*1024){showToast('Imagem muito grande! Máx. 2MB','#ef4444');input.value='';return;}
+  const reader=new FileReader();
+  reader.onload=function(e){
+    window._comprovanteData=e.target.result; // base64
+    // Show thumb
+    document.getElementById('comprovantePreview').src=e.target.result;
+    document.getElementById('comprovanteThumb').style.display='block';
+    document.getElementById('comprovanteEmpty').style.display='none';
+    document.getElementById('comprovanteFileName').style.display='block';
+    document.getElementById('comprovanteFileName').textContent=file.name;
+  };
+  reader.readAsDataURL(file);
+}
+
+window.clearComprovante=function(){
+  window._comprovanteData=null;
+  document.getElementById('inputComprovante').value='';
+  document.getElementById('comprovantePreview').src='';
+  document.getElementById('comprovanteThumb').style.display='none';
+  document.getElementById('comprovanteEmpty').style.display='flex';
+  document.getElementById('comprovanteFileName').style.display='none';
+}
+
+// Reset comprovante UI on modal open
+function resetComprovanteUI(imgSrc){
+  window._comprovanteData=imgSrc||null;
+  const preview=document.getElementById('comprovantePreview');
+  const thumb=document.getElementById('comprovanteThumb');
+  const empty=document.getElementById('comprovanteEmpty');
+  const fname=document.getElementById('comprovanteFileName');
+  document.getElementById('inputComprovante').value='';
+  if(imgSrc){
+    preview.src=imgSrc;
+    thumb.style.display='block';
+    empty.style.display='none';
+    fname.style.display='block';
+    fname.textContent='Comprovante salvo';
+  }else{
+    preview.src='';
+    thumb.style.display='none';
+    empty.style.display='flex';
+    fname.style.display='none';
+  }
+}
+
+window.toggleComprovanteZoom=function(){
+  const lb=document.getElementById('comprovanteLightbox');
+  const img=document.getElementById('detailComprovanteImg');
+  if(lb.style.display==='none'||!lb.style.display){
+    document.getElementById('lightboxImg').src=img.src;
+    lb.style.display='flex';
+    document.body.style.overflow='hidden';
+  }else{
+    lb.style.display='none';
+    document.body.style.overflow='';
+  }
+}
 
 // ── Helpers para recorrentes ──
 // Retorna todos os itens de um recGroup ordenados por monthKey
@@ -890,6 +968,7 @@ function buildFutureRecurring(base, fromMonthOffset, totalMonths){
       categoria:base.categoria,pago:false,monthKey:mKey,
       recorrente:true,recGroupId:base.recGroupId,
       ...(base.cartaoNome?{cartaoNome:base.cartaoNome}:{}),
+      ...(base.obs?{obs:base.obs}:{}),
       ...(vencStr?{vencimento:vencStr}:{})
     });
   }
@@ -912,6 +991,7 @@ window.saveItem=function(){
   const editId=document.getElementById('editId').value;
   const recorrente=!!window._recorrente;
   const obs=document.getElementById('inputObs').value.trim();
+  const comprovante=window._comprovanteData||null;
   if(!nome){showToast('Informe a descrição','#ef4444');return}
   if(!valor||valor<=0){showToast('Informe um valor válido','#ef4444');return}
   if(!data){showToast('Informe a data','#ef4444');return}
@@ -928,6 +1008,7 @@ window.saveItem=function(){
     all[idx].nome=nome;all[idx].valor=valor;all[idx].data=data;all[idx].categoria=cat;
     all[idx].recorrente=recorrente;
     if(obs)all[idx].obs=obs; else delete all[idx].obs;
+    if(comprovante)all[idx].comprovante=comprovante; else delete all[idx].comprovante;
     if(cartaoNome)all[idx].cartaoNome=cartaoNome; else delete all[idx].cartaoNome;
     if(venc)all[idx].vencimento=venc; else delete all[idx].vencimento;
     if(cat==='Cartão'&&cartaoNome){
@@ -1027,6 +1108,7 @@ window.saveItem=function(){
       recorrente:parc===1?recorrente:false,
       ...(recGroupId?{recGroupId}:{}),
       ...(obs?{obs}:{}),
+      ...(comprovante&&p===0?{comprovante}:{}),
       ...(cartaoNome?{cartaoNome}:{}),
       ...(parc>1?{groupId,parcelNum:p+1,totalParcelas:parc}:{}),
       ...(vencStr?{vencimento:vencStr}:{})
@@ -1101,6 +1183,14 @@ window.openDetail=function(id){
     obsBox.style.display='block';
     document.getElementById('detailObs').textContent=item.obs;
   }else{obsBox.style.display='none';}
+
+  // Comprovante
+  const compBox=document.getElementById('detailComprovanteBox');
+  const compImg=document.getElementById('detailComprovanteImg');
+  if(item.comprovante){
+    compImg.src=item.comprovante;
+    compBox.style.display='block';
+  }else{compBox.style.display='none';}
 
   // Recorrente
   const recBox=document.getElementById('detailRecBox');
@@ -1806,26 +1896,6 @@ select option{background:#1e293b;color:#e2e8f0}
       <span>Editar Perfil</span>
     </div>
 
-    <div onclick="menuAction('sync')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
-        <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-      </div>
-      <span>Sincronizar com nuvem</span>
-    </div>
-
-    <div onclick="menuAction('pbssync')" class="menu-item" style="justify-content:space-between">
-      <div style="display:flex;align-items:center;gap:14px">
-        <div class="menu-item-icon" style="background:rgba(129,140,248,0.13)">
-          <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        </div>
-        <div>
-          <span style="display:block">Sync periódico agora</span>
-          <span id="menuPBSStatus" style="font-size:11px;color:#475569">Sincroniza, processa recorrentes e alertas</span>
-        </div>
-      </div>
-      <span id="pbsMenuDot" class="sync-dot" style="background:#475569"></span>
-    </div>
-
     <div onclick="menuAction('pdf')" class="menu-item">
       <div class="menu-item-icon" style="background:rgba(34,197,94,0.13)">
         <svg width="17" height="17" fill="none" stroke="#4ade80" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -1840,6 +1910,13 @@ select option{background:#1e293b;color:#e2e8f0}
       <span>Selecionar e excluir</span>
     </div>
 
+    <div onclick="menuAction('settings')" class="menu-item">
+      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
+        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </div>
+      <span>Configurações adicionais</span>
+    </div>
+
     <div class="menu-divider"></div>
 
     <div onclick="menuAction('notifs')" class="menu-item" style="justify-content:space-between">
@@ -1850,20 +1927,6 @@ select option{background:#1e293b;color:#e2e8f0}
         <span id="menuNotifText">🔔 Ativar notificações</span>
       </div>
       <span id="menuNotifDot" class="sync-dot" style="background:#475569;display:none"></span>
-    </div>
-
-    <div onclick="menuAction('exportdata')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
-        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-      </div>
-      <span>Exportar dados (migrar conta)</span>
-    </div>
-
-    <div onclick="menuAction('importdata')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
-        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-      </div>
-      <span>Importar dados</span>
     </div>
 
     <div class="menu-divider"></div>
@@ -1935,6 +1998,28 @@ select option{background:#1e293b;color:#e2e8f0}
       <div>
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">📝 Observação <span style="color:#475569">(opcional)</span></label>
         <textarea id="inputObs" placeholder="Anote detalhes, o que foi feito, informações extras..." rows="2" style="resize:none;padding-bottom:8px"></textarea>
+      </div>
+
+      <!-- Comprovante -->
+      <div>
+        <label class="text-slate-400 text-xs block mb-1.5 ml-1">🧾 Comprovante <span style="color:#475569">(opcional · máx. 2MB)</span></label>
+        <div id="comprovanteBox" onclick="document.getElementById('inputComprovante').click()" style="border:1.5px dashed rgba(148,163,184,0.2);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:border-color .15s;background:rgba(148,163,184,0.03)" onmouseover="this.style.borderColor='rgba(99,102,241,0.4)'" onmouseout="this.style.borderColor='rgba(148,163,184,0.2)'">
+          <div id="comprovanteThumb" style="display:none;position:relative;flex-shrink:0">
+            <img id="comprovantePreview" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid rgba(148,163,184,0.15)" src="" alt="Comprovante"/>
+            <button onclick="event.stopPropagation();clearComprovante()" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#ef4444;border:none;color:white;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>
+          </div>
+          <div id="comprovanteEmpty" style="display:flex;align-items:center;gap:10px;width:100%">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(99,102,241,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+              <svg width="16" height="16" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            </div>
+            <div>
+              <p style="color:#94a3b8;font-size:13px;font-weight:500;margin:0">Toque para anexar foto</p>
+              <p style="color:#475569;font-size:11px;margin:2px 0 0">JPG, PNG ou WEBP</p>
+            </div>
+          </div>
+          <p id="comprovanteFileName" style="display:none;color:#a5b4fc;font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></p>
+        </div>
+        <input type="file" id="inputComprovante" accept="image/*" style="display:none" onchange="handleComprovanteChange(this)"/>
       </div>
 
       <!-- Checkbox Gasto Recorrente -->
@@ -2072,6 +2157,10 @@ select option{background:#1e293b;color:#e2e8f0}
       <p style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">📝 Observação</p>
       <p id="detailObs" style="color:#cbd5e1;font-size:13px;line-height:1.5;white-space:pre-wrap"></p>
     </div>
+    <div id="detailComprovanteBox" style="display:none;margin-bottom:16px">
+      <p style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🧾 Comprovante</p>
+      <img id="detailComprovanteImg" src="" alt="Comprovante" onclick="window.toggleComprovanteZoom()" style="width:100%;max-height:180px;object-fit:cover;border-radius:12px;border:1px solid rgba(148,163,184,0.12);cursor:zoom-in;transition:all .2s"/>
+    </div>
     <div id="detailRecBox" style="display:none;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:14px;padding:12px;margin-bottom:16px">
       <p style="color:#a5b4fc;font-size:12px;font-weight:600">↻ Gasto Recorrente — lançado nos próximos meses</p>
     </div>
@@ -2084,6 +2173,12 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
   </div>
 </div>
+<!-- ══ COMPROVANTE LIGHTBOX ══ -->
+<div id="comprovanteLightbox" onclick="window.toggleComprovanteZoom()" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;padding:16px;cursor:zoom-out">
+  <img id="lightboxImg" src="" alt="Comprovante ampliado" style="max-width:100%;max-height:100%;border-radius:12px;object-fit:contain;box-shadow:0 0 60px rgba(0,0,0,0.8)"/>
+  <button onclick="event.stopPropagation();window.toggleComprovanteZoom()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:none;color:white;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
+</div>
+
 <!-- ══ DUE ALERTS MODAL ══ -->
 <div class="modal-overlay" id="dueAlertsOverlay" style="display:none;align-items:flex-end">
   <div class="glass-modal modal-sheet animate-in" style="max-height:85vh;overflow-y:auto">
@@ -2097,6 +2192,64 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
     <div id="dueAlertsList"></div>
     <button onclick="closeDueAlerts()" style="width:100%;margin-top:4px;padding:12px;border-radius:14px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:13px">NÃO RESPONDER AGORA</button>
+  </div>
+</div>
+
+<!-- ══ SETTINGS MODAL ══ -->
+<div class="modal-overlay" id="settingsOverlay" style="display:none" onclick="closeSettingsOutside(event)">
+  <div class="glass-modal modal-sheet animate-in" style="max-height:85vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <button onclick="closeSettingsModal();setTimeout(()=>openMenu(),50)" style="background:rgba(148,163,184,0.08);border:none;color:#94a3b8;width:32px;height:32px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <h2 style="color:#e2e8f0;font-weight:800;font-size:17px;margin:0">⚙️ Configurações adicionais</h2>
+      </div>
+      <button onclick="closeSettingsModal()" style="background:rgba(148,163,184,0.08);border:none;color:#64748b;width:32px;height:32px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px">×</button>
+    </div>
+
+    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Sincronização</p>
+    <div onclick="closeSettingsModal();setTimeout(()=>menuAction('sync'),200)" class="menu-item" style="border:1px solid rgba(148,163,184,0.08);border-radius:14px;margin-bottom:8px">
+      <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
+        <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+      </div>
+      <span>Sincronizar com nuvem agora</span>
+    </div>
+    <div onclick="closeSettingsModal();setTimeout(()=>window._runPeriodicSync(),200)" class="menu-item" style="border:1px solid rgba(148,163,184,0.08);border-radius:14px;margin-bottom:16px;justify-content:space-between">
+      <div style="display:flex;align-items:center;gap:14px">
+        <div class="menu-item-icon" style="background:rgba(129,140,248,0.13)">
+          <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        </div>
+        <div>
+          <span style="display:block;color:#cbd5e1;font-size:14px;font-weight:500">Sync periódico agora</span>
+          <span id="settingsPBSStatus" style="font-size:11px;color:#475569">Sincroniza, processa recorrentes e alertas</span>
+        </div>
+      </div>
+      <span id="pbsMenuDot2" style="display:none"></span>
+    </div>
+
+    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Dados</p>
+    <div onclick="closeSettingsModal();setTimeout(()=>window.exportData(),200)" class="menu-item" style="border:1px solid rgba(148,163,184,0.08);border-radius:14px;margin-bottom:8px">
+      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
+        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      </div>
+      <div>
+        <span style="display:block;color:#cbd5e1;font-size:14px;font-weight:500">Exportar dados</span>
+        <span style="font-size:11px;color:#475569">Baixa um backup .json com todas as despesas</span>
+      </div>
+    </div>
+    <div onclick="closeSettingsModal();setTimeout(()=>window.importData(),200)" class="menu-item" style="border:1px solid rgba(148,163,184,0.08);border-radius:14px;margin-bottom:16px">
+      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
+        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      </div>
+      <div>
+        <span style="display:block;color:#cbd5e1;font-size:14px;font-weight:500">Importar dados</span>
+        <span style="font-size:11px;color:#475569">Carrega um backup .json (substitui dados atuais)</span>
+      </div>
+    </div>
+
+    <div style="height:8px"></div>
   </div>
 </div>
 
