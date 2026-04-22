@@ -899,6 +899,7 @@ function buildFutureRecurring(base, fromMonthOffset, totalMonths){
       categoria:base.categoria,pago:false,monthKey:mKey,
       recorrente:true,recGroupId:base.recGroupId,
       ...(base.cartaoNome?{cartaoNome:base.cartaoNome}:{}),
+      ...(base.obs?{obs:base.obs}:{}),
       ...(vencStr?{vencimento:vencStr}:{})
     });
   }
@@ -1815,13 +1816,6 @@ select option{background:#1e293b;color:#e2e8f0}
       <span>Editar Perfil</span>
     </div>
 
-    <div onclick="menuAction('sync')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
-        <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
-      </div>
-      <span>Sincronizar com nuvem</span>
-    </div>
-
     <div onclick="menuAction('pdf')" class="menu-item">
       <div class="menu-item-icon" style="background:rgba(34,197,94,0.13)">
         <svg width="17" height="17" fill="none" stroke="#4ade80" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
@@ -2094,7 +2088,12 @@ select option{background:#1e293b;color:#e2e8f0}
   <div class="glass-modal modal-sheet animate-in" style="max-height:85vh;overflow-y:auto">
     <div class="modal-handle"></div>
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <h2 style="color:#e2e8f0;font-weight:800;font-size:17px;margin:0">⚙️ Configurações adicionais</h2>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button onclick="closeSettingsModal();setTimeout(()=>openMenu(),50)" style="background:rgba(148,163,184,0.08);border:none;color:#94a3b8;width:32px;height:32px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <h2 style="color:#e2e8f0;font-weight:800;font-size:17px;margin:0">⚙️ Configurações adicionais</h2>
+      </div>
       <button onclick="closeSettingsModal()" style="background:rgba(148,163,184,0.08);border:none;color:#64748b;width:32px;height:32px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px">×</button>
     </div>
 
@@ -2136,13 +2135,6 @@ select option{background:#1e293b;color:#e2e8f0}
         <span style="display:block;color:#cbd5e1;font-size:14px;font-weight:500">Importar dados</span>
         <span style="font-size:11px;color:#475569">Carrega um backup .json (substitui dados atuais)</span>
       </div>
-    </div>
-
-    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Sobre</p>
-    <div style="background:rgba(30,41,59,0.6);border:1px solid rgba(148,163,184,0.08);border-radius:14px;padding:14px 16px">
-      <p style="color:#e2e8f0;font-size:13px;font-weight:600;margin-bottom:4px">FinancesPro</p>
-      <p style="color:#475569;font-size:12px">Versão do build: <span id="buildVersionLabel" style="color:#6366f1;font-weight:600"></span></p>
-      <p style="color:#475569;font-size:12px;margin-top:2px">Dados sincronizados com Firebase · PWA offline</p>
     </div>
 
     <div style="height:8px"></div>
