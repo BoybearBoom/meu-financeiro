@@ -24,7 +24,7 @@ const app=initializeApp(FC);
 const auth=getAuth(app);
 const db=getFirestore(app);
 
-const CATS={Moradia:'🏠',Mercado:'🛒',Transporte:'🚗',Lazer:'🍕',Cartão:'💳',Saúde:'🏥',Assinaturas:'🛡️',Investimentos:'💰'};
+const CATS={Moradia:'🏠',Mercado:'🛒',Transporte:'🚗',Lazer:'🍕',Cartão:'💳',Saúde:'🏥',Assinaturas:'🛡️',Investimentos:'💰',Transferência:'🔄'};
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 let curDate=new Date(),curYear=curDate.getFullYear(),curMonth=curDate.getMonth();
 let selectMode=false,selected=new Set(),currentUser=null,syncTimer=null;
@@ -97,6 +97,118 @@ function idbSet(key,value){
     };
   });
 }
+
+// ── Transferências entre contas ──
+function getTransferencias(){try{return JSON.parse(localStorage.getItem('fpro_transferencias')||'[]')}catch{return[]}}
+function saveTransferencias(t){localStorage.setItem('fpro_transferencias',JSON.stringify(t));scheduleSync();}
+
+// Cria par de lançamentos: negativo na conta A (quem pagou), positivo na conta B (quem deve receber)
+window.saveTransferencia=function(){
+  const de=document.getElementById('trfDe').value.trim();
+  const para=document.getElementById('trfPara').value.trim();
+  const valor=parseFloat(document.getElementById('trfValor').value);
+  const desc=document.getElementById('trfDesc').value.trim()||'Transferência';
+  const data=document.getElementById('trfData').value;
+  if(!de||!para){showToast('Informe os dois membros','#ef4444');return;}
+  if(!valor||valor<=0){showToast('Informe um valor válido','#ef4444');return;}
+  if(!data){showToast('Informe a data','#ef4444');return;}
+  if(de===para){showToast('Os membros precisam ser diferentes','#ef4444');return;}
+  const k=`${data.slice(0,7)}`;
+  const id=`trf-${Date.now()}-${Math.random().toString(36).slice(2,6)}`;
+  const all=getData();
+  // Lançamento negativo: quem pagou
+  all.push({
+    id:id+'-out',nome:`🔄 ${desc} → ${para}`,valor,data,categoria:'Transferência',
+    pago:true,monthKey:k,isTemplate:false,
+    trfId:id,trfTipo:'saida',trfDe:de,trfPara:para
+  });
+  // Lançamento positivo (a receber): quem deve devolver
+  all.push({
+    id:id+'-in',nome:`🔄 ${desc} ← ${de}`,valor,data,categoria:'Transferência',
+    pago:false,monthKey:k,isTemplate:false,
+    trfId:id,trfTipo:'entrada',trfDe:de,trfPara:para
+  });
+  saveData(all);
+  // Registra na lista de transferências
+  const trfs=getTransferencias();
+  trfs.push({id,de,para,valor,desc,data,monthKey:k,valorRecebido:0,quitado:false});
+  saveTransferencias(trfs);
+  closeTransferenciaModal();
+  render();
+  showToast('Transferência registrada! 🔄','#6366f1');
+}
+
+// Marca recebimento parcial/total de uma transferência
+window.receberTransferencia=function(trfId,valorRecebido){
+  const trfs=getTransferencias();
+  const t=trfs.find(x=>x.id===trfId);
+  if(!t)return;
+  t.valorRecebido=(t.valorRecebido||0)+valorRecebido;
+  const saldoRestante=parseFloat((t.valor-t.valorRecebido).toFixed(2));
+  if(saldoRestante<=0){
+    t.quitado=true;
+    // Marca o lançamento positivo como pago
+    const all=getData();
+    const in_item=all.find(x=>x.trfId===trfId&&x.trfTipo==='entrada');
+    if(in_item)in_item.pago=true;
+    saveData(all);
+    showToast('Transferência quitada! ✅','#4ade80');
+  }else{
+    // Cria lançamento de saldo restante no mês seguinte
+    const today=new Date(t.data+'T12:00:00');
+    const nextM=new Date(today.getFullYear(),today.getMonth()+1,1);
+    const nextKey=`${nextM.getFullYear()}-${String(nextM.getMonth()+1).padStart(2,'0')}`;
+    const nextData=`${nextKey}-01`;
+    const all=getData();
+    // Verifica se já existe lançamento de saldo desse trfId no próximo mês
+    const jaExiste=all.some(x=>x.trfId===trfId+'_saldo'&&x.monthKey===nextKey);
+    if(!jaExiste){
+      all.push({
+        id:`${trfId}_saldo-${Date.now()}`,
+        nome:`🔄 Saldo restante (${t.desc}) ← ${t.de}`,
+        valor:saldoRestante,data:nextData,categoria:'Transferência',
+        pago:false,monthKey:nextKey,isTemplate:false,
+        trfId:trfId+'_saldo',trfTipo:'entrada',trfDe:t.de,trfPara:t.para,isSaldoRestante:true
+      });
+      saveData(all);
+    }
+    showToast(`Recebido R$ ${valorRecebido.toFixed(2).replace('.',',')} — Saldo R$ ${saldoRestante.toFixed(2).replace('.',',')} lançado no próximo mês 📅`,'#f59e0b');
+  }
+  saveTransferencias(trfs);
+  render();
+  closeTransferenciaModal();
+}
+
+window.openTransferenciaModal=function(){
+  document.getElementById('trfOverlay').style.display='flex';
+  document.getElementById('trfData').value=new Date().toISOString().split('T')[0];
+  document.getElementById('trfValor').value='';
+  document.getElementById('trfDesc').value='';
+  document.getElementById('trfDe').value='';
+  document.getElementById('trfPara').value='';
+  document.getElementById('trfRecebimentoParcialSection').style.display='none';
+  window._trfPendente=null;
+}
+window.closeTransferenciaModal=function(){document.getElementById('trfOverlay').style.display='none';}
+window.closeTransferenciaOutside=function(e){if(e.target===document.getElementById('trfOverlay'))window.closeTransferenciaModal();}
+
+// Abre modal para registrar recebimento parcial de uma transferência pendente
+window.openReceberTransferencia=function(trfId){
+  const trfs=getTransferencias();
+  const t=trfs.find(x=>x.id===trfId);
+  if(!t)return;
+  window._trfPendente=t;
+  document.getElementById('trfOverlay').style.display='flex';
+  document.getElementById('trfNovaSection').style.display='none';
+  document.getElementById('trfRecebimentoParcialSection').style.display='block';
+  const saldo=parseFloat((t.valor-t.valorRecebido).toFixed(2));
+  document.getElementById('trfRecebInfoNome').textContent=`${t.desc} (${t.de} → ${t.para})`;
+  document.getElementById('trfRecebInfoSaldo').textContent=`Saldo pendente: R$ ${saldo.toFixed(2).replace('.',',')}`;
+  document.getElementById('trfRecebValor').value=saldo.toFixed(2);
+}
+
+window.getTransferencias=getTransferencias;
+window.saveTransferencias=saveTransferencias;
 
 // ── Sync ──
 function scheduleSync(){
@@ -457,7 +569,8 @@ window.closeMenuOutside=function(e){if(e.target===document.getElementById('menuO
 window.menuAction=function(action){
   window.closeMenu();
   setTimeout(()=>{
-    if(action==='sync')window.forcSync();
+    else if(action==='transferencia')window.openTransferenciaModal();
+    else if(action==='sync')window.forcSync();
     else if(action==='pbssync')window._runPeriodicSync();
     else if(action==='pdf')window.exportPDF();
     else if(action==='exportdata')window.exportData();
@@ -1294,6 +1407,30 @@ window.openDetail=function(id){
   const recBox=document.getElementById('detailRecBox');
   recBox.style.display=item.recorrente?'block':'none';
 
+  // Transferência: info extra + botão de recebimento
+  const trfBox=document.getElementById('detailTrfBox');
+  if(trfBox){
+    if(item.categoria==='Transferência'&&item.trfTipo==='entrada'&&!item.pago){
+      const saldoInfo=item.isSaldoRestante?'<span style="background:rgba(245,158,11,0.15);color:#fbbf24;padding:2px 8px;border-radius:8px;font-size:10px;font-weight:700">Saldo restante</span>':'';
+      trfBox.innerHTML=`
+        <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:14px;padding:14px;margin-bottom:8px">
+          <p style="color:#a5b4fc;font-size:12px;font-weight:700;margin:0 0 6px">🔄 Transferência pendente ${saldoInfo}</p>
+          <p style="color:#94a3b8;font-size:13px;margin:0"><b style="color:#e2e8f0">${item.trfDe||'?'}</b> deve receber de <b style="color:#e2e8f0">${item.trfPara||'?'}</b></p>
+        </div>
+        <button onclick="closeDetail();setTimeout(()=>{const t=getTransferencias().find(x=>x.id==='${item.trfId}');if(t)openReceberTransferencia(t.id);else{const trfs=getTransferencias();trfs.push({id:'${item.trfId}',de:'${item.trfDe||''}',para:'${item.trfPara||''}',valor:${item.valor},desc:'Transferência',data:'${item.data}',monthKey:'${item.monthKey}',valorRecebido:0,quitado:false});saveTransferencias(trfs);openReceberTransferencia('${item.trfId}');}},100)" style="width:100%;padding:11px;border-radius:14px;background:linear-gradient(135deg,rgba(99,102,241,0.2),rgba(139,92,246,0.2));border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;cursor:pointer;font-weight:700;font-size:13px;margin-bottom:8px">💰 Registrar recebimento</button>`;
+      trfBox.style.display='block';
+    }else if(item.categoria==='Transferência'&&item.trfTipo==='saida'){
+      trfBox.innerHTML=`
+        <div style="background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.15);border-radius:14px;padding:12px 14px;margin-bottom:8px">
+          <p style="color:#f87171;font-size:12px;font-weight:700;margin:0 0 4px">🔄 Saída de transferência</p>
+          <p style="color:#94a3b8;font-size:13px;margin:0"><b style="color:#e2e8f0">${item.trfDe||'?'}</b> pagou por <b style="color:#e2e8f0">${item.trfPara||'?'}</b></p>
+        </div>`;
+      trfBox.style.display='block';
+    }else{
+      trfBox.style.display='none';
+    }
+  }
+
   // Botão pago
   const btn=document.getElementById('detailBtnPago');
   if(item.pago){
@@ -1442,13 +1579,23 @@ window.exportPDF=function(){
   // ── Fundo branco ──
   doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');
 
-  // ── Faixa de cabeçalho colorida ──
-  doc.setFillColor(99,102,241);doc.rect(0,0,210,38,'F');
+  // ── Faixa de cabeçalho preta ──
+  doc.setFillColor(10,10,10);doc.rect(0,0,210,38,'F');
+  // Linha de destaque na base do cabeçalho
+  doc.setFillColor(99,102,241);doc.rect(0,36,210,2,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(20);doc.setFont('helvetica','bold');
   doc.text(appName,20,18);
   doc.setFontSize(10);doc.setFont('helvetica','normal');
   doc.text('Relatorio - '+mLabel,20,27);
   doc.text('Gerado: '+fmtDate(new Date().toISOString().split('T')[0]),20,34);
+  // Nome do usuário no canto superior direito
+  const userName=currentUser?(currentUser.displayName||currentUser.email.split('@')[0]):'';
+  if(userName){
+    doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(180,180,255);
+    doc.text(userName,190,14,{align:'right'});
+    doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(120,120,180);
+    doc.text('@financespro',190,21,{align:'right'});
+  }
 
   // ── Cards de resumo ──
   const total=items.reduce((s,i)=>s+parseFloat(i.valor),0);
@@ -2092,18 +2239,18 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
     <div style="height:8px"></div>
 
-    <div onclick="menuAction('cartoes')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
-        <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-      </div>
-      <span>Gerenciar Cartões</span>
-    </div>
-
     <div onclick="menuAction('profile')" class="menu-item">
       <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
         <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
       </div>
       <span>Editar Perfil</span>
+    </div>
+
+    <div onclick="menuAction('cartoes')" class="menu-item">
+      <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
+        <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      </div>
+      <span>Gerenciar Cartões</span>
     </div>
 
     <div onclick="menuAction('pdf')" class="menu-item">
@@ -2113,11 +2260,11 @@ select option{background:#1e293b;color:#e2e8f0}
       <span>Exportar PDF do mês</span>
     </div>
 
-    <div onclick="menuAction('select')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(239,68,68,0.13)">
-        <svg width="17" height="17" fill="none" stroke="#f87171" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+    <div onclick="menuAction('transferencia')" class="menu-item">
+      <div class="menu-item-icon" style="background:rgba(99,102,241,0.16)">
+        <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
       </div>
-      <span>Selecionar e excluir</span>
+      <span>🔄 Transferência entre contas</span>
     </div>
 
     <div onclick="menuAction('personalizacao')" class="menu-item">
@@ -2127,15 +2274,6 @@ select option{background:#1e293b;color:#e2e8f0}
       <span>Personalização</span>
     </div>
 
-    <div onclick="menuAction('settings')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
-        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      </div>
-      <span>Configurações adicionais</span>
-    </div>
-
-    <div class="menu-divider"></div>
-
     <div onclick="menuAction('notifs')" class="menu-item" style="justify-content:space-between">
       <div style="display:flex;align-items:center;gap:14px">
         <div class="menu-item-icon" style="background:rgba(139,92,246,0.13)">
@@ -2144,6 +2282,20 @@ select option{background:#1e293b;color:#e2e8f0}
         <span id="menuNotifText">🔔 Ativar notificações</span>
       </div>
       <span id="menuNotifDot" class="sync-dot" style="background:#475569;display:none"></span>
+    </div>
+
+    <div onclick="menuAction('settings')" class="menu-item">
+      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
+        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </div>
+      <span>Configurações adicionais</span>
+    </div>
+
+    <div onclick="menuAction('select')" class="menu-item">
+      <div class="menu-item-icon" style="background:rgba(239,68,68,0.13)">
+        <svg width="17" height="17" fill="none" stroke="#f87171" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+      </div>
+      <span>Selecionar e excluir</span>
     </div>
 
     <div class="menu-divider"></div>
@@ -2193,6 +2345,7 @@ select option{background:#1e293b;color:#e2e8f0}
           <option value="Transporte">🚗 Transporte</option><option value="Lazer">🍕 Lazer</option>
           <option value="Cartão">💳 Cartão</option><option value="Saúde">🏥 Saúde</option>
           <option value="Assinaturas">🛡️ Assinaturas</option><option value="Investimentos">💰 Investimentos</option>
+          <option value="Transferência">🔄 Transferência</option>
         </select></div>
         <div id="parcelasGrp"><label class="text-slate-400 text-xs block mb-1.5 ml-1">Parcelas</label>
         <select id="inputParcelas">
@@ -2381,6 +2534,7 @@ select option{background:#1e293b;color:#e2e8f0}
     <div id="detailRecBox" style="display:none;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:14px;padding:12px;margin-bottom:16px">
       <p style="color:#a5b4fc;font-size:12px;font-weight:600">↻ Gasto Recorrente — lançado nos próximos meses</p>
     </div>
+    <div id="detailTrfBox" style="display:none;margin-bottom:16px"></div>
     <div style="display:flex;gap:10px;margin-top:4px">
       <button id="detailBtnPago" onclick="event.stopPropagation();detailTogglePago()" style="flex:1;padding:12px;border-radius:14px;border:none;cursor:pointer;font-weight:700;font-size:13px;transition:all .15s"></button>
       <button onclick="event.stopPropagation();detailEdit()" style="flex:1;padding:12px;border-radius:14px;background:rgba(99,102,241,0.13);color:#a5b4fc;border:1px solid rgba(99,102,241,0.2);cursor:pointer;font-weight:700;font-size:13px">✏️ Editar</button>
@@ -2503,6 +2657,65 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
 
     <div style="height:8px"></div>
+  </div>
+</div>
+<!-- ══ TRANSFERÊNCIA MODAL ══ -->
+<div class="modal-overlay" id="trfOverlay" style="display:none" onclick="closeTransferenciaOutside(event)">
+  <div class="glass-modal modal-sheet animate-in" style="max-height:88vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h2 style="color:#e2e8f0;font-weight:800;font-size:17px;margin:0">🔄 Transferência entre contas</h2>
+      <button onclick="closeTransferenciaModal()" style="background:rgba(148,163,184,0.08);border:none;color:#64748b;width:32px;height:32px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px">×</button>
+    </div>
+
+    <!-- Seção: Nova transferência -->
+    <div id="trfNovaSection">
+      <p style="color:#94a3b8;font-size:12px;margin-bottom:16px">Registra como <b style="color:#a5b4fc">negativo</b> na conta de quem pagou e <b style="color:#a5b4fc">positivo (a receber)</b> na conta de quem deve devolver.</p>
+
+      <div style="margin-bottom:12px">
+        <label style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Quem pagou (De)</label>
+        <input type="text" id="trfDe" placeholder="Ex: Ribeiro" style="width:100%"/>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Quem deve devolver (Para)</label>
+        <input type="text" id="trfPara" placeholder="Ex: João" style="width:100%"/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+        <div>
+          <label style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Valor (R$)</label>
+          <input type="number" id="trfValor" placeholder="0,00" step="0.01" min="0"/>
+        </div>
+        <div>
+          <label style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Data</label>
+          <input type="date" id="trfData"/>
+        </div>
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Descrição <span style="color:#475569;text-transform:none;font-weight:400">(opcional)</span></label>
+        <input type="text" id="trfDesc" placeholder="Ex: pagou almoço, conta de luz..."/>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onclick="closeTransferenciaModal()" style="flex:1;padding:12px;border-radius:14px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:13px">Cancelar</button>
+        <button onclick="saveTransferencia()" style="flex:1;padding:12px;border-radius:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:white;cursor:pointer;font-weight:700;font-size:13px">Registrar</button>
+      </div>
+    </div>
+
+    <!-- Seção: Recebimento parcial -->
+    <div id="trfRecebimentoParcialSection" style="display:none">
+      <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:14px;padding:14px;margin-bottom:16px">
+        <p id="trfRecebInfoNome" style="color:#e2e8f0;font-size:14px;font-weight:600;margin:0 0 4px"></p>
+        <p id="trfRecebInfoSaldo" style="color:#f59e0b;font-size:13px;margin:0;font-weight:700"></p>
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Valor recebido agora (R$)</label>
+        <input type="number" id="trfRecebValor" placeholder="0,00" step="0.01" min="0"/>
+        <p style="color:#475569;font-size:11px;margin:6px 0 0">Se for parcial, o saldo restante será lançado automaticamente no próximo mês.</p>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onclick="closeTransferenciaModal()" style="flex:1;padding:12px;border-radius:14px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:13px">Cancelar</button>
+        <button onclick="if(window._trfPendente){const v=parseFloat(document.getElementById('trfRecebValor').value);if(!v||v<=0){showToast('Informe o valor recebido','#ef4444');return;}window.receberTransferencia(window._trfPendente.id,v);}" style="flex:1;padding:12px;border-radius:14px;background:linear-gradient(135deg,#22c55e,#16a34a);border:none;color:white;cursor:pointer;font-weight:700;font-size:13px">Confirmar recebimento</button>
+      </div>
+    </div>
   </div>
 </div>
 
