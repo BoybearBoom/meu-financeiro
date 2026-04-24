@@ -11,21 +11,7 @@
 <link rel="manifest" href="manifest.json"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>FinancesPro</title>
-<script src="https://cdn.tailwindcss.com">
-// LIMPEZA TEMPORÁRIA DE CACHE
-(async ()=>{
-  if ('serviceWorker' in navigator) {
-    const regs = await navigator.serviceWorker.getRegistrations();
-    for (let reg of regs) await reg.unregister();
-  }
-  if ('caches' in window) {
-    const keys = await caches.keys();
-    for (let key of keys) await caches.delete(key);
-  }
-  console.log('Cache limpo!');
-})();
-
-</script>
+<script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -392,15 +378,9 @@ function saveNotifSetting(v){notifsEnabled=v;localStorage.setItem('fpro_notifs',
 
 // ── Service Worker ──
 async function registerSW(){
-  if (!('serviceWorker' in navigator)) return;
-  try {
-    const reg = await navigator.serviceWorker.register('./sw.js');
-    console.log('SW registrado:', reg);
-    return reg;
-  } catch (e) {
-    console.log('Erro SW:', e);
-  }
-});
+  if(!('serviceWorker' in navigator))return null;
+  try{
+    const reg=await navigator.serviceWorker.register('sw.js',{scope:'./'});
     await navigator.serviceWorker.ready;
     return reg;
   }catch(e){console.log('SW register error:',e);return null;}
@@ -747,23 +727,33 @@ window.doLogin=async function(){
   const u=document.getElementById('loginUser').value.trim(),p=document.getElementById('loginPass').value;
   if(!u||!p){showToast('Preencha todos os campos','#ef4444');return}
   setAL(true);
-  // Aceita e-mail real ou usuário antigo (@financespro.app)
+  // Tenta com e-mail digitado direto, ou converte apelido para @financespro.app
   const loginEmail=u.includes('@')?u:u+'@financespro.app';
-  try{await signInWithEmailAndPassword(auth,loginEmail,p);showToast('Bem-vindo! 👋');}
-  catch{showToast('E-mail ou senha incorretos','#ef4444');}
+  try{
+    await signInWithEmailAndPassword(auth,loginEmail,p);
+    showToast('Bem-vindo! 👋');
+  }catch(e){
+    // Se falhou e não era e-mail completo, informa para usar e-mail completo
+    if(!u.includes('@')){
+      showToast('Use seu e-mail completo (ex: seu@gmail.com)','#ef4444');
+    }else{
+      showToast('E-mail ou senha incorretos','#ef4444');
+    }
+  }
   finally{setAL(false);}
 }
 window.doForgotPassword=async function(){
   const u=document.getElementById('loginUser').value.trim();
-  if(!u){showToast('Digite seu e-mail ou usuário primeiro','#ef4444');return;}
-  const email=u.includes('@')?u:u+'@financespro.app';
+  if(!u){showToast('Digite seu e-mail primeiro','#ef4444');return;}
+  if(!u.includes('@')){showToast('Digite seu e-mail completo (ex: seu@gmail.com)','#ef4444');return;}
   setAL(true);
   try{
     const{sendPasswordResetEmail}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
-    await sendPasswordResetEmail(auth,email);
+    await sendPasswordResetEmail(auth,u);
     showToast('E-mail de redefinição enviado! Verifique sua caixa.','#4ade80');
   }catch(e){
-    showToast('Não foi possível enviar. Verifique o usuário.','#ef4444');
+    if(e.code==='auth/user-not-found'){showToast('E-mail não encontrado','#ef4444');}
+    else{showToast('Erro ao enviar. Tente novamente.','#ef4444');}
   }
   finally{setAL(false);}
 }
