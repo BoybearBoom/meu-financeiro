@@ -11,7 +11,21 @@
 <link rel="manifest" href="manifest.json"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>FinancesPro</title>
-<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.tailwindcss.com">
+// LIMPEZA TEMPORÁRIA DE CACHE
+(async ()=>{
+  if ('serviceWorker' in navigator) {
+    const regs = await navigator.serviceWorker.getRegistrations();
+    for (let reg of regs) await reg.unregister();
+  }
+  if ('caches' in window) {
+    const keys = await caches.keys();
+    for (let key of keys) await caches.delete(key);
+  }
+  console.log('Cache limpo!');
+})();
+
+</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script type="module">
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
@@ -378,9 +392,15 @@ function saveNotifSetting(v){notifsEnabled=v;localStorage.setItem('fpro_notifs',
 
 // ── Service Worker ──
 async function registerSW(){
-  if(!('serviceWorker' in navigator))return null;
-  try{
-    const reg=await navigator.serviceWorker.register('sw.js',{scope:'./'});
+  if (!('serviceWorker' in navigator)) return;
+  try {
+    const reg = await navigator.serviceWorker.register('./sw.js');
+    console.log('SW registrado:', reg);
+    return reg;
+  } catch (e) {
+    console.log('Erro SW:', e);
+  }
+});
     await navigator.serviceWorker.ready;
     return reg;
   }catch(e){console.log('SW register error:',e);return null;}
