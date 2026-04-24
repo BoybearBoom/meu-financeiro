@@ -17,12 +17,18 @@
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{initializeAppCheck,ReCaptchaV3Provider}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js';
 const BUILD_VERSION='20260419000000';
 
 const FC={apiKey:"AIzaSyCdoV1JyYL6Nkg7_yLcqjR47xZi2gT2irU",authDomain:"financespro-8a4f9.firebaseapp.com",projectId:"financespro-8a4f9",storageBucket:"financespro-8a4f9.firebasestorage.app",messagingSenderId:"367204094477",appId:"1:367204094477:web:233b576c8a214dfd36fb44"};
 const app=initializeApp(FC);
 const auth=getAuth(app);
 const db=getFirestore(app);
+// App Check — verifica que requisições vêm só do seu site
+initializeAppCheck(app,{
+  provider:new ReCaptchaV3Provider('6LecjscsAAAAAP27zMhbui4QKdhl2YKn61bvjEJT'),
+  isTokenAutoRefreshEnabled:true
+});
 
 const CATS={Moradia:'🏠',Mercado:'🛒',Transporte:'🚗',Lazer:'🍕',Cartão:'💳',Saúde:'🏥',Assinaturas:'🛡️',Investimentos:'💰'};
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
