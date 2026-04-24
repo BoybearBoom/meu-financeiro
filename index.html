@@ -41,7 +41,7 @@ function initPersonalization(){applyAppName(getAppName());}
 
 // ── Cartões ──
 function getCartoes(){try{return JSON.parse(localStorage.getItem('fpro_cartoes')||'[]')}catch{return[]}}
-function saveCartoes(c){localStorage.setItem('fpro_cartoes',JSON.stringify(c));idbSet('fpro_cartoes',c);scheduleSync();}
+function saveCartoes(c){localStorage.setItem('fpro_cartoes',JSON.stringify(c));scheduleSync();}
 // Retorna o dia de fechamento de um cartão pelo nome, ou null
 function getFechamento(nomeCartao){const c=getCartoes().find(x=>x.nome===nomeCartao);return c?c.fechamento:null;}
 // Dado data da compra e dia de fechamento, retorna monthKey correto
@@ -298,24 +298,15 @@ async function loadFromCloud(){
   if(!currentUser)return;
   try{
     const snap=await getDoc(doc(db,'users',currentUser.uid));
-    if(snap.exists()){
-      if(snap.data().notifEmail)saveNotifEmail(snap.data().notifEmail);
-      if(snap.data().data){
-        const cd=JSON.parse(snap.data().data),ld=getData();
-        if(cd.length>=ld.length){
-          localStorage.setItem('fpro_v2',JSON.stringify(cd));
-          await idbSet('fpro_v2',cd);
-          showToast('Dados sincronizados ☁️','#4ade80');
-        }else{
-          // Local tem mais dados — espelha o local para o IDB
-          await idbSet('fpro_v2',getData());
-        }
-        // Espelha cartões e alertados para o SW sempre
-        await idbSet('fpro_cartoes',getCartoes());
-        await idbSet('fpro_alerted',JSON.parse(localStorage.getItem('fpro_alerted')||'{}')); 
-        render();
+    if(snap.exists()){if(snap.data().notifEmail)saveNotifEmail(snap.data().notifEmail);if(snap.data().data){
+      const cd=JSON.parse(snap.data().data),ld=getData();
+      // Merge: prefer whichever has more items or cloud if equal
+      if(cd.length>=ld.length){
+        localStorage.setItem('fpro_v2',JSON.stringify(cd));
+        showToast('Dados sincronizados ☁️','#4ade80');
       }
-    }
+      render();
+    }}
   }catch(e){console.log('Cloud load error:',e);}
 }
 
@@ -364,9 +355,7 @@ function processRecurring(){
   });
 
   if(newItems.length>0){
-    const merged=[...all,...newItems];
-    localStorage.setItem('fpro_v2',JSON.stringify(merged));
-    idbSet('fpro_v2',merged); // espelha para SW
+    localStorage.setItem('fpro_v2',JSON.stringify([...all,...newItems]));
     scheduleSync();
     showToast(`${newItems.length} gasto(s) recorrente(s) lançado(s) ↻`,'#6366f1');
   }
@@ -376,43 +365,14 @@ function processRecurring(){
 function loadNotifSetting(){notifsEnabled=localStorage.getItem('fpro_notifs')==='1';}
 function saveNotifSetting(v){notifsEnabled=v;localStorage.setItem('fpro_notifs',v?'1':'0');}
 
-// ── Service Worker ──
-async function registerSW(){
-  if(!('serviceWorker' in navigator))return null;
-  try{
-    const reg=await navigator.serviceWorker.register('sw.js',{scope:'./'});
-    await navigator.serviceWorker.ready;
-    return reg;
-  }catch(e){console.log('SW register error:',e);return null;}
-}
-
-async function getSWReg(){
-  if(!('serviceWorker' in navigator))return null;
-  try{return await navigator.serviceWorker.getRegistration();}
-  catch{return null;}
-}
-
-// Envia dados de agendamento para o SW
-async function swScheduleNotifs(){
-  const reg=await getSWReg();
-  if(!reg||!reg.active)return;
-  const items=getData().filter(i=>!i.pago&&i.vencimento);
-  const cartoes=getCartoes();
-  const diasAviso=parseInt(localStorage.getItem('fpro_fatura_aviso')||'3');
-  reg.active.postMessage({
-    type:'SCHEDULE_NOTIFS',
-    items,cartoes,diasAviso,
-    appName:getAppName()
-  });
-}
-
-// Notificações imediatas via SW (com fallback)
 async function sendNotif(title,body,tag){
-  const reg=await getSWReg();
-  if(reg&&reg.showNotification){
+  if('serviceWorker' in navigator){
     try{
-      await reg.showNotification(title,{body,icon:'icon-192.png',badge:'icon-192.png',tag:tag||'fpro',renotify:true,vibrate:[200,100,200]});
-      return;
+      const reg=await navigator.serviceWorker.getRegistration();
+      if(reg&&reg.showNotification){
+        await reg.showNotification(title,{body,icon:'icon-192.png',tag:tag||'fpro',renotify:true});
+        return;
+      }
     }catch(e){}
   }
   try{new Notification(title,{body,icon:'icon-192.png',tag:tag||'fpro',renotify:true});}
@@ -425,21 +385,15 @@ async function toggleNotifications(){
     const perm=await Notification.requestPermission();
     if(perm==='granted'){
       saveNotifSetting(true);
-      // Registra SW se ainda não foi
-      await registerSW();
       updateMenu();
       showToast('Notificações ativadas! 🔔','#4ade80');
-      await sendNotif(getAppName()+' 🔔','Notificações ativadas! Você será avisado sobre vencimentos.','fpro-test');
+      await sendNotif('FinancesPro 🔔','Notificações ativadas! Você será avisado sobre vencimentos.','fpro-test');
       checkDueAlerts();
-      swScheduleNotifs();
     }else{
       showToast('Permissão negada. Ative nas configurações do celular.','#ef4444');
     }
   }else{
     saveNotifSetting(false);
-    // Cancela agendamentos no SW
-    const reg=await getSWReg();
-    if(reg&&reg.active)reg.active.postMessage({type:'CANCEL_NOTIFS'});
     updateMenu();
     showToast('Notificações desativadas','#f59e0b');
   }
