@@ -105,6 +105,181 @@ function scheduleSync(){
   setSyncDot('amber');
   syncTimer=setTimeout(syncToCloud,3000);
 }
+
+// ── A Receber ──
+function getAReceber(){try{return JSON.parse(localStorage.getItem('fpro_areceber')||'[]')}catch{return[]}}
+function saveAReceber(d){localStorage.setItem('fpro_areceber',JSON.stringify(d));scheduleSync();}
+
+window.openAReceberModal=function(id){
+  const all=getAReceber();
+  if(id){
+    // Modo recebimento
+    const t=all.find(x=>x.id===id);
+    if(!t)return;
+    window._arId=id;
+    document.getElementById('arNovaSection').style.display='none';
+    document.getElementById('arReceberSection').style.display='block';
+    const saldo=parseFloat((t.valor-t.valorRecebido).toFixed(2));
+    document.getElementById('arReceberNome').textContent=t.devedor+' — '+t.desc;
+    document.getElementById('arReceberSaldo').textContent='Saldo: R$ '+saldo.toFixed(2).replace('.',',');
+    document.getElementById('arReceberValor').value=saldo.toFixed(2);
+  }else{
+    // Modo novo
+    window._arId=null;
+    document.getElementById('arNovaSection').style.display='block';
+    document.getElementById('arReceberSection').style.display='none';
+    document.getElementById('arDevedor').value='';
+    document.getElementById('arDesc').value='';
+    document.getElementById('arValor').value='';
+    document.getElementById('arData').value=new Date().toISOString().split('T')[0];
+  }
+  document.getElementById('arOverlay').style.display='flex';
+}
+window.closeAReceberModal=function(){document.getElementById('arOverlay').style.display='none';window._arId=null;}
+window.closeAReceberOutside=function(e){if(e.target===document.getElementById('arOverlay'))window.closeAReceberModal();}
+
+window.saveAReceber=function(){
+  const devedor=document.getElementById('arDevedor').value.trim();
+  const desc=document.getElementById('arDesc').value.trim()||'Empréstimo';
+  const valor=parseFloat(document.getElementById('arValor').value);
+  const data=document.getElementById('arData').value;
+  if(!devedor){showToast('Informe o nome do devedor','#ef4444');return;}
+  if(!valor||valor<=0){showToast('Informe um valor válido','#ef4444');return;}
+  if(!data){showToast('Informe a data','#ef4444');return;}
+  const all=getAReceber();
+  all.push({
+    id:'ar-'+Date.now()+'-'+Math.random().toString(36).slice(2,5),
+    devedor,desc,valor,data,
+    valorRecebido:0,quitado:false,
+    historico:[]
+  });
+  saveAReceber(all);
+  renderAReceber();
+  window.closeAReceberModal();
+  showToast('Registrado em A Receber 💰','#6366f1');
+}
+
+window.confirmarRecebimento=function(){
+  const id=window._arId;
+  if(!id)return;
+  const vStr=document.getElementById('arReceberValor').value;
+  const v=parseFloat(vStr);
+  if(!v||v<=0){showToast('Informe o valor recebido','#ef4444');return;}
+  const all=getAReceber();
+  const t=all.find(x=>x.id===id);
+  if(!t)return;
+  t.valorRecebido=parseFloat((t.valorRecebido+v).toFixed(2));
+  t.historico=t.historico||[];
+  t.historico.push({valor:v,data:new Date().toISOString().split('T')[0]});
+  const saldo=parseFloat((t.valor-t.valorRecebido).toFixed(2));
+  if(saldo<=0){
+    t.quitado=true;
+    saveAReceber(all);
+    renderAReceber();
+    window.closeAReceberModal();
+    showToast('Quitado! ✅','#4ade80');
+  }else{
+    // Lança lembrete no próximo mês
+    const hoje=new Date();
+    const nextM=new Date(hoje.getFullYear(),hoje.getMonth()+1,1);
+    const nextKey=`${nextM.getFullYear()}-${String(nextM.getMonth()+1).padStart(2,'0')}`;
+    // Verifica se já existe lembrete para esse id no próximo mês
+    const jaExiste=all.some(x=>x.id===id+'_s'+nextKey);
+    if(!jaExiste){
+      all.push({
+        id:id+'_s'+nextKey,
+        devedor:t.devedor,desc:'Saldo restante — '+t.desc,
+        valor:saldo,data:nextKey+'-01',
+        valorRecebido:0,quitado:false,
+        historico:[],
+        saldoOrigem:id
+      });
+    }
+    saveAReceber(all);
+    renderAReceber();
+    window.closeAReceberModal();
+    showToast('Recebido R$ '+v.toFixed(2).replace('.',',')+' — Saldo R$ '+saldo.toFixed(2).replace('.',',')+' lançado no próximo mês 📅','#f59e0b');
+  }
+}
+
+window.quitarAReceber=function(id){
+  if(!confirm('Marcar como quitado?'))return;
+  const all=getAReceber();
+  const t=all.find(x=>x.id===id);
+  if(t){t.quitado=true;saveAReceber(all);renderAReceber();showToast('Marcado como quitado ✅','#4ade80');}
+}
+window.deletarAReceber=function(id){
+  if(!confirm('Remover este registro?'))return;
+  const all=getAReceber().filter(x=>x.id!==id);
+  saveAReceber(all);
+  renderAReceber();
+  showToast('Removido','#f59e0b');
+}
+
+function renderAReceber(){
+  const el=document.getElementById('arList');
+  if(!el)return;
+  const thisKey=`${curYear}-${String(curMonth+1).padStart(2,'0')}`;
+  const all=getAReceber();
+
+  // IDs de originais que já têm um filho-saldo ativo (não quitado) — o pai some da lista
+  const comSaldoAtivo=new Set(
+    all.filter(x=>x.saldoOrigem&&!x.quitado).map(x=>x.saldoOrigem)
+  );
+
+  const ativos=all.filter(x=>{
+    if(x.quitado)return false;
+    // Se tem filho saldo ativo, oculta o pai
+    if(comSaldoAtivo.has(x.id))return false;
+    // Mostra os do mês atual ou pendentes de meses anteriores
+    return x.data&&(x.data.slice(0,7)===thisKey||(x.data.slice(0,7)<thisKey));
+  });
+  const quitados=all.filter(x=>x.quitado&&x.data&&x.data.slice(0,7)===thisKey);
+
+  const section=document.getElementById('arSection');
+  if(!section)return;
+
+  if(!ativos.length&&!quitados.length){
+    section.style.display='none';
+    return;
+  }
+  section.style.display='block';
+
+  const totalPendente=ativos.reduce((s,x)=>s+parseFloat(x.valor-x.valorRecebido),0);
+  document.getElementById('arTotalPendente').textContent=fmt(totalPendente);
+
+  el.innerHTML=[...ativos,...quitados].map(t=>{
+    const saldo=parseFloat((t.valor-t.valorRecebido).toFixed(2));
+    const pct=Math.min(100,Math.round((t.valorRecebido/t.valor)*100));
+    const isOldMonth=t.data&&t.data.slice(0,7)<thisKey;
+    return`<div style="background:rgba(15,23,42,0.6);border:1px solid rgba(${t.quitado?'74,222,128':'99,102,241'},0.2);border-radius:16px;padding:14px;margin-bottom:10px">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+            <p style="color:#e2e8f0;font-size:14px;font-weight:700;margin:0">${t.devedor}</p>
+            ${isOldMonth&&!t.quitado?'<span style="font-size:10px;background:rgba(245,158,11,0.15);color:#fbbf24;padding:1px 7px;border-radius:8px;font-weight:700">Mês anterior</span>':''}
+            ${t.quitado?'<span style="font-size:10px;background:rgba(74,222,128,0.15);color:#4ade80;padding:1px 7px;border-radius:8px;font-weight:700">✓ Quitado</span>':''}
+            ${t.saldoOrigem?'<span style="font-size:10px;background:rgba(99,102,241,0.15);color:#a5b4fc;padding:1px 7px;border-radius:8px;font-weight:700">Saldo</span>':''}
+          </div>
+          <p style="color:#64748b;font-size:12px;margin:2px 0 0">${t.desc} · ${fmtDate(t.data)}</p>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <p style="color:#e2e8f0;font-size:15px;font-weight:800;margin:0">${fmt(t.valor)}</p>
+          ${!t.quitado?`<p style="color:#f59e0b;font-size:11px;margin:2px 0 0">Falta ${fmt(saldo)}</p>`:''}
+        </div>
+      </div>
+      ${!t.quitado&&t.valorRecebido>0?`<div style="background:rgba(15,23,42,0.5);border-radius:8px;overflow:hidden;height:4px;margin-bottom:8px"><div style="height:4px;background:linear-gradient(90deg,#6366f1,#8b5cf6);width:${pct}%;border-radius:8px;transition:width .4s"></div></div>`:''}
+      ${!t.quitado?`<div style="display:flex;gap:8px">
+        <button onclick="openAReceberModal('${t.id}')" style="flex:1;padding:9px;border-radius:11px;background:linear-gradient(135deg,rgba(99,102,241,0.18),rgba(139,92,246,0.18));border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;cursor:pointer;font-weight:700;font-size:12px">💰 Registrar recebimento</button>
+        <button onclick="deletarAReceber('${t.id}')" style="width:38px;padding:9px;border-radius:11px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15);color:#f87171;cursor:pointer;display:flex;align-items:center;justify-content:center">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+        </button>
+      </div>`:
+      `<button onclick="deletarAReceber('${t.id}')" style="width:100%;padding:8px;border-radius:11px;background:rgba(148,163,184,0.05);border:1px solid rgba(148,163,184,0.1);color:#475569;cursor:pointer;font-size:12px">Remover</button>`}
+    </div>`;
+  }).join('');
+}
+
 function setSyncDot(c){
   ['syncDot','syncDot2'].forEach(id=>{const d=document.getElementById(id);if(d)d.style.background=c==='green'?'#4ade80':c==='amber'?'#f59e0b':'#ef4444';});
 }
@@ -457,7 +632,8 @@ window.closeMenuOutside=function(e){if(e.target===document.getElementById('menuO
 window.menuAction=function(action){
   window.closeMenu();
   setTimeout(()=>{
-    if(action==='sync')window.forcSync();
+    if(action==='transferencia')window.openAReceberModal();
+    else if(action==='sync')window.forcSync();
     else if(action==='pbssync')window._runPeriodicSync();
     else if(action==='pdf')window.exportPDF();
     else if(action==='exportdata')window.exportData();
@@ -666,6 +842,7 @@ function render(){
     </div>`;
   }).join('');
   if(selectMode)document.getElementById('selectCount').textContent=selected.size+' selecionado'+(selected.size!==1?'s':'');
+  renderAReceber();
 }
 
 window.changeMonth=function(dir){
@@ -1442,13 +1619,23 @@ window.exportPDF=function(){
   // ── Fundo branco ──
   doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');
 
-  // ── Faixa de cabeçalho colorida ──
-  doc.setFillColor(99,102,241);doc.rect(0,0,210,38,'F');
+  // ── Faixa de cabeçalho preta ──
+  doc.setFillColor(10,10,10);doc.rect(0,0,210,38,'F');
+  // Linha de destaque na base do cabeçalho
+  doc.setFillColor(99,102,241);doc.rect(0,36,210,2,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(20);doc.setFont('helvetica','bold');
   doc.text(appName,20,18);
   doc.setFontSize(10);doc.setFont('helvetica','normal');
   doc.text('Relatorio - '+mLabel,20,27);
   doc.text('Gerado: '+fmtDate(new Date().toISOString().split('T')[0]),20,34);
+  // Nome do usuário no canto superior direito
+  const userName=currentUser?(currentUser.displayName||currentUser.email.split('@')[0]):'';
+  if(userName){
+    doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(180,180,255);
+    doc.text(userName,190,14,{align:'right'});
+    doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(120,120,180);
+    doc.text('@financespro',190,21,{align:'right'});
+  }
 
   // ── Cards de resumo ──
   const total=items.reduce((s,i)=>s+parseFloat(i.valor),0);
@@ -2066,6 +2253,21 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
   </div>
 
+  <!-- A Receber -->
+  <div id="arSection" style="display:none;padding:0 12px;margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:18px">💰</span>
+        <div>
+          <p style="color:#e2e8f0;font-size:14px;font-weight:700;margin:0">A Receber</p>
+          <p style="color:#f59e0b;font-size:12px;font-weight:600;margin:0" id="arTotalPendente"></p>
+        </div>
+      </div>
+      <button onclick="openAReceberModal()" style="padding:7px 14px;border-radius:12px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.25);color:#a5b4fc;cursor:pointer;font-weight:700;font-size:12px">+ Novo</button>
+    </div>
+    <div id="arList"></div>
+  </div>
+
   <!-- List -->
   <div class="px-3 pb-28">
     <div style="padding:4px 0" id="itemsList"></div>
@@ -2092,18 +2294,18 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
     <div style="height:8px"></div>
 
-    <div onclick="menuAction('cartoes')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
-        <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
-      </div>
-      <span>Gerenciar Cartões</span>
-    </div>
-
     <div onclick="menuAction('profile')" class="menu-item">
       <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
         <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
       </div>
       <span>Editar Perfil</span>
+    </div>
+
+    <div onclick="menuAction('cartoes')" class="menu-item">
+      <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
+        <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+      </div>
+      <span>Gerenciar Cartões</span>
     </div>
 
     <div onclick="menuAction('pdf')" class="menu-item">
@@ -2113,11 +2315,11 @@ select option{background:#1e293b;color:#e2e8f0}
       <span>Exportar PDF do mês</span>
     </div>
 
-    <div onclick="menuAction('select')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(239,68,68,0.13)">
-        <svg width="17" height="17" fill="none" stroke="#f87171" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+    <div onclick="menuAction('transferencia')" class="menu-item">
+      <div class="menu-item-icon" style="background:rgba(99,102,241,0.16)">
+        <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
       </div>
-      <span>Selecionar e excluir</span>
+      <span>💰 A Receber</span>
     </div>
 
     <div onclick="menuAction('personalizacao')" class="menu-item">
@@ -2127,15 +2329,6 @@ select option{background:#1e293b;color:#e2e8f0}
       <span>Personalização</span>
     </div>
 
-    <div onclick="menuAction('settings')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
-        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
-      </div>
-      <span>Configurações adicionais</span>
-    </div>
-
-    <div class="menu-divider"></div>
-
     <div onclick="menuAction('notifs')" class="menu-item" style="justify-content:space-between">
       <div style="display:flex;align-items:center;gap:14px">
         <div class="menu-item-icon" style="background:rgba(139,92,246,0.13)">
@@ -2144,6 +2337,20 @@ select option{background:#1e293b;color:#e2e8f0}
         <span id="menuNotifText">🔔 Ativar notificações</span>
       </div>
       <span id="menuNotifDot" class="sync-dot" style="background:#475569;display:none"></span>
+    </div>
+
+    <div onclick="menuAction('settings')" class="menu-item">
+      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
+        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      </div>
+      <span>Configurações adicionais</span>
+    </div>
+
+    <div onclick="menuAction('select')" class="menu-item">
+      <div class="menu-item-icon" style="background:rgba(239,68,68,0.13)">
+        <svg width="17" height="17" fill="none" stroke="#f87171" stroke-width="2" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+      </div>
+      <span>Selecionar e excluir</span>
     </div>
 
     <div class="menu-divider"></div>
@@ -2503,6 +2710,59 @@ select option{background:#1e293b;color:#e2e8f0}
     </div>
 
     <div style="height:8px"></div>
+  </div>
+</div>
+<!-- ══ A RECEBER MODAL ══ -->
+<div class="modal-overlay" id="arOverlay" style="display:none" onclick="closeAReceberOutside(event)">
+  <div class="glass-modal modal-sheet animate-in" style="max-height:88vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h2 style="color:#e2e8f0;font-weight:800;font-size:17px;margin:0">💰 A Receber</h2>
+      <button onclick="closeAReceberModal()" style="background:rgba(148,163,184,0.08);border:none;color:#64748b;width:32px;height:32px;border-radius:10px;cursor:pointer;font-size:18px;display:flex;align-items:center;justify-content:center">×</button>
+    </div>
+
+    <!-- Novo registro -->
+    <div id="arNovaSection">
+      <div style="margin-bottom:12px">
+        <label style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Devedor (quem te deve)</label>
+        <input type="text" id="arDevedor" placeholder="Ex: João"/>
+      </div>
+      <div style="margin-bottom:12px">
+        <label style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Descrição</label>
+        <input type="text" id="arDesc" placeholder="Ex: almoço, conta de luz..."/>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+        <div>
+          <label style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Valor (R$)</label>
+          <input type="number" id="arValor" placeholder="0,00" step="0.01" min="0"/>
+        </div>
+        <div>
+          <label style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Data</label>
+          <input type="date" id="arData"/>
+        </div>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onclick="closeAReceberModal()" style="flex:1;padding:12px;border-radius:14px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:13px">Cancelar</button>
+        <button onclick="saveAReceber()" style="flex:1;padding:12px;border-radius:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:white;cursor:pointer;font-weight:700;font-size:13px">Registrar</button>
+      </div>
+    </div>
+
+    <!-- Registrar recebimento -->
+    <div id="arReceberSection" style="display:none">
+      <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:14px;padding:14px;margin-bottom:16px">
+        <p id="arReceberNome" style="color:#e2e8f0;font-size:14px;font-weight:700;margin:0 0 4px"></p>
+        <p id="arReceberSaldo" style="color:#f59e0b;font-size:13px;font-weight:700;margin:0"></p>
+      </div>
+      <div style="margin-bottom:20px">
+        <label style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Valor recebido agora (R$)</label>
+        <input type="number" id="arReceberValor" placeholder="0,00" step="0.01" min="0"/>
+        <p style="color:#475569;font-size:11px;margin:6px 0 0">Se parcial, o saldo restante é lançado automaticamente no próximo mês.</p>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onclick="closeAReceberModal()" style="flex:1;padding:12px;border-radius:14px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:13px">Cancelar</button>
+        <button onclick="confirmarRecebimento()" style="flex:1;padding:12px;border-radius:14px;background:linear-gradient(135deg,#22c55e,#16a34a);border:none;color:white;cursor:pointer;font-weight:700;font-size:13px">Confirmar</button>
+      </div>
+    </div>
   </div>
 </div>
 
