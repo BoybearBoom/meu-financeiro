@@ -45,32 +45,43 @@ function saveTheme(t){localStorage.setItem('fpro_theme',t);}
 function applyTheme(theme){
   const root=document.documentElement;
   if(theme==='light'){
-    root.style.setProperty('--bg-primary','#f1f5f9');
-    root.style.setProperty('--bg-secondary','#ffffff');
-    root.style.setProperty('--bg-card','rgba(255,255,255,0.9)');
+    root.style.setProperty('--bg-primary','#ffffff');
+    root.style.setProperty('--bg-secondary','#f8fafc');
+    root.style.setProperty('--bg-card','rgba(255,255,255,0.95)');
     root.style.setProperty('--text-primary','#0f172a');
-    root.style.setProperty('--text-secondary','#475569');
-    root.style.setProperty('--border-color','rgba(0,0,0,0.08)');
-    document.body.style.background='linear-gradient(135deg,#e2e8f0 0%,#f1f5f9 50%,#e2e8f0 100%)';
+    root.style.setProperty('--text-secondary','#334155');
+    root.style.setProperty('--border-color','rgba(0,0,0,0.1)');
+    document.body.style.background='#f1f5f9';
     document.body.style.color='#0f172a';
-    // Ajusta cards
     document.querySelectorAll('.glass-card,.glass-modal').forEach(el=>{
-      el.style.background='rgba(255,255,255,0.92)';
+      el.style.background='rgba(255,255,255,0.97)';
       el.style.borderColor='rgba(0,0,0,0.08)';
+      el.style.color='#0f172a';
     });
+    // Textos principais
+    document.querySelectorAll('p,span,h1,h2,h3,label,div').forEach(el=>{
+      if(el.style.color==='rgb(148, 163, 184)'||el.style.color==='#94a3b8')el.style.color='#475569';
+      if(el.style.color==='rgb(226, 232, 240)'||el.style.color==='#e2e8f0')el.style.color='#0f172a';
+      if(el.style.color==='rgb(100, 116, 139)'||el.style.color==='#64748b')el.style.color='#334155';
+    });
+    document.querySelectorAll('.item-name').forEach(el=>el.style.color='#0f172a');
+    document.querySelectorAll('.item-sub').forEach(el=>el.style.color='#475569');
+    document.getElementById('authScreen')&&(document.getElementById('authScreen').style.background='radial-gradient(ellipse at 50% 0%,#e0e7ff 0%,#f1f5f9 55%)');
   }else{
-    root.style.setProperty('--bg-primary','#0f172a');
-    root.style.setProperty('--bg-secondary','#1e293b');
-    root.style.setProperty('--bg-card','rgba(15,23,42,0.8)');
+    root.style.setProperty('--bg-primary','#050a0f');
+    root.style.setProperty('--bg-secondary','#0d1117');
+    root.style.setProperty('--bg-card','rgba(5,10,15,0.9)');
     root.style.setProperty('--text-primary','#e2e8f0');
     root.style.setProperty('--text-secondary','#94a3b8');
     root.style.setProperty('--border-color','rgba(148,163,184,0.08)');
-    document.body.style.background='linear-gradient(135deg,#0a0f1e 0%,#0f172a 50%,#0a0f1e 100%)';
+    document.body.style.background='#050a0f';
     document.body.style.color='#e2e8f0';
     document.querySelectorAll('.glass-card,.glass-modal').forEach(el=>{
       el.style.background='';
       el.style.borderColor='';
+      el.style.color='';
     });
+    document.getElementById('authScreen')&&(document.getElementById('authScreen').style.background='radial-gradient(ellipse at 50% 0%,#1a1040 0%,#050a0f 55%)');
   }
 }
 function initPersonalization(){applyAppName(getAppName());applyTheme(getTheme());}
@@ -2104,7 +2115,7 @@ document.addEventListener('click', function(e) {
 </script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overscroll-behavior:none}
+body{background:#050a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overscroll-behavior:none}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#1e293b}::-webkit-scrollbar-thumb{background:#334155;border-radius:2px}
 .glass{background:rgba(30,41,59,0.72);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(148,163,184,0.1)}
 .glass-modal{background:rgba(8,14,28,0.97);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid rgba(148,163,184,0.12)}
