@@ -220,12 +220,19 @@ function renderAReceber(){
   const el=document.getElementById('arList');
   if(!el)return;
   const thisKey=`${curYear}-${String(curMonth+1).padStart(2,'0')}`;
-  // Mostra os do mês atual (pela data de criação) + os pendentes de meses anteriores não quitados
   const all=getAReceber();
+
+  // IDs de originais que já têm um filho-saldo ativo (não quitado) — o pai some da lista
+  const comSaldoAtivo=new Set(
+    all.filter(x=>x.saldoOrigem&&!x.quitado).map(x=>x.saldoOrigem)
+  );
+
   const ativos=all.filter(x=>{
     if(x.quitado)return false;
-    // Mostra do mês atual ou saldos que caem neste mês
-    return x.data&&x.data.slice(0,7)===thisKey||(!x.quitado&&x.data&&x.data.slice(0,7)<thisKey);
+    // Se tem filho saldo ativo, oculta o pai
+    if(comSaldoAtivo.has(x.id))return false;
+    // Mostra os do mês atual ou pendentes de meses anteriores
+    return x.data&&(x.data.slice(0,7)===thisKey||(x.data.slice(0,7)<thisKey));
   });
   const quitados=all.filter(x=>x.quitado&&x.data&&x.data.slice(0,7)===thisKey);
 
