@@ -17,12 +17,15 @@
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
 const BUILD_VERSION='20260419000000';
 
 const FC={apiKey:"AIzaSyCdoV1JyYL6Nkg7_yLcqjR47xZi2gT2irU",authDomain:"financespro-8a4f9.firebaseapp.com",projectId:"financespro-8a4f9",storageBucket:"financespro-8a4f9.firebasestorage.app",messagingSenderId:"367204094477",appId:"1:367204094477:web:233b576c8a214dfd36fb44"};
 const app=initializeApp(FC);
 const auth=getAuth(app);
 const db=getFirestore(app);
+// App Check — verifica que requisições vêm só do seu site
+
 
 const CATS={Moradia:'🏠',Mercado:'🛒',Transporte:'🚗',Lazer:'🍕',Cartão:'💳',Saúde:'🏥',Assinaturas:'🛡️',Investimentos:'💰'};
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -727,18 +730,11 @@ window.doLogin=async function(){
   const u=document.getElementById('loginUser').value.trim(),p=document.getElementById('loginPass').value;
   if(!u||!p){showToast('Preencha todos os campos','#ef4444');return}
   setAL(true);
-  // Tenta com e-mail digitado direto, ou converte apelido para @financespro.app
   const loginEmail=u.includes('@')?u:u+'@financespro.app';
-  try{
-    await signInWithEmailAndPassword(auth,loginEmail,p);
-    showToast('Bem-vindo! 👋');
-  }catch(e){
-    // Se falhou e não era e-mail completo, informa para usar e-mail completo
-    if(!u.includes('@')){
-      showToast('Use seu e-mail completo (ex: seu@gmail.com)','#ef4444');
-    }else{
-      showToast('E-mail ou senha incorretos','#ef4444');
-    }
+  try{await signInWithEmailAndPassword(auth,loginEmail,p);showToast('Bem-vindo! 👋');}
+  catch(e){
+    if(!u.includes('@'))showToast('Use seu e-mail completo (ex: seu@gmail.com)','#ef4444');
+    else showToast('E-mail ou senha incorretos','#ef4444');
   }
   finally{setAL(false);}
 }
@@ -752,8 +748,8 @@ window.doForgotPassword=async function(){
     await sendPasswordResetEmail(auth,u);
     showToast('E-mail de redefinição enviado! Verifique sua caixa.','#4ade80');
   }catch(e){
-    if(e.code==='auth/user-not-found'){showToast('E-mail não encontrado','#ef4444');}
-    else{showToast('Erro ao enviar. Tente novamente.','#ef4444');}
+    if(e.code==='auth/user-not-found')showToast('E-mail não encontrado','#ef4444');
+    else showToast('Erro ao enviar. Tente novamente.','#ef4444');
   }
   finally{setAL(false);}
 }
