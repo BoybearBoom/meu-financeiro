@@ -17,12 +17,18 @@
 import{initializeApp}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import{getAuth,createUserWithEmailAndPassword,signInWithEmailAndPassword,signOut,onAuthStateChanged,updateProfile}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 import{getFirestore,doc,setDoc,getDoc}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import{initializeAppCheck,ReCaptchaV3Provider}from'https://www.gstatic.com/firebasejs/10.12.0/firebase-app-check.js';
 const BUILD_VERSION='20260419000000';
 
 const FC={apiKey:"AIzaSyCdoV1JyYL6Nkg7_yLcqjR47xZi2gT2irU",authDomain:"financespro-8a4f9.firebaseapp.com",projectId:"financespro-8a4f9",storageBucket:"financespro-8a4f9.firebasestorage.app",messagingSenderId:"367204094477",appId:"1:367204094477:web:233b576c8a214dfd36fb44"};
 const app=initializeApp(FC);
 const auth=getAuth(app);
 const db=getFirestore(app);
+// App Check — verifica que requisições vêm só do seu site
+initializeAppCheck(app,{
+  provider:new ReCaptchaV3Provider('6LecjscsAAAAAP27zMhbui4QKdhl2YKn61bvjEJT'),
+  isTokenAutoRefreshEnabled:true
+});
 
 const CATS={Moradia:'🏠',Mercado:'🛒',Transporte:'🚗',Lazer:'🍕',Cartão:'💳',Saúde:'🏥',Assinaturas:'🛡️',Investimentos:'💰'};
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -41,7 +47,7 @@ function initPersonalization(){applyAppName(getAppName());}
 
 // ── Cartões ──
 function getCartoes(){try{return JSON.parse(localStorage.getItem('fpro_cartoes')||'[]')}catch{return[]}}
-function saveCartoes(c){localStorage.setItem('fpro_cartoes',JSON.stringify(c));scheduleSync();}
+function saveCartoes(c){localStorage.setItem('fpro_cartoes',JSON.stringify(c));idbSet('fpro_cartoes',c);scheduleSync();}
 // Retorna o dia de fechamento de um cartão pelo nome, ou null
 function getFechamento(nomeCartao){const c=getCartoes().find(x=>x.nome===nomeCartao);return c?c.fechamento:null;}
 // Dado data da compra e dia de fechamento, retorna monthKey correto
@@ -298,15 +304,24 @@ async function loadFromCloud(){
   if(!currentUser)return;
   try{
     const snap=await getDoc(doc(db,'users',currentUser.uid));
-    if(snap.exists()){if(snap.data().notifEmail)saveNotifEmail(snap.data().notifEmail);if(snap.data().data){
-      const cd=JSON.parse(snap.data().data),ld=getData();
-      // Merge: prefer whichever has more items or cloud if equal
-      if(cd.length>=ld.length){
-        localStorage.setItem('fpro_v2',JSON.stringify(cd));
-        showToast('Dados sincronizados ☁️','#4ade80');
+    if(snap.exists()){
+      if(snap.data().notifEmail)saveNotifEmail(snap.data().notifEmail);
+      if(snap.data().data){
+        const cd=JSON.parse(snap.data().data),ld=getData();
+        if(cd.length>=ld.length){
+          localStorage.setItem('fpro_v2',JSON.stringify(cd));
+          await idbSet('fpro_v2',cd);
+          showToast('Dados sincronizados ☁️','#4ade80');
+        }else{
+          // Local tem mais dados — espelha o local para o IDB
+          await idbSet('fpro_v2',getData());
+        }
+        // Espelha cartões e alertados para o SW sempre
+        await idbSet('fpro_cartoes',getCartoes());
+        await idbSet('fpro_alerted',JSON.parse(localStorage.getItem('fpro_alerted')||'{}')); 
+        render();
       }
-      render();
-    }}
+    }
   }catch(e){console.log('Cloud load error:',e);}
 }
 
@@ -355,7 +370,9 @@ function processRecurring(){
   });
 
   if(newItems.length>0){
-    localStorage.setItem('fpro_v2',JSON.stringify([...all,...newItems]));
+    const merged=[...all,...newItems];
+    localStorage.setItem('fpro_v2',JSON.stringify(merged));
+    idbSet('fpro_v2',merged); // espelha para SW
     scheduleSync();
     showToast(`${newItems.length} gasto(s) recorrente(s) lançado(s) ↻`,'#6366f1');
   }
@@ -365,14 +382,43 @@ function processRecurring(){
 function loadNotifSetting(){notifsEnabled=localStorage.getItem('fpro_notifs')==='1';}
 function saveNotifSetting(v){notifsEnabled=v;localStorage.setItem('fpro_notifs',v?'1':'0');}
 
+// ── Service Worker ──
+async function registerSW(){
+  if(!('serviceWorker' in navigator))return null;
+  try{
+    const reg=await navigator.serviceWorker.register('sw.js',{scope:'./'});
+    await navigator.serviceWorker.ready;
+    return reg;
+  }catch(e){console.log('SW register error:',e);return null;}
+}
+
+async function getSWReg(){
+  if(!('serviceWorker' in navigator))return null;
+  try{return await navigator.serviceWorker.getRegistration();}
+  catch{return null;}
+}
+
+// Envia dados de agendamento para o SW
+async function swScheduleNotifs(){
+  const reg=await getSWReg();
+  if(!reg||!reg.active)return;
+  const items=getData().filter(i=>!i.pago&&i.vencimento);
+  const cartoes=getCartoes();
+  const diasAviso=parseInt(localStorage.getItem('fpro_fatura_aviso')||'3');
+  reg.active.postMessage({
+    type:'SCHEDULE_NOTIFS',
+    items,cartoes,diasAviso,
+    appName:getAppName()
+  });
+}
+
+// Notificações imediatas via SW (com fallback)
 async function sendNotif(title,body,tag){
-  if('serviceWorker' in navigator){
+  const reg=await getSWReg();
+  if(reg&&reg.showNotification){
     try{
-      const reg=await navigator.serviceWorker.getRegistration();
-      if(reg&&reg.showNotification){
-        await reg.showNotification(title,{body,icon:'icon-192.png',tag:tag||'fpro',renotify:true});
-        return;
-      }
+      await reg.showNotification(title,{body,icon:'icon-192.png',badge:'icon-192.png',tag:tag||'fpro',renotify:true,vibrate:[200,100,200]});
+      return;
     }catch(e){}
   }
   try{new Notification(title,{body,icon:'icon-192.png',tag:tag||'fpro',renotify:true});}
@@ -385,15 +431,21 @@ async function toggleNotifications(){
     const perm=await Notification.requestPermission();
     if(perm==='granted'){
       saveNotifSetting(true);
+      // Registra SW se ainda não foi
+      await registerSW();
       updateMenu();
       showToast('Notificações ativadas! 🔔','#4ade80');
-      await sendNotif('FinancesPro 🔔','Notificações ativadas! Você será avisado sobre vencimentos.','fpro-test');
+      await sendNotif(getAppName()+' 🔔','Notificações ativadas! Você será avisado sobre vencimentos.','fpro-test');
       checkDueAlerts();
+      swScheduleNotifs();
     }else{
       showToast('Permissão negada. Ative nas configurações do celular.','#ef4444');
     }
   }else{
     saveNotifSetting(false);
+    // Cancela agendamentos no SW
+    const reg=await getSWReg();
+    if(reg&&reg.active)reg.active.postMessage({type:'CANCEL_NOTIFS'});
     updateMenu();
     showToast('Notificações desativadas','#f59e0b');
   }
