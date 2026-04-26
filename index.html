@@ -1707,12 +1707,14 @@ window.exportPDF=function(){
   const total=items.reduce((s,i)=>s+parseFloat(i.valor),0);
   const pendT=items.filter(i=>!i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
   const userName=currentUser?(currentUser.displayName||currentUser.email.split('@')[0]):'';
-  // Cor principal #6699CC = rgb(102,153,204)
-  const BLUE=[102,153,204];
+  // Azul gelo (quase branco) para cabeçalho e total
+  const BLUE_LIGHT=[220,232,245]; // #DCE8F5
+  const BLUE_DARK=[30,58,138];    // azul escuro para texto
+  const BLUE_MID=[102,153,204];   // #6699CC para linha
 
   const drawHeader=()=>{
     doc.setFillColor(0,0,0);doc.rect(0,0,210,36,'F');
-    doc.setFillColor(...BLUE);doc.rect(0,34,210,2,'F');
+    doc.setFillColor(...BLUE_MID);doc.rect(0,34,210,2,'F');
     doc.setFontSize(18);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
     doc.text(appName,20,16);
     doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(180,210,240);
@@ -1735,8 +1737,9 @@ window.exportPDF=function(){
   };
 
   const drawTableHeader=(yy)=>{
-    doc.setFillColor(...BLUE);doc.rect(18,yy,174,8,'F');
-    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
+    // Cabeçalho azul gelo
+    doc.setFillColor(...BLUE_LIGHT);doc.rect(18,yy,174,8,'F');
+    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(...BLUE_DARK);
     doc.text('DESCRIÇÃO',22,yy+5.5);
     doc.text('CAT.',78,yy+5.5);
     doc.text('OBSERVAÇÃO',103,yy+5.5);
@@ -1778,9 +1781,6 @@ window.exportPDF=function(){
     // Fundo alternado
     doc.setFillColor(idx%2===0?248:255,idx%2===0?250:255,idx%2===0?252:255);
     doc.rect(18,y-4,174,rowH,'F');
-    // Borda lateral status
-    doc.setFillColor(item.pago?34:249,item.pago?197:115,item.pago?94:22);
-    doc.rect(18,y-4,2.5,rowH,'F');
 
     const mid=y+(rowH-10)/2;
 
@@ -1818,46 +1818,50 @@ window.exportPDF=function(){
     doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(15,23,42);
     doc.text(fmt(item.valor),158,mid+2);
 
-    // Status
+    // Status — só texto, sem fundo
+    doc.setFont('helvetica','bold');doc.setFontSize(7.5);
     if(item.pago){
-      doc.setFillColor(220,252,231);doc.roundedRect(175,y-3,19,5,1,1,'F');
-      doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(21,128,61);
-      doc.text('✓ Pago',177,y+1);
+      doc.setTextColor(21,128,61); // verde
+      doc.text('Pago',178,mid+2);
       if(hasDP){
         const dp=new Date(item.dataPagamento);
         doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(100,116,139);
-        doc.text(dp.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dp.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),175,y+6.5);
+        doc.text(dp.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dp.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),178,mid+6);
       }
     }else{
-      doc.setFillColor(255,237,213);doc.roundedRect(175,y-3,19,5,1,1,'F');
-      doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(194,65,12);
-      doc.text('Pend.',177,y+1);
+      doc.setTextColor(194,65,12); // laranja
+      doc.text('Pendente',178,mid+2);
     }
 
-    // Divisória preta fina
+    // Linha divisória preta fina
     doc.setDrawColor(0,0,0);doc.setLineWidth(0.2);
     doc.line(18,y-4+rowH,192,y-4+rowH);
     y+=rowH;
   });
 
-  // ── Totais finais: PENDENTES à esquerda, TOTAL à direita ──
+  // ── Totais finais — juntos no canto inferior direito ──
   y+=5;
   if(y>272){drawFooter();doc.addPage();doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');y=20;}
-  doc.setDrawColor(226,232,240);doc.setLineWidth(0.4);doc.line(18,y,192,y);
+  doc.setDrawColor(0,0,0);doc.setLineWidth(0.4);doc.line(18,y,192,y);
   y+=6;
 
-  // TOTAL (esquerda)
-  doc.setFillColor(...BLUE);doc.roundedRect(18,y,50,13,2,2,'F');
-  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);
-  doc.text('TOTAL',21,y+5);
-  doc.setFontSize(9);doc.text(fmt(total),21,y+11);
-
-  // PENDENTES (direita) — só se houver
   if(pendT>0){
-    doc.setFillColor(255,237,213);doc.roundedRect(142,y,50,13,2,2,'F');
+    // PENDENTES (esquerda do par, canto direito)
+    doc.setFillColor(255,237,213);doc.roundedRect(92,y,48,13,2,2,'F');
     doc.setTextColor(194,65,12);doc.setFont('helvetica','bold');doc.setFontSize(7);
-    doc.text('PENDENTES',145,y+5);
-    doc.setFontSize(9);doc.text(fmt(pendT),145,y+11);
+    doc.text('PENDENTES',95,y+5);
+    doc.setFontSize(9);doc.text(fmt(pendT),95,y+11);
+    // TOTAL (direita do par)
+    doc.setFillColor(...BLUE_LIGHT);doc.roundedRect(144,y,48,13,2,2,'F');
+    doc.setTextColor(...BLUE_DARK);doc.setFont('helvetica','bold');doc.setFontSize(7);
+    doc.text('TOTAL',147,y+5);
+    doc.setFontSize(9);doc.text(fmt(total),147,y+11);
+  }else{
+    // Só TOTAL (canto direito)
+    doc.setFillColor(...BLUE_LIGHT);doc.roundedRect(144,y,48,13,2,2,'F');
+    doc.setTextColor(...BLUE_DARK);doc.setFont('helvetica','bold');doc.setFontSize(7);
+    doc.text('TOTAL',147,y+5);
+    doc.setFontSize(9);doc.text(fmt(total),147,y+11);
   }
 
   drawFooter();
@@ -2375,7 +2379,7 @@ body.theme-light .empty-state{color:#64748b!important}
       </div>
       <div style="display:flex;align-items:center;gap:8px">
         <button onclick="window.exportPDF()" class="btn-secondary px-2.5 py-2 rounded-xl shrink-0" title="Exportar PDF do mês" style="color:#6699CC">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>
         </button>
         <button onclick="openMenu()" class="btn-secondary px-2.5 py-2 rounded-xl shrink-0" title="Menu">
           <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
