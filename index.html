@@ -56,8 +56,8 @@ function applyTheme(theme){
 window.selectTheme=function(t){
   saveTheme(t);applyTheme(t);
   const db=document.getElementById('themeDarkBtn'),lb=document.getElementById('themeLightBtn');
-  if(db)db.style.borderColor=t==='dark'?'rgba(99,102,241,0.8)':'rgba(148,163,184,0.15)';
-  if(lb)lb.style.borderColor=t==='light'?'rgba(99,102,241,0.8)':'rgba(148,163,184,0.15)';
+  if(db)db.style.borderColor=t==='dark'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
+  if(lb)lb.style.borderColor=t==='light'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
 }
 function initPersonalization(){applyAppName(getAppName());applyTheme(getTheme());}
 
@@ -98,7 +98,7 @@ function getFilteredItems(){
 }
 
 let toastT;
-function showToast(msg,color='#6366f1'){
+function showToast(msg,color='#2563eb'){
   clearTimeout(toastT);const t=document.getElementById('toast');
   t.textContent=msg;t.style.borderColor=color;t.style.opacity='1';
   toastT=setTimeout(()=>t.style.opacity='0',3000);
@@ -178,7 +178,7 @@ window.saveAReceber=function(){
   saveAReceber(all);
   renderAReceber();
   window.closeAReceberModal();
-  showToast('Registrado em A Receber 💰','#6366f1');
+  showToast('Registrado em A Receber 💰','#2563eb');
 }
 
 window.confirmarRecebimento=function(){
@@ -274,14 +274,14 @@ function renderAReceber(){
     const saldo=parseFloat((t.valor-t.valorRecebido).toFixed(2));
     const pct=Math.min(100,Math.round((t.valorRecebido/t.valor)*100));
     const isOldMonth=t.data&&t.data.slice(0,7)<thisKey;
-    return`<div style="background:rgba(15,23,42,0.6);border:1px solid rgba(${t.quitado?'74,222,128':'99,102,241'},0.2);border-radius:16px;padding:14px;margin-bottom:10px">
+    return`<div style="background:rgba(15,23,42,0.6);border:1px solid rgba(${t.quitado?'74,222,128':'37,99,235'},0.2);border-radius:16px;padding:14px;margin-bottom:10px">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px">
         <div style="flex:1;min-width:0">
           <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
             <p style="color:#e2e8f0;font-size:14px;font-weight:700;margin:0">${t.devedor}</p>
             ${isOldMonth&&!t.quitado?'<span style="font-size:10px;background:rgba(245,158,11,0.15);color:#fbbf24;padding:1px 7px;border-radius:8px;font-weight:700">Mês anterior</span>':''}
             ${t.quitado?'<span style="font-size:10px;background:rgba(74,222,128,0.15);color:#4ade80;padding:1px 7px;border-radius:8px;font-weight:700">✓ Quitado</span>':''}
-            ${t.saldoOrigem?'<span style="font-size:10px;background:rgba(99,102,241,0.15);color:#a5b4fc;padding:1px 7px;border-radius:8px;font-weight:700">Saldo</span>':''}
+            ${t.saldoOrigem?'<span style="font-size:10px;background:rgba(37,99,235,0.15);color:#93c5fd;padding:1px 7px;border-radius:8px;font-weight:700">Saldo</span>':''}
           </div>
           <p style="color:#64748b;font-size:12px;margin:2px 0 0">${t.desc} · ${fmtDate(t.data)}</p>
         </div>
@@ -290,9 +290,9 @@ function renderAReceber(){
           ${!t.quitado?`<p style="color:#f59e0b;font-size:11px;margin:2px 0 0">Falta ${fmt(saldo)}</p>`:''}
         </div>
       </div>
-      ${!t.quitado&&t.valorRecebido>0?`<div style="background:rgba(15,23,42,0.5);border-radius:8px;overflow:hidden;height:4px;margin-bottom:8px"><div style="height:4px;background:linear-gradient(90deg,#6366f1,#8b5cf6);width:${pct}%;border-radius:8px;transition:width .4s"></div></div>`:''}
+      ${!t.quitado&&t.valorRecebido>0?`<div style="background:rgba(15,23,42,0.5);border-radius:8px;overflow:hidden;height:4px;margin-bottom:8px"><div style="height:4px;background:linear-gradient(90deg,#2563eb,#3b82f6);width:${pct}%;border-radius:8px;transition:width .4s"></div></div>`:''}
       ${!t.quitado?`<div style="display:flex;gap:8px">
-        <button onclick="openAReceberModal('${t.id}')" style="flex:1;padding:9px;border-radius:11px;background:linear-gradient(135deg,rgba(99,102,241,0.18),rgba(139,92,246,0.18));border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;cursor:pointer;font-weight:700;font-size:12px">💰 Registrar recebimento</button>
+        <button onclick="openAReceberModal('${t.id}')" style="flex:1;padding:9px;border-radius:11px;background:linear-gradient(135deg,rgba(37,99,235,0.18),rgba(59,130,246,0.18));border:1px solid rgba(37,99,235,0.3);color:#93c5fd;cursor:pointer;font-weight:700;font-size:12px">💰 Registrar recebimento</button>
         <button onclick="deletarAReceber('${t.id}')" style="width:38px;padding:9px;border-radius:11px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.15);color:#f87171;cursor:pointer;display:flex;align-items:center;justify-content:center">
           <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
         </button>
@@ -390,7 +390,7 @@ function processRecurring(){
     localStorage.setItem('fpro_v2',JSON.stringify(merged));
     idbSet('fpro_v2',merged); // espelha para SW
     scheduleSync();
-    showToast(`${newItems.length} gasto(s) recorrente(s) lançado(s) ↻`,'#6366f1');
+    showToast(`${newItems.length} gasto(s) recorrente(s) lançado(s) ↻`,'#2563eb');
   }
 }
 
@@ -554,7 +554,7 @@ function showDueAlertsModal(){
     if(diff<0){badge=`<span style="font-size:10px;background:rgba(239,68,68,0.15);color:#f87171;padding:2px 8px;border-radius:10px;font-weight:700">⚠️ VENCIDA há ${Math.abs(diff)}d</span>`;borderColor='rgba(239,68,68,0.25)';}
     else if(diff===0){badge='<span style="font-size:10px;background:rgba(239,68,68,0.15);color:#f87171;padding:2px 8px;border-radius:10px;font-weight:700">🔴 VENCE HOJE</span>';borderColor='rgba(239,68,68,0.25)';}
     else if(diff===1){badge='<span style="font-size:10px;background:rgba(251,191,36,0.15);color:#fbbf24;padding:2px 8px;border-radius:10px;font-weight:700">🟡 VENCE AMANHÃ</span>';borderColor='rgba(251,191,36,0.3)';}
-    else{badge=`<span style="font-size:10px;background:rgba(99,102,241,0.15);color:#a5b4fc;padding:2px 8px;border-radius:10px;font-weight:700">🔔 VENCE EM ${diff} DIAS</span>`;borderColor='rgba(99,102,241,0.2)';}
+    else{badge=`<span style="font-size:10px;background:rgba(37,99,235,0.15);color:#93c5fd;padding:2px 8px;border-radius:10px;font-weight:700">🔔 VENCE EM ${diff} DIAS</span>`;borderColor='rgba(37,99,235,0.2)';}
     return`<div style="background:rgba(15,23,42,0.7);border:1px solid ${borderColor};border-radius:14px;padding:13px 14px;margin-bottom:10px">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
         <span style="font-size:20px">${icon}</span>
@@ -643,8 +643,8 @@ window.openPersonalizacaoModal=function(){
   const t=getTheme();
   setTimeout(()=>{
     const db=document.getElementById('themeDarkBtn'),lb=document.getElementById('themeLightBtn');
-    if(db)db.style.borderColor=t==='dark'?'rgba(99,102,241,0.8)':'rgba(148,163,184,0.15)';
-    if(lb)lb.style.borderColor=t==='light'?'rgba(99,102,241,0.8)':'rgba(148,163,184,0.15)';
+    if(db)db.style.borderColor=t==='dark'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
+    if(lb)lb.style.borderColor=t==='light'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
   },50);
   document.getElementById('personalizacaoOverlay').style.display='flex';
 }
@@ -822,8 +822,8 @@ window.showTab=function(tab){
     const show=t===tab;
     document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1)).style.display=show?'block':'none';
     const btn=document.getElementById('btnTab'+t.charAt(0).toUpperCase()+t.slice(1));
-    btn.style.borderBottom=show?'2px solid #6366f1':'2px solid transparent';
-    btn.style.color=show?'#a5b4fc':'#64748b';
+    btn.style.borderBottom=show?'2px solid #2563eb':'2px solid transparent';
+    btn.style.color=show?'#93c5fd':'#64748b';
   });
 }
 
@@ -902,7 +902,7 @@ function render(){
       <div class="flex-1 min-w-0">
         <div class="flex items-center gap-1.5">
           <p class="text-slate-200 text-sm font-medium truncate">${item.nome}</p>
-          ${item.recorrente?'<span style="font-size:9px;background:rgba(99,102,241,0.18);color:#a5b4fc;padding:1px 6px;border-radius:8px;font-weight:700;flex-shrink:0">↻</span>':''}
+          ${item.recorrente?'<span style="font-size:9px;background:rgba(37,99,235,0.18);color:#93c5fd;padding:1px 6px;border-radius:8px;font-weight:700;flex-shrink:0">↻</span>':''}
           ${item.obs?'<span style="font-size:9px;background:rgba(148,163,184,0.1);color:#64748b;padding:1px 5px;border-radius:8px;flex-shrink:0">📝</span>':''}
           ${item.comprovante?'<span style="font-size:9px;background:rgba(74,222,128,0.1);color:#4ade80;padding:1px 5px;border-radius:8px;flex-shrink:0">🧾</span>':''}
         </div>
@@ -1004,7 +1004,7 @@ window.toggleRecorrente=function(){
   window._recorrente=!window._recorrente;
   const box=document.getElementById('recCheckbox');
   const icon=document.getElementById('recCheckIcon');
-  if(box){box.style.background=window._recorrente?'#6366f1':'transparent';box.style.borderColor=window._recorrente?'#6366f1':'rgba(148,163,184,0.35)';}
+  if(box){box.style.background=window._recorrente?'#2563eb':'transparent';box.style.borderColor=window._recorrente?'#2563eb':'rgba(148,163,184,0.35)';}
   if(icon)icon.style.display=window._recorrente?'block':'none';
 };
 
@@ -1184,7 +1184,7 @@ window.openModal=function(editId){
   const recBox=document.getElementById('recCheckbox');
   const recIcon=document.getElementById('recCheckIcon');
   window._recorrente=isRec;
-  if(recBox){recBox.style.background=isRec?'#6366f1':'transparent';recBox.style.borderColor=isRec?'#6366f1':'rgba(148,163,184,0.35)';}
+  if(recBox){recBox.style.background=isRec?'#2563eb':'transparent';recBox.style.borderColor=isRec?'#2563eb':'rgba(148,163,184,0.35)';}
   if(recIcon)recIcon.style.display=isRec?'block':'none';
   document.getElementById('modalOverlay').style.display='flex';
   // Sem auto-focus para não abrir teclado automaticamente
@@ -1395,7 +1395,7 @@ window.saveItem=function(){
               all[si].vencimento=`${baseVenc.getFullYear()}-${String(baseVenc.getMonth()+1).padStart(2,'0')}-${String(baseVenc.getDate()).padStart(2,'0')}`;
             }else{delete all[si].vencimento;}
           });
-          saveData(all);window.closeModal();render();showToast(`Esta + ${siblings.length} parcelas seguintes atualizadas ✓`,'#6366f1');return;
+          saveData(all);window.closeModal();render();showToast(`Esta + ${siblings.length} parcelas seguintes atualizadas ✓`,'#2563eb');return;
         }
       }
       saveData(all);window.closeModal();render();showToast('Parcela atualizada ✓ (só esta)');return;
@@ -1414,7 +1414,7 @@ window.saveItem=function(){
         if(old){fn.pago=old.pago;if(old.obs)fn.obs=old.obs;}
       });
       all=[...all,...futureNew];
-      saveData(all);window.closeModal();render();showToast('Recorrente e futuros atualizados ↻','#6366f1');return;
+      saveData(all);window.closeModal();render();showToast('Recorrente e futuros atualizados ↻','#2563eb');return;
     }else if(!wasRec&&recorrente){
       // Tornou-se recorrente: gera group e futuros
       const recGroupId='recgrp-'+Date.now();
@@ -1422,7 +1422,7 @@ window.saveItem=function(){
       editedItem.recGroupId=recGroupId;
       const futureItems=buildFutureRecurring(editedItem,1,13);
       all=[...all,...futureItems];
-      saveData(all);window.closeModal();render();showToast('Recorrente criado + lançado nos próximos 12 meses ↻','#6366f1');return;
+      saveData(all);window.closeModal();render();showToast('Recorrente criado + lançado nos próximos 12 meses ↻','#2563eb');return;
     }else if(wasRec&&!recorrente&&oldItem.recGroupId){
       // Removeu recorrência: remove futuros do grupo
       const thisKey=editedItem.monthKey;
@@ -1473,7 +1473,7 @@ window.saveItem=function(){
     const futureItems=buildFutureRecurring(baseItem,1,13);
     all=[...all,...futureItems];
     saveData(all);window.closeModal();render();
-    showToast(`Recorrente criado + lançado nos próximos 12 meses ↻`,'#6366f1');
+    showToast(`Recorrente criado + lançado nos próximos 12 meses ↻`,'#2563eb');
     return;
   }
 
@@ -1527,13 +1527,14 @@ window.openDetail=function(id){
     {label:'Data',value:fmtDate(item.data)},
     {label:'Categoria',value:item.categoria},
     ...(item.vencimento?[{label:'Vencimento',value:fmtDate(item.vencimento),alert:isOverdue?'red':isDueSoon?'amber':null}]:[]),
+    ...(item.pago&&item.dataPagamento?[{label:'✅ Pago em',value:(()=>{const d=new Date(item.dataPagamento);return d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});})(),color:'#4ade80'}]:[]),
     ...(item.cartaoNome?[{label:'Cartão',value:item.cartaoNome}]:[]),
     ...(item.totalParcelas?[{label:'Parcela',value:`${item.parcelNum}/${item.totalParcelas}`}]:[]),
   ];
   document.getElementById('detailInfoGrid').innerHTML=infoItems.map(info=>`
     <div style="background:rgba(30,41,59,0.6);border-radius:12px;padding:12px 14px;border:1px solid rgba(148,163,184,0.07)">
       <p style="color:#475569;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px">${info.label}</p>
-      <p style="color:${info.alert==='red'?'#f87171':info.alert==='amber'?'#fbbf24':'#e2e8f0'};font-size:13px;font-weight:600">${info.value}</p>
+      <p style="color:${info.color||(info.alert==='red'?'#f87171':info.alert==='amber'?'#fbbf24':'#e2e8f0')};font-size:13px;font-weight:600">${info.value}</p>
     </div>`).join('');
 
   // Observação
@@ -1543,15 +1544,9 @@ window.openDetail=function(id){
     document.getElementById('detailObs').textContent=item.obs;
   }else{obsBox.style.display='none';}
 
-  // Data de pagamento
+  // Data de pagamento (box separado — esconde, já está no grid)
   const dpBox=document.getElementById('detailDataPagBox');
-  if(item.pago&&item.dataPagamento){
-    const d=new Date(item.dataPagamento);
-    const fmt2=d.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric'});
-    const hora=d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    document.getElementById('detailDataPag').textContent=`${fmt2} às ${hora}`;
-    dpBox.style.display='block';
-  }else{dpBox.style.display='none';}
+  if(dpBox)dpBox.style.display='none';
 
   // Comprovante
   const compBox=document.getElementById('detailComprovanteBox');
@@ -1716,7 +1711,7 @@ window.exportPDF=function(){
   // ── Faixa de cabeçalho preta ──
   doc.setFillColor(10,10,10);doc.rect(0,0,210,38,'F');
   // Linha de destaque na base do cabeçalho
-  doc.setFillColor(99,102,241);doc.rect(0,36,210,2,'F');
+  doc.setFillColor(37,99,235);doc.rect(0,36,210,2,'F');
   doc.setTextColor(255,255,255);doc.setFontSize(20);doc.setFont('helvetica','bold');
   doc.text(appName,20,18);
   doc.setFontSize(10);doc.setFont('helvetica','normal');
@@ -1762,7 +1757,7 @@ window.exportPDF=function(){
     if(y>275){
       doc.addPage();
       doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');
-      doc.setFillColor(99,102,241);doc.rect(0,0,210,12,'F');
+      doc.setFillColor(37,99,235);doc.rect(0,0,210,12,'F');
       doc.setTextColor(255,255,255);doc.setFontSize(8);doc.setFont('helvetica','italic');
       doc.text(appName+' – '+mLabel+' (continuacao)',20,8);
       doc.setFillColor(245,245,245);doc.rect(18,15,174,7,'F');
@@ -2056,13 +2051,13 @@ function mostrarSugestoesApelidos(sugestoes) {
   const container = document.getElementById('aiAliasSuggestions');
   if (!container) return;
   container.innerHTML = `
-    <div style="background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.18);border-radius:12px;padding:12px 14px;margin-top:10px">
-      <p style="color:#a5b4fc;font-size:12px;font-weight:600;margin-bottom:8px">💡 Quer salvar esses apelidos?</p>
+    <div style="background:rgba(37,99,235,0.07);border:1px solid rgba(37,99,235,0.18);border-radius:12px;padding:12px 14px;margin-top:10px">
+      <p style="color:#93c5fd;font-size:12px;font-weight:600;margin-bottom:8px">💡 Quer salvar esses apelidos?</p>
       ${sugestoes.map((s, i) => `
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
           <span style="color:#94a3b8;font-size:12px">"<b style="color:#e2e8f0">${s.apelido}</b>" → ${s.tipo === 'cartão' ? '💳' : '🏷️'} <b style="color:#e2e8f0">${s.valor}</b></span>
           <div style="display:flex;gap:6px">
-            <button onclick="salvarApelidoSugerido(${i})" style="font-size:11px;padding:3px 10px;border-radius:8px;background:rgba(99,102,241,0.2);border:1px solid rgba(99,102,241,0.3);color:#a5b4fc;cursor:pointer;font-weight:600">Salvar</button>
+            <button onclick="salvarApelidoSugerido(${i})" style="font-size:11px;padding:3px 10px;border-radius:8px;background:rgba(37,99,235,0.2);border:1px solid rgba(37,99,235,0.3);color:#93c5fd;cursor:pointer;font-weight:600">Salvar</button>
             <button onclick="ignorarApelidoSugerido(${i})" style="font-size:11px;padding:3px 8px;border-radius:8px;background:transparent;border:1px solid rgba(148,163,184,0.15);color:#475569;cursor:pointer">Não</button>
           </div>
         </div>`).join('')}
@@ -2105,7 +2100,7 @@ document.addEventListener('click', function(e) {
 </script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overscroll-behavior:none}
+body{background:#050a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overscroll-behavior:none}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#1e293b}::-webkit-scrollbar-thumb{background:#334155;border-radius:2px}
 .glass{background:rgba(30,41,59,0.72);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(148,163,184,0.1)}
 .glass-modal{background:rgba(8,14,28,0.97);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid rgba(148,163,184,0.12)}
@@ -2115,11 +2110,11 @@ body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .card-red:active{transform:scale(0.96)}
 .card-yellow{background:linear-gradient(135deg,rgba(234,179,8,0.12),rgba(161,98,7,0.07));border:1px solid rgba(234,179,8,0.16);border-radius:16px;transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
 .card-yellow:active{transform:scale(0.96)}
-.card-violet{background:linear-gradient(135deg,rgba(99,102,241,0.12),rgba(67,56,202,0.07));border:1px solid rgba(99,102,241,0.16);border-radius:16px;transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
-.card-violet:active{transform:scale(0.96)}
+.card-blue{background:linear-gradient(135deg,rgba(37,99,235,0.12),rgba(67,56,202,0.07));border:1px solid rgba(37,99,235,0.16);border-radius:16px;transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
+.card-blue:active{transform:scale(0.96)}
 /* ── Botões com spring feel ── */
-.btn-primary{background:linear-gradient(135deg,#6366f1,#8b5cf6);color:white;border:none;cursor:pointer;will-change:transform;transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s,filter .15s}
-.btn-primary:hover{filter:brightness(1.08);box-shadow:0 6px 20px rgba(99,102,241,0.38)}
+.btn-primary{background:linear-gradient(135deg,#2563eb,#3b82f6);color:white;border:none;cursor:pointer;will-change:transform;transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s,filter .15s}
+.btn-primary:hover{filter:brightness(1.08);box-shadow:0 6px 20px rgba(37,99,235,0.38)}
 .btn-primary:active{transform:scale(0.93);filter:brightness(0.95);box-shadow:none;transition-duration:.08s}
 .btn-danger{background:linear-gradient(135deg,#ef4444,#dc2626);color:white;border:none;cursor:pointer;will-change:transform;transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s}
 .btn-danger:hover{box-shadow:0 6px 20px rgba(239,68,68,0.35)}
@@ -2132,7 +2127,7 @@ body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .status-paid{background:rgba(34,197,94,0.15);border:1px solid rgba(34,197,94,0.3);color:#4ade80;will-change:transform;transition:transform .18s cubic-bezier(.34,1.56,.64,1),background .15s}
 .status-paid:active{transform:scale(0.9)}
 .progress-bar{height:4px;background:#1e293b;position:sticky;top:0;z-index:60}
-.progress-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#6366f1,#8b5cf6,#ec4899);transition:width .65s cubic-bezier(.34,1.2,.64,1);border-radius:0 2px 2px 0}
+.progress-fill{height:100%;background:linear-gradient(90deg,#3b82f6,#2563eb,#3b82f6,#ec4899);transition:width .65s cubic-bezier(.34,1.2,.64,1);border-radius:0 2px 2px 0}
 @keyframes catWalk{0%,100%{transform:translateY(-50%)}50%{transform:translateY(-58%)}}
 @keyframes catCelebrate{0%,100%{transform:translateY(-50%) scale(1)}50%{transform:translateY(-65%) scale(1.2)}}
 #catPet{animation:catWalk 0.5s ease-in-out infinite}
@@ -2147,11 +2142,11 @@ body{background:#0f172a;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .item-row{background:rgba(30,41,59,0.6);border:1px solid rgba(148,163,184,0.09);border-radius:16px;margin:0 12px 8px;transition:background .18s,transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s;will-change:transform;cursor:pointer}
 .item-row:last-child{margin-bottom:4px}
 .item-row:active{transform:scale(0.982);background:rgba(30,41,59,0.9)!important;box-shadow:0 4px 20px rgba(0,0,0,0.25)}
-.item-row.selected{background:rgba(99,102,241,0.12)!important;border:1px solid rgba(99,102,241,0.3);box-shadow:0 0 0 1px rgba(99,102,241,0.15)}
+.item-row.selected{background:rgba(37,99,235,0.12)!important;border:1px solid rgba(37,99,235,0.3);box-shadow:0 0 0 1px rgba(37,99,235,0.15)}
 .item-row.overdue{border:1px solid rgba(239,68,68,0.3);background:rgba(239,68,68,0.06);border-left:3px solid rgba(239,68,68,0.7)}
 .item-row.due-soon{border:1px solid rgba(245,158,11,0.25);background:rgba(245,158,11,0.05);border-left:3px solid rgba(245,158,11,0.6)}
 input:not([type=checkbox]),select,textarea{background:rgba(15,23,42,0.85)!important;border:1px solid rgba(148,163,184,0.18)!important;color:#e2e8f0!important;border-radius:10px!important;padding:11px 13px!important;width:100%;outline:none;transition:border-color .2s,box-shadow .2s;font-size:15px}
-input:not([type=checkbox]):focus,select:focus,textarea:focus{border-color:rgba(99,102,241,0.5)!important;box-shadow:0 0 0 3px rgba(99,102,241,0.1)}
+input:not([type=checkbox]):focus,select:focus,textarea:focus{border-color:rgba(37,99,235,0.5)!important;box-shadow:0 0 0 3px rgba(37,99,235,0.1)}
 textarea{font-family:inherit;line-height:1.5}
 input[type=checkbox]{display:none!important;width:0!important;height:0!important;padding:0!important;border:none!important}
 select option{background:#1e293b;color:#e2e8f0}
@@ -2166,28 +2161,28 @@ select option{background:#1e293b;color:#e2e8f0}
 .nav-btn:active{transform:scale(0.85);transition-duration:.07s}
 .empty-state{text-align:center;padding:52px 20px;color:#475569}
 /* ── FAB (botão flutuante) ── */
-.fab{position:fixed;bottom:24px;right:24px;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#6366f1,#8b5cf6);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 28px rgba(99,102,241,0.5);will-change:transform;transition:transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .22s;z-index:40}
-.fab:hover{transform:scale(1.07);box-shadow:0 12px 36px rgba(99,102,241,0.6)}
-.fab:active{transform:scale(0.9);box-shadow:0 4px 14px rgba(99,102,241,0.4);transition-duration:.08s}
-.total-bar{background:linear-gradient(135deg,rgba(99,102,241,0.07),rgba(139,92,246,0.07));border:1px solid rgba(99,102,241,0.16)}
+.fab{position:fixed;bottom:24px;right:24px;width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,#3b82f6,#2563eb,#3b82f6);display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 8px 28px rgba(37,99,235,0.5);will-change:transform;transition:transform .22s cubic-bezier(.34,1.56,.64,1),box-shadow .22s;z-index:40}
+.fab:hover{transform:scale(1.07);box-shadow:0 12px 36px rgba(37,99,235,0.6)}
+.fab:active{transform:scale(0.9);box-shadow:0 4px 14px rgba(37,99,235,0.4);transition-duration:.08s}
+.total-bar{background:linear-gradient(135deg,rgba(37,99,235,0.07),rgba(59,130,246,0.07));border:1px solid rgba(37,99,235,0.16)}
 .checkbox-item{width:20px;height:20px;border-radius:6px;border:2px solid rgba(148,163,184,0.28);display:flex;align-items:center;justify-content:center;will-change:transform;transition:transform .18s cubic-bezier(.34,1.56,.64,1),background .15s,border-color .15s;flex-shrink:0;cursor:pointer}
 .checkbox-item:active{transform:scale(0.85)}
-.checkbox-item.checked{background:#6366f1;border-color:#6366f1}
+.checkbox-item.checked{background:#2563eb;border-color:#2563eb}
 .select-bar{background:rgba(239,68,68,0.07);border:1px solid rgba(239,68,68,0.2);border-radius:14px;padding:10px 14px;margin:0 12px 8px;display:flex;align-items:center;justify-content:space-between}
 .toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:rgba(8,14,28,0.97);border:1px solid rgba(148,163,184,0.18);color:#e2e8f0;padding:10px 20px;border-radius:12px;font-size:13px;z-index:200;transition:opacity .35s cubic-bezier(.4,0,.2,1),transform .35s cubic-bezier(.34,1.3,.64,1);pointer-events:none;white-space:nowrap;max-width:92vw}
 .toast.visible{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.hidden{opacity:0;transform:translateX(-50%) translateY(8px)}
 .sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block;flex-shrink:0;transition:background .4s}
 .auth-input{background:rgba(15,23,42,0.85)!important;border:1px solid rgba(148,163,184,0.18)!important;color:#e2e8f0!important;border-radius:12px!important;padding:14px 16px!important;width:100%;outline:none;font-size:15px;transition:border-color .2s,box-shadow .2s}
-.auth-input:focus{border-color:rgba(99,102,241,0.5)!important;box-shadow:0 0 0 3px rgba(99,102,241,0.1)}
+.auth-input:focus{border-color:rgba(37,99,235,0.5)!important;box-shadow:0 0 0 3px rgba(37,99,235,0.1)}
 .filter-chips{display:flex;gap:6px;overflow-x:auto;padding:0 12px 4px;scrollbar-width:none}
 .filter-chips::-webkit-scrollbar{display:none}
 .filter-btn{flex-shrink:0;padding:5px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;background:rgba(30,41,59,0.8);border:1px solid rgba(148,163,184,0.13);color:#64748b;will-change:transform;transition:transform .18s cubic-bezier(.34,1.56,.64,1),background .18s,color .18s,border-color .18s;white-space:nowrap}
 .filter-btn:active{transform:scale(0.91)}
-.filter-btn.filter-active{background:rgba(99,102,241,0.18);border-color:rgba(99,102,241,0.45);color:#a5b4fc}
+.filter-btn.filter-active{background:rgba(37,99,235,0.18);border-color:rgba(37,99,235,0.45);color:#93c5fd}
 .search-wrap{position:relative;padding:0 12px;margin-bottom:8px}
 .search-input{background:rgba(15,23,42,0.65)!important;border:1px solid rgba(148,163,184,0.12)!important;border-radius:12px!important;padding:10px 14px 10px 38px!important;font-size:14px;color:#94a3b8!important}
-.search-input:focus{border-color:rgba(99,102,241,0.38)!important;color:#e2e8f0!important}
+.search-input:focus{border-color:rgba(37,99,235,0.38)!important;color:#e2e8f0!important}
 .search-icon{position:absolute;left:22px;top:50%;transform:translateY(-50%);color:#475569;pointer-events:none}
 /* ── Itens de menu ── */
 .menu-item{display:flex;align-items:center;gap:14px;padding:13px 14px;border-radius:14px;cursor:pointer;will-change:transform;transition:transform .18s cubic-bezier(.34,1.56,.64,1),background .15s;color:#cbd5e1;font-size:14px;font-weight:500}
@@ -2196,9 +2191,9 @@ select option{background:#1e293b;color:#e2e8f0}
 .menu-item:active .menu-item-icon{transform:scale(0.88)}
 .menu-divider{height:1px;background:rgba(148,163,184,0.07);margin:3px 0}
 .icon-btn{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:none;will-change:transform;transition:transform .2s cubic-bezier(.34,1.56,.64,1),background .15s}
-.edit-btn{background:rgba(99,102,241,0.1);color:#818cf8}
-.edit-btn:hover{background:rgba(99,102,241,0.2)}
-.edit-btn:active{transform:scale(0.82);background:rgba(99,102,241,0.28);transition-duration:.07s}
+.edit-btn{background:rgba(37,99,235,0.1);color:#818cf8}
+.edit-btn:hover{background:rgba(37,99,235,0.2)}
+.edit-btn:active{transform:scale(0.82);background:rgba(37,99,235,0.28);transition-duration:.07s}
 @keyframes spin{to{transform:rotate(360deg)}}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 /* ── Ripple effect em botões primários ── */
@@ -2208,38 +2203,54 @@ body.theme-light{background:#f0f4f8!important;color:#0f172a!important}
 body.theme-light .glass{background:rgba(255,255,255,0.96)!important;border-color:rgba(0,0,0,0.08)!important}
 body.theme-light .glass-modal{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important}
 body.theme-light .glass-modal h2,body.theme-light .glass-modal p,body.theme-light .glass-modal span,body.theme-light .glass-modal label,body.theme-light .glass-modal div{color:#1e293b!important}
+/* Header — mês e nome do usuário */
+body.theme-light #monthLabel{color:#0f172a!important}
+body.theme-light #headerDate{color:#1e293b!important}
+body.theme-light #userDisplayName{color:#2563eb!important}
+body.theme-light .text-slate-200{color:#1e293b!important}
+body.theme-light .text-slate-500{color:#475569!important}
+body.theme-light .text-blue-400{color:#1d4ed8!important}
+body.theme-light .text-blue-300{color:#1e40af!important}
+body.theme-light .text-blue-400.font-semibold{color:#1d4ed8!important}
+/* Items */
 body.theme-light .item-row{background:#ffffff!important;border-color:rgba(0,0,0,0.09)!important;box-shadow:0 1px 4px rgba(0,0,0,0.06)!important}
 body.theme-light .item-row *{color:#1e293b!important}
-body.theme-light .item-row .status-paid *,body.theme-light .status-paid{color:#15803d!important;background:rgba(220,252,231,0.8)!important;border-color:rgba(34,197,94,0.3)!important}
-body.theme-light .item-row .status-pending *,body.theme-light .status-pending{color:#b45309!important;background:rgba(254,243,199,0.8)!important;border-color:rgba(234,179,8,0.3)!important}
+body.theme-light .item-row .status-paid,body.theme-light .status-paid{color:#15803d!important;background:rgba(220,252,231,0.8)!important;border-color:rgba(34,197,94,0.3)!important}
+body.theme-light .item-row .status-pending,body.theme-light .status-pending{color:#b45309!important;background:rgba(254,243,199,0.8)!important;border-color:rgba(234,179,8,0.3)!important}
 body.theme-light .item-row.overdue{background:rgba(254,226,226,0.7)!important;border-color:rgba(239,68,68,0.25)!important}
 body.theme-light .item-row.due-soon{background:rgba(255,251,235,0.9)!important;border-color:rgba(245,158,11,0.25)!important}
+/* Cards de resumo */
 body.theme-light .card-green{background:linear-gradient(135deg,#dcfce7,#bbf7d0)!important;border-color:rgba(34,197,94,0.3)!important}
 body.theme-light .card-green *{color:#14532d!important}
 body.theme-light .card-red{background:linear-gradient(135deg,#fee2e2,#fecaca)!important;border-color:rgba(239,68,68,0.3)!important}
 body.theme-light .card-red *{color:#7f1d1d!important}
 body.theme-light .card-yellow{background:linear-gradient(135deg,#fef9c3,#fde68a)!important;border-color:rgba(234,179,8,0.3)!important}
 body.theme-light .card-yellow *{color:#78350f!important}
-body.theme-light .card-violet{background:linear-gradient(135deg,#dbeafe,#bfdbfe)!important;border-color:rgba(37,99,235,0.3)!important}
-body.theme-light .card-violet *{color:#1e3a8a!important}
+body.theme-light .card-blue{background:linear-gradient(135deg,#dbeafe,#bfdbfe)!important;border-color:rgba(37,99,235,0.3)!important}
+body.theme-light .card-blue *{color:#1e3a8a!important}
+/* Navegação e filtros */
 body.theme-light .filter-btn{background:#ffffff!important;border-color:rgba(0,0,0,0.12)!important;color:#334155!important}
 body.theme-light .filter-btn.filter-active{background:rgba(37,99,235,0.1)!important;border-color:rgba(37,99,235,0.4)!important;color:#1d4ed8!important}
 body.theme-light .nav-btn{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important;color:#334155!important}
+/* Menu */
 body.theme-light .menu-item,body.theme-light .menu-item span,body.theme-light .menu-item p{color:#1e293b!important}
 body.theme-light .menu-item:active{background:rgba(0,0,0,0.04)!important}
 body.theme-light .menu-divider{background:rgba(0,0,0,0.07)!important}
 body.theme-light .modal-handle{background:rgba(0,0,0,0.12)!important}
+/* Inputs */
 body.theme-light .btn-secondary{background:#f1f5f9!important;border-color:rgba(0,0,0,0.12)!important;color:#334155!important}
 body.theme-light .search-input,body.theme-light .search-input:focus{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important;color:#1e293b!important}
 body.theme-light input:not([type=checkbox]),body.theme-light select,body.theme-light textarea{background:#ffffff!important;border-color:rgba(0,0,0,0.12)!important;color:#0f172a!important}
 body.theme-light select option{background:#fff!important;color:#0f172a!important}
 body.theme-light .auth-input{background:#ffffff!important;border-color:rgba(0,0,0,0.12)!important;color:#0f172a!important}
 body.theme-light .toast{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important;color:#0f172a!important}
+/* Barra total e auth */
 body.theme-light .total-bar{background:linear-gradient(135deg,rgba(219,234,254,0.6),rgba(191,219,254,0.4))!important;border-color:rgba(37,99,235,0.2)!important}
 body.theme-light .total-bar *{color:#1e40af!important}
 body.theme-light .select-bar{background:rgba(254,226,226,0.4)!important;border-color:rgba(239,68,68,0.2)!important}
 body.theme-light #authScreen{background:radial-gradient(ellipse at 50% 0%,#dbeafe 0%,#f0f4f8 55%)!important}
-body.theme-light [style*="color:#94a3b8"],[style*="color:#64748b"],body.theme-light [style*="color:#475569"]{color:#334155!important}
+/* Inline styles */
+body.theme-light [style*="color:#94a3b8"],body.theme-light [style*="color:#64748b"],body.theme-light [style*="color:#475569"]{color:#334155!important}
 body.theme-light [style*="color:#e2e8f0"],body.theme-light [style*="color:#cbd5e1"],body.theme-light [style*="color:#f1f5f9"]{color:#1e293b!important}
 body.theme-light [style*="background:rgba(15,23,42"],body.theme-light [style*="background:rgba(8,14,28"],body.theme-light [style*="background:rgba(30,41,59"]{background:rgba(255,255,255,0.96)!important;color:#1e293b!important}
 body.theme-light .empty-state{color:#64748b!important}
@@ -2253,12 +2264,12 @@ body.theme-light .empty-state{color:#64748b!important}
 <div id="authScreen" style="display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px;background:radial-gradient(ellipse at 50% 0%,#1a1040 0%,#0f172a 55%)">
   <div style="width:100%;max-width:400px">
     <div style="text-align:center;margin-bottom:32px">
-      <img src="icon-192.png" style="width:84px;height:84px;border-radius:24px;margin:0 auto 14px;display:block;box-shadow:0 0 40px rgba(99,102,241,0.35),0 0 80px rgba(59,130,246,0.15)"/>
-      <h1 style="font-size:26px;font-weight:700;background:linear-gradient(135deg,#60a5fa,#a78bfa,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0" class="app-name">FinancesPro</h1>
+      <img src="icon-192.png" style="width:84px;height:84px;border-radius:24px;margin:0 auto 14px;display:block;box-shadow:0 0 40px rgba(37,99,235,0.35),0 0 80px rgba(59,130,246,0.15)"/>
+      <h1 style="font-size:26px;font-weight:700;background:linear-gradient(135deg,#60a5fa,#60a5fa,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin:0" class="app-name">FinancesPro</h1>
       <p style="color:#475569;font-size:13px;margin-top:5px">Controle total das suas finanças</p>
     </div>
     <div style="display:flex;border-bottom:1px solid rgba(148,163,184,0.1);margin-bottom:24px">
-      <button id="btnTabLogin" onclick="showTab('login')" style="flex:1;padding:11px;background:none;border:none;border-bottom:2px solid #6366f1;color:#a5b4fc;font-size:14px;font-weight:600;cursor:pointer">Entrar</button>
+      <button id="btnTabLogin" onclick="showTab('login')" style="flex:1;padding:11px;background:none;border:none;border-bottom:2px solid #2563eb;color:#93c5fd;font-size:14px;font-weight:600;cursor:pointer">Entrar</button>
       <button id="btnTabRegister" onclick="showTab('register')" style="flex:1;padding:11px;background:none;border:none;border-bottom:2px solid transparent;color:#64748b;font-size:14px;font-weight:600;cursor:pointer">Criar conta</button>
     </div>
     <div id="tabLogin">
@@ -2268,7 +2279,7 @@ body.theme-light .empty-state{color:#64748b!important}
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Senha</label>
         <input class="auth-input" type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
         <button onclick="doLogin()" class="auth-btn btn-primary" style="width:100%;padding:15px;border-radius:14px;font-size:16px;font-weight:700;margin-top:4px">Entrar</button>
-        <p style="text-align:center;margin-top:8px"><button onclick="doForgotPassword()" style="background:none;border:none;color:#6366f1;cursor:pointer;font-size:13px;font-weight:500">Esqueci minha senha</button></p>
+        <p style="text-align:center;margin-top:8px"><button onclick="doForgotPassword()" style="background:none;border:none;color:#2563eb;cursor:pointer;font-size:13px;font-weight:500">Esqueci minha senha</button></p>
         <p style="text-align:center;color:#475569;font-size:13px;margin-top:2px">Não tem conta? <button onclick="showTab('register')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:13px;font-weight:600">Criar agora</button></p>
       </div>
     </div>
@@ -2296,14 +2307,14 @@ body.theme-light .empty-state{color:#64748b!important}
   <div class="glass sticky top-1 z-40 mx-3 mt-2 rounded-2xl px-3 py-2.5 mb-3">
     <div class="flex items-center justify-between gap-2">
       <div class="flex items-center gap-2.5 min-w-0">
-        <img src="icon-192.png" style="width:36px;height:36px;border-radius:10px;flex-shrink:0;box-shadow:0 0 12px rgba(99,102,241,0.3)"/>
+        <img src="icon-192.png" style="width:36px;height:36px;border-radius:10px;flex-shrink:0;box-shadow:0 0 12px rgba(37,99,235,0.3)"/>
         <div class="min-w-0">
           <div class="flex items-center gap-1.5">
             <p class="text-sm font-semibold text-slate-200 leading-tight truncate" id="headerDate"></p>
             <span id="syncDot" class="sync-dot" style="background:#475569" title="Status do sync"></span>
             <span id="pbsModeDot" class="sync-dot" style="display:none;width:6px;height:6px;border-radius:50%;flex-shrink:0"></span>
           </div>
-          <p class="text-xs text-slate-500 leading-none mt-0.5">Olá, <span id="userDisplayName" class="text-violet-400 font-semibold"></span></p>
+          <p class="text-xs text-slate-500 leading-none mt-0.5">Olá, <span id="userDisplayName" class="text-blue-400 font-semibold"></span></p>
         </div>
       </div>
       <button onclick="openMenu()" class="btn-secondary px-2.5 py-2 rounded-xl shrink-0" title="Menu">
@@ -2324,19 +2335,19 @@ body.theme-light .empty-state{color:#64748b!important}
     <div class="card-green p-3"><p class="text-green-400 text-xs font-semibold mb-0.5">✓ Pagas</p><p class="text-green-300 font-bold text-lg leading-tight" id="cardSaldo">R$ 0,00</p></div>
     <div class="card-red p-3"><p class="text-red-400 text-xs font-semibold mb-0.5">💸 Total</p><p class="text-red-300 font-bold text-lg leading-tight" id="cardGastos">R$ 0,00</p></div>
     <div class="card-yellow p-3"><p class="text-yellow-400 text-xs font-semibold mb-0.5">⏳ Pendentes</p><p class="text-yellow-300 font-bold text-lg leading-tight" id="cardPending">R$ 0,00</p></div>
-    <div class="card-violet p-3"><p class="text-violet-400 text-xs font-semibold mb-0.5">💳 Cartão Pend.</p><p class="text-violet-300 font-bold text-lg leading-tight" id="cardCartao">R$ 0,00</p></div>
+    <div class="card-blue p-3"><p class="text-blue-400 text-xs font-semibold mb-0.5">💳 Cartão Pend.</p><p class="text-blue-300 font-bold text-lg leading-tight" id="cardCartao">R$ 0,00</p></div>
   </div>
 
   <!-- Progress com gatinho -->
   <div class="mx-3 mb-3 total-bar rounded-2xl px-4 py-3">
     <div class="flex items-center justify-between mb-2">
       <span class="text-slate-300 text-sm" id="progressLabel">0 de 0 pagas</span>
-      <span class="text-violet-400 text-sm font-bold" id="progressPct">0%</span>
+      <span class="text-blue-400 text-sm font-bold" id="progressPct">0%</span>
     </div>
     <!-- Trilha do gatinho -->
     <div id="catTrack" style="position:relative;height:28px;background:rgba(15,23,42,0.5);border-radius:20px;overflow:hidden;border:1px solid rgba(148,163,184,0.08)">
       <!-- Barra de progresso -->
-      <div id="progressFill" style="position:absolute;inset:0;width:0%;background:linear-gradient(90deg,#3b82f6,#6366f1,#8b5cf6,#ec4899);border-radius:20px;transition:width .65s cubic-bezier(.34,1.2,.64,1)"></div>
+      <div id="progressFill" style="position:absolute;inset:0;width:0%;background:linear-gradient(90deg,#3b82f6,#2563eb,#3b82f6,#ec4899);border-radius:20px;transition:width .65s cubic-bezier(.34,1.2,.64,1)"></div>
       <!-- Chãozinho pontilhado -->
       <div style="position:absolute;bottom:6px;left:10px;right:34px;height:1px;border-top:1px dashed rgba(148,163,184,0.15)"></div>
       <!-- Casinha -->
@@ -2397,7 +2408,7 @@ body.theme-light .empty-state{color:#64748b!important}
           <p style="color:#f59e0b;font-size:12px;font-weight:600;margin:0" id="arTotalPendente"></p>
         </div>
       </div>
-      <button onclick="openAReceberModal()" style="padding:7px 14px;border-radius:12px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.25);color:#a5b4fc;cursor:pointer;font-weight:700;font-size:12px">+ Novo</button>
+      <button onclick="openAReceberModal()" style="padding:7px 14px;border-radius:12px;background:rgba(37,99,235,0.15);border:1px solid rgba(37,99,235,0.25);color:#93c5fd;cursor:pointer;font-weight:700;font-size:12px">+ Novo</button>
     </div>
     <div id="arList"></div>
   </div>
@@ -2419,7 +2430,7 @@ body.theme-light .empty-state{color:#64748b!important}
     <div class="modal-handle"></div>
     <!-- Header do menu -->
     <div style="display:flex;align-items:center;gap:12px;padding:4px 4px 14px;border-bottom:1px solid rgba(148,163,184,0.08)">
-      <img src="icon-192.png" style="width:40px;height:40px;border-radius:12px;box-shadow:0 0 16px rgba(99,102,241,0.3)"/>
+      <img src="icon-192.png" style="width:40px;height:40px;border-radius:12px;box-shadow:0 0 16px rgba(37,99,235,0.3)"/>
       <div>
         <p style="font-size:15px;font-weight:700;color:#e2e8f0;margin:0" class="app-name">FinancesPro</p>
         <p style="font-size:11px;color:#475569;margin:0" id="menuUserName"></p>
@@ -2429,14 +2440,14 @@ body.theme-light .empty-state{color:#64748b!important}
     <div style="height:8px"></div>
 
     <div onclick="menuAction('profile')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
+      <div class="menu-item-icon" style="background:rgba(37,99,235,0.14)">
         <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg>
       </div>
       <span>Editar Perfil</span>
     </div>
 
     <div onclick="menuAction('cartoes')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
+      <div class="menu-item-icon" style="background:rgba(37,99,235,0.14)">
         <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
       </div>
       <span>Gerenciar Cartões</span>
@@ -2450,7 +2461,7 @@ body.theme-light .empty-state{color:#64748b!important}
     </div>
 
     <div onclick="menuAction('transferencia')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.16)">
+      <div class="menu-item-icon" style="background:rgba(37,99,235,0.16)">
         <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/></svg>
       </div>
       <span>💰 A Receber</span>
@@ -2465,8 +2476,8 @@ body.theme-light .empty-state{color:#64748b!important}
 
     <div onclick="menuAction('notifs')" class="menu-item" style="justify-content:space-between">
       <div style="display:flex;align-items:center;gap:14px">
-        <div class="menu-item-icon" style="background:rgba(139,92,246,0.13)">
-          <svg width="17" height="17" fill="none" stroke="#a78bfa" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <div class="menu-item-icon" style="background:rgba(59,130,246,0.13)">
+          <svg width="17" height="17" fill="none" stroke="#60a5fa" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
         </div>
         <span id="menuNotifText">🔔 Ativar notificações</span>
       </div>
@@ -2474,8 +2485,8 @@ body.theme-light .empty-state{color:#64748b!important}
     </div>
 
     <div onclick="menuAction('settings')" class="menu-item">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
-        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      <div class="menu-item-icon" style="background:rgba(37,99,235,0.13)">
+        <svg width="17" height="17" fill="none" stroke="#93c5fd" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
       </div>
       <span>Configurações adicionais</span>
     </div>
@@ -2512,7 +2523,7 @@ body.theme-light .empty-state{color:#64748b!important}
     <input type="hidden" id="editId"/>
     <!-- Info banners -->
     <div id="modalParcelaInfo" style="display:none;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;padding:9px 13px;font-size:12px;color:#fbbf24;margin-bottom:4px"></div>
-    <div id="modalRecInfo" style="display:none;background:rgba(99,102,241,0.07);border:1px solid rgba(99,102,241,0.18);border-radius:10px;padding:9px 13px;font-size:12px;color:#a5b4fc;margin-bottom:4px">↻ Recorrente — salvar vai atualizar todos os meses seguintes em cascata</div>
+    <div id="modalRecInfo" style="display:none;background:rgba(37,99,235,0.07);border:1px solid rgba(37,99,235,0.18);border-radius:10px;padding:9px 13px;font-size:12px;color:#93c5fd;margin-bottom:4px">↻ Recorrente — salvar vai atualizar todos os meses seguintes em cascata</div>
     <div class="space-y-3">
       <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Descrição *</label>
       <input type="text" id="inputNome" placeholder="Ex: Netflix, Aluguel, Mercado..."/></div>
@@ -2523,7 +2534,7 @@ body.theme-light .empty-state{color:#64748b!important}
         <input type="date" id="inputData"/></div>
       </div>
       <div>
-        <label class="text-slate-400 text-xs block mb-1.5 ml-1">📅 Data de vencimento <span style="color:#6366f1">(para alertas)</span></label>
+        <label class="text-slate-400 text-xs block mb-1.5 ml-1">📅 Data de vencimento <span style="color:#2563eb">(para alertas)</span></label>
         <input type="date" id="inputVencimento"/>
         <p class="text-slate-600 text-xs mt-1 ml-1">Você receberá notificações até 3 dias antes</p>
       </div>
@@ -2561,13 +2572,13 @@ body.theme-light .empty-state{color:#64748b!important}
       <!-- Comprovante -->
       <div>
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">🧾 Comprovante <span style="color:#475569">(opcional · máx. 2MB)</span></label>
-        <div id="comprovanteBox" onclick="document.getElementById('inputComprovante').click()" style="border:1.5px dashed rgba(148,163,184,0.2);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:border-color .15s;background:rgba(148,163,184,0.03)" onmouseover="this.style.borderColor='rgba(99,102,241,0.4)'" onmouseout="this.style.borderColor='rgba(148,163,184,0.2)'">
+        <div id="comprovanteBox" onclick="document.getElementById('inputComprovante').click()" style="border:1.5px dashed rgba(148,163,184,0.2);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:border-color .15s;background:rgba(148,163,184,0.03)" onmouseover="this.style.borderColor='rgba(37,99,235,0.4)'" onmouseout="this.style.borderColor='rgba(148,163,184,0.2)'">
           <div id="comprovanteThumb" style="display:none;position:relative;flex-shrink:0">
             <img id="comprovantePreview" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid rgba(148,163,184,0.15)" src="" alt="Comprovante"/>
             <button onclick="event.stopPropagation();clearComprovante()" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#ef4444;border:none;color:white;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>
           </div>
           <div id="comprovanteEmpty" style="display:flex;align-items:center;gap:10px;width:100%">
-            <div style="width:36px;height:36px;border-radius:10px;background:rgba(99,102,241,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <div style="width:36px;height:36px;border-radius:10px;background:rgba(37,99,235,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
               <svg width="16" height="16" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             </div>
             <div>
@@ -2575,13 +2586,13 @@ body.theme-light .empty-state{color:#64748b!important}
               <p style="color:#475569;font-size:11px;margin:2px 0 0">JPG, PNG ou WEBP</p>
             </div>
           </div>
-          <p id="comprovanteFileName" style="display:none;color:#a5b4fc;font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></p>
+          <p id="comprovanteFileName" style="display:none;color:#93c5fd;font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></p>
         </div>
         <input type="file" id="inputComprovante" accept="image/*" style="display:none" onchange="handleComprovanteChange(this)"/>
       </div>
 
       <!-- Checkbox Gasto Recorrente -->
-      <div class="flex items-center gap-3 p-3 rounded-xl" style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);cursor:pointer" onclick="toggleRecorrente()">
+      <div class="flex items-center gap-3 p-3 rounded-xl" style="background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.15);cursor:pointer" onclick="toggleRecorrente()">
         <div id="recCheckbox" style="width:22px;height:22px;border-radius:6px;border:2px solid rgba(148,163,184,0.35);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s;background:transparent">
           <svg id="recCheckIcon" width="13" height="13" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24" style="display:none"><path d="M5 13l4 4L19 7"/></svg>
         </div>
@@ -2608,7 +2619,7 @@ body.theme-light .empty-state{color:#64748b!important}
     </div>
     <div id="cartoesList"></div>
     <!-- Form novo/editar -->
-    <div id="cartaoForm" style="display:none;margin-top:16px;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:14px;padding:14px">
+    <div id="cartaoForm" style="display:none;margin-top:16px;background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.15);border-radius:14px;padding:14px">
       <p id="cartaoFormTitle" class="text-slate-300 text-sm font-bold mb-3">Novo Cartão</p>
       <input type="hidden" id="cartaoEditIdx"/>
       <div class="space-y-3">
@@ -2657,7 +2668,7 @@ body.theme-light .empty-state{color:#64748b!important}
         </div>
         <div id="unverifiedBadge" style="display:none;align-items:center;gap-8px;flex-wrap:wrap;gap:8px">
           <span style="font-size:11px;background:rgba(251,191,36,0.13);color:#fbbf24;padding:3px 10px;border-radius:20px;font-weight:700;border:1px solid rgba(251,191,36,0.2)">⚠️ Não verificado</span>
-          <button onclick="sendVerificationEmail()" style="font-size:11px;background:rgba(99,102,241,0.15);color:#a5b4fc;padding:3px 12px;border-radius:20px;font-weight:700;border:1px solid rgba(99,102,241,0.25);cursor:pointer">Enviar verificação</button>
+          <button onclick="sendVerificationEmail()" style="font-size:11px;background:rgba(37,99,235,0.15);color:#93c5fd;padding:3px 12px;border-radius:20px;font-weight:700;border:1px solid rgba(37,99,235,0.25);cursor:pointer">Enviar verificação</button>
         </div>
       </div>
       <div>
@@ -2693,7 +2704,7 @@ body.theme-light .empty-state{color:#64748b!important}
     <div class="modal-handle"></div>
     <div class="flex items-center justify-between mb-5">
       <div class="flex items-center gap-3">
-        <div id="detailIcon" style="width:44px;height:44px;border-radius:14px;background:rgba(99,102,241,0.13);display:flex;align-items:center;justify-content:center;font-size:22px"></div>
+        <div id="detailIcon" style="width:44px;height:44px;border-radius:14px;background:rgba(37,99,235,0.13);display:flex;align-items:center;justify-content:center;font-size:22px"></div>
         <div>
           <h2 class="text-slate-100 font-bold text-lg leading-tight" id="detailNome"></h2>
           <p class="text-slate-500 text-xs mt-0.5" id="detailCategoria"></p>
@@ -2703,7 +2714,7 @@ body.theme-light .empty-state{color:#64748b!important}
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12"/></svg>
       </button>
     </div>
-    <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.18);border-radius:16px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
+    <div style="background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.18);border-radius:16px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;justify-content:space-between">
       <div>
         <p class="text-slate-500 text-xs mb-1">Valor</p>
         <p id="detailValor" style="font-size:26px;font-weight:800;color:#e2e8f0;line-height:1"></p>
@@ -2723,12 +2734,12 @@ body.theme-light .empty-state{color:#64748b!important}
       <p style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🧾 Comprovante</p>
       <img id="detailComprovanteImg" src="" alt="Comprovante" onclick="window.toggleComprovanteZoom()" style="width:100%;max-height:180px;object-fit:cover;border-radius:12px;border:1px solid rgba(148,163,184,0.12);cursor:zoom-in;transition:all .2s"/>
     </div>
-    <div id="detailRecBox" style="display:none;background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:14px;padding:12px;margin-bottom:16px">
-      <p style="color:#a5b4fc;font-size:12px;font-weight:600">↻ Gasto Recorrente — lançado nos próximos meses</p>
+    <div id="detailRecBox" style="display:none;background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.15);border-radius:14px;padding:12px;margin-bottom:16px">
+      <p style="color:#93c5fd;font-size:12px;font-weight:600">↻ Gasto Recorrente — lançado nos próximos meses</p>
     </div>
     <div style="display:flex;gap:10px;margin-top:4px">
       <button id="detailBtnPago" onclick="event.stopPropagation();detailTogglePago()" style="flex:1;padding:12px;border-radius:14px;border:none;cursor:pointer;font-weight:700;font-size:13px;transition:all .15s"></button>
-      <button onclick="event.stopPropagation();detailEdit()" style="flex:1;padding:12px;border-radius:14px;background:rgba(99,102,241,0.13);color:#a5b4fc;border:1px solid rgba(99,102,241,0.2);cursor:pointer;font-weight:700;font-size:13px">✏️ Editar</button>
+      <button onclick="event.stopPropagation();detailEdit()" style="flex:1;padding:12px;border-radius:14px;background:rgba(37,99,235,0.13);color:#93c5fd;border:1px solid rgba(37,99,235,0.2);cursor:pointer;font-weight:700;font-size:13px">✏️ Editar</button>
       <button onclick="event.stopPropagation();detailDelete()" style="width:46px;padding:12px;border-radius:14px;background:rgba(239,68,68,0.1);color:#f87171;border:1px solid rgba(239,68,68,0.15);cursor:pointer;display:flex;align-items:center;justify-content:center">
         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
       </button>
@@ -2769,7 +2780,7 @@ body.theme-light .empty-state{color:#64748b!important}
     <!-- Tema -->
     <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🌗 Tema</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
-      <button id="themeDarkBtn" onclick="selectTheme('dark')" style="padding:14px;border-radius:14px;border:2px solid rgba(99,102,241,0.5);background:rgba(5,10,15,0.8);color:#e2e8f0;cursor:pointer;font-weight:700;font-size:13px">🌙 Escuro</button>
+      <button id="themeDarkBtn" onclick="selectTheme('dark')" style="padding:14px;border-radius:14px;border:2px solid rgba(37,99,235,0.5);background:rgba(5,10,15,0.8);color:#e2e8f0;cursor:pointer;font-weight:700;font-size:13px">🌙 Escuro</button>
       <button id="themeLightBtn" onclick="selectTheme('light')" style="padding:14px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.15);color:#e2e8f0;cursor:pointer;font-weight:700;font-size:13px">☀️ Claro</button>
     </div>
     <!-- Nome do app -->
@@ -2815,7 +2826,7 @@ body.theme-light .empty-state{color:#64748b!important}
 
     <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Sincronização</p>
     <div onclick="closeSettingsModal();setTimeout(()=>menuAction('sync'),200)" class="menu-item" style="border:1px solid rgba(148,163,184,0.08);border-radius:14px;margin-bottom:8px">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.14)">
+      <div class="menu-item-icon" style="background:rgba(37,99,235,0.14)">
         <svg width="17" height="17" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
       </div>
       <span>Sincronizar com nuvem agora</span>
@@ -2823,7 +2834,7 @@ body.theme-light .empty-state{color:#64748b!important}
     <div onclick="closeSettingsModal();setTimeout(()=>window._runPeriodicSync(),200)" class="menu-item" style="border:1px solid rgba(148,163,184,0.08);border-radius:14px;margin-bottom:16px;justify-content:space-between">
       <div style="display:flex;align-items:center;gap:14px">
         <div class="menu-item-icon" style="background:rgba(129,140,248,0.13)">
-          <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <svg width="17" height="17" fill="none" stroke="#93c5fd" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </div>
         <div>
           <span style="display:block;color:#cbd5e1;font-size:14px;font-weight:500">Sync periódico agora</span>
@@ -2835,8 +2846,8 @@ body.theme-light .empty-state{color:#64748b!important}
 
     <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Dados</p>
     <div onclick="closeSettingsModal();setTimeout(()=>window.exportData(),200)" class="menu-item" style="border:1px solid rgba(148,163,184,0.08);border-radius:14px;margin-bottom:8px">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
-        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      <div class="menu-item-icon" style="background:rgba(37,99,235,0.13)">
+        <svg width="17" height="17" fill="none" stroke="#93c5fd" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
       </div>
       <div>
         <span style="display:block;color:#cbd5e1;font-size:14px;font-weight:500">Exportar dados</span>
@@ -2844,8 +2855,8 @@ body.theme-light .empty-state{color:#64748b!important}
       </div>
     </div>
     <div onclick="closeSettingsModal();setTimeout(()=>window.importData(),200)" class="menu-item" style="border:1px solid rgba(148,163,184,0.08);border-radius:14px;margin-bottom:16px">
-      <div class="menu-item-icon" style="background:rgba(99,102,241,0.13)">
-        <svg width="17" height="17" fill="none" stroke="#a5b4fc" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      <div class="menu-item-icon" style="background:rgba(37,99,235,0.13)">
+        <svg width="17" height="17" fill="none" stroke="#93c5fd" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
       </div>
       <div>
         <span style="display:block;color:#cbd5e1;font-size:14px;font-weight:500">Importar dados</span>
@@ -2887,13 +2898,13 @@ body.theme-light .empty-state{color:#64748b!important}
       </div>
       <div style="display:flex;gap:10px">
         <button onclick="closeAReceberModal()" style="flex:1;padding:12px;border-radius:14px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:13px">Cancelar</button>
-        <button onclick="saveAReceber()" style="flex:1;padding:12px;border-radius:14px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border:none;color:white;cursor:pointer;font-weight:700;font-size:13px">Registrar</button>
+        <button onclick="saveAReceber()" style="flex:1;padding:12px;border-radius:14px;background:linear-gradient(135deg,#2563eb,#3b82f6);border:none;color:white;cursor:pointer;font-weight:700;font-size:13px">Registrar</button>
       </div>
     </div>
 
     <!-- Registrar recebimento -->
     <div id="arReceberSection" style="display:none">
-      <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:14px;padding:14px;margin-bottom:16px">
+      <div style="background:rgba(37,99,235,0.08);border:1px solid rgba(37,99,235,0.2);border-radius:14px;padding:14px;margin-bottom:16px">
         <p id="arReceberNome" style="color:#e2e8f0;font-size:14px;font-weight:700;margin:0 0 4px"></p>
         <p id="arReceberSaldo" style="color:#f59e0b;font-size:13px;font-weight:700;margin:0"></p>
       </div>
