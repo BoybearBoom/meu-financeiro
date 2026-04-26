@@ -1704,95 +1704,152 @@ window.exportPDF=function(){
   const doc=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
   const items=getMonthItems(),mLabel=MONTHS[curMonth]+' '+curYear;
   const appName=getAppName();
-
-  // ── Fundo branco ──
-  doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');
-
-  // ── Faixa de cabeçalho preta ──
-  doc.setFillColor(10,10,10);doc.rect(0,0,210,38,'F');
-  // Linha de destaque na base do cabeçalho
-  doc.setFillColor(37,99,235);doc.rect(0,36,210,2,'F');
-  doc.setTextColor(255,255,255);doc.setFontSize(20);doc.setFont('helvetica','bold');
-  doc.text(appName,20,18);
-  doc.setFontSize(10);doc.setFont('helvetica','normal');
-  doc.text('Relatorio - '+mLabel,20,27);
-  doc.text('Gerado: '+fmtDate(new Date().toISOString().split('T')[0]),20,34);
-  // Nome do usuário no canto superior direito
-  const userName=currentUser?(currentUser.displayName||currentUser.email.split('@')[0]):'';
-  if(userName){
-    doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(180,180,255);
-    doc.text(userName,190,14,{align:'right'});
-    doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(120,120,180);
-    doc.text('@financespro',190,21,{align:'right'});
-  }
-
-  // ── Cards de resumo ──
   const total=items.reduce((s,i)=>s+parseFloat(i.valor),0);
-  const paidT=items.filter(i=>i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
   const pendT=items.filter(i=>!i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
-  const cards=[
-    {v:fmt(paidT),l:'Pagas',bg:[232,245,233],valColor:[27,94,32],lColor:[56,142,60]},
-    {v:fmt(total),l:'Total',bg:[232,240,254],valColor:[26,35,126],lColor:[57,73,171]},
-    {v:fmt(pendT),l:'Pendentes',bg:[255,243,224],valColor:[230,81,0],lColor:[239,108,0]}
-  ];
-  cards.forEach(({v,l,bg,valColor,lColor},idx)=>{
-    const x=20+idx*62;
-    doc.setFillColor(...bg);doc.roundedRect(x,44,57,20,3,3,'F');
-    doc.setTextColor(...valColor);doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text(v,x+4,53);
-    doc.setTextColor(...lColor);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text(l,x+4,61);
-  });
+  const userName=currentUser?(currentUser.displayName||currentUser.email.split('@')[0]):'';
 
-  // ── Linha separadora ──
-  doc.setDrawColor(220,220,220);doc.setLineWidth(0.3);doc.line(20,70,190,70);
+  const drawHeader=()=>{
+    doc.setFillColor(0,0,0);doc.rect(0,0,210,36,'F');
+    doc.setFillColor(37,99,235);doc.rect(0,34,210,2,'F');
+    doc.setFontSize(18);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
+    doc.text(appName,20,16);
+    doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(147,197,253);
+    doc.text('Relatório — '+mLabel,20,24);
+    doc.text('Gerado: '+fmtDate(new Date().toISOString().split('T')[0]),20,31);
+    if(userName){
+      doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
+      doc.text(userName,190,14,{align:'right'});
+      doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(147,197,253);
+      doc.text('@financespro',190,21,{align:'right'});
+    }
+  };
 
-  // ── Cabeçalho da tabela ──
-  doc.setFillColor(245,245,245);doc.rect(18,73,174,8,'F');
-  doc.setFontSize(8);doc.setTextColor(80,80,80);doc.setFont('helvetica','bold');
-  ['DESCRICAO','CAT.','VENC.','VALOR','STATUS'].forEach((h,i)=>doc.text(h,[21,91,122,148,172][i],79));
-  doc.setDrawColor(200,200,200);doc.line(20,81,190,81);
+  const drawFooter=()=>{
+    const pg=doc.getNumberOfPages();
+    doc.setDrawColor(226,232,240);doc.setLineWidth(0.3);doc.line(18,284,192,284);
+    doc.setTextColor(148,163,184);doc.setFontSize(7);doc.setFont('helvetica','normal');
+    doc.text(appName+' — Relatório gerado automaticamente',20,289);
+    doc.text('Página '+pg,185,289);
+  };
 
-  // ── Linhas da tabela ──
-  let y=90;
+  const drawTableHeader=(yy)=>{
+    doc.setFillColor(37,99,235);doc.rect(18,yy,174,8,'F');
+    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
+    doc.text('DESCRIÇÃO',22,yy+5.5);
+    doc.text('CAT.',78,yy+5.5);
+    doc.text('OBSERVAÇÃO',103,yy+5.5);
+    doc.text('VENCIMENTO',135,yy+5.5);
+    doc.text('VALOR',158,yy+5.5);
+    doc.text('STATUS',178,yy+5.5);
+  };
+
+  // Página 1
+  doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');
+  drawHeader();
+  let y=45;
+  drawTableHeader(y);
+  y+=11;
+
   [...items].sort((a,b)=>a.data>b.data?1:-1).forEach((item,idx)=>{
-    if(y>275){
+    const obs=item.obs?doc.splitTextToSize(item.obs,26):[];
+    const hasDP=item.pago&&item.dataPagamento;
+    const rowH=Math.max(10, hasDP?14:10, obs.length>1?obs.length*4+6:10);
+
+    if(y+rowH>275){
+      drawFooter();
       doc.addPage();
       doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');
-      doc.setFillColor(37,99,235);doc.rect(0,0,210,12,'F');
-      doc.setTextColor(255,255,255);doc.setFontSize(8);doc.setFont('helvetica','italic');
-      doc.text(appName+' – '+mLabel+' (continuacao)',20,8);
-      doc.setFillColor(245,245,245);doc.rect(18,15,174,7,'F');
-      doc.setFontSize(8);doc.setTextColor(80,80,80);doc.setFont('helvetica','bold');
-      ['DESCRICAO','CAT.','VENC.','VALOR','STATUS'].forEach((h,i)=>doc.text(h,[21,91,122,148,172][i],20));
-      doc.setDrawColor(200,200,200);doc.line(20,22,190,22);
-      y=31;
+      drawHeader();
+      y=45;
+      drawTableHeader(y);
+      y+=11;
     }
-    if(idx%2===0){doc.setFillColor(249,250,251);doc.rect(18,y-5,174,9,'F');}
-    doc.setFont('helvetica','normal');doc.setFontSize(8.5);
-    doc.setTextColor(30,30,30);
-    doc.text(item.nome.length>28?item.nome.substring(0,26)+'.':item.nome,21,y);
-    doc.setTextColor(80,80,80);
-    doc.text(item.categoria.substring(0,10),91,y);
-    doc.text(item.vencimento?fmtDate(item.vencimento):'-',122,y);
-    doc.setTextColor(30,30,30);doc.text(fmt(item.valor),148,y);
-    if(item.pago){doc.setTextColor(27,94,32);doc.text('Pago',172,y);}
-    else{doc.setTextColor(230,81,0);doc.text('Pend.',172,y);}
-    y+=9;
+
+    // Fundo alternado
+    doc.setFillColor(idx%2===0?248:255,idx%2===0?250:255,idx%2===0?252:255);
+    doc.rect(18,y-4,174,rowH,'F');
+    // Borda lateral status
+    doc.setFillColor(item.pago?34:249,item.pago?197:115,item.pago?94:22);
+    doc.rect(18,y-4,2.5,rowH,'F');
+
+    const mid=y+(rowH-10)/2;
+
+    // Descrição
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(15,23,42);
+    doc.text(item.nome.length>20?item.nome.substring(0,18)+'…':item.nome,22,mid+2);
+
+    // Categoria
+    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(71,85,105);
+    doc.text(item.categoria.substring(0,11),78,mid+2);
+
+    // Observação
+    if(obs.length>0){
+      doc.setFontSize(6.5);doc.setTextColor(100,116,139);
+      doc.text(obs,103,mid+2);
+    }else{
+      doc.setFontSize(7);doc.setTextColor(203,213,225);doc.text('—',103,mid+2);
+    }
+
+    // Vencimento
+    doc.setFontSize(7.5);
+    if(item.vencimento){
+      const vd=new Date(item.vencimento+'T12:00:00');
+      const hoje=new Date();hoje.setHours(0,0,0,0);
+      const diff=Math.round((vd-hoje)/86400000);
+      doc.setTextColor(!item.pago&&diff<0?220:!item.pago&&diff<=3?234:71,
+                       !item.pago&&diff<0?38:!item.pago&&diff<=3?88:85,
+                       !item.pago&&diff<0?38:!item.pago&&diff<=3?12:105);
+      doc.text(fmtDate(item.vencimento),135,mid+2);
+    }else{
+      doc.setTextColor(203,213,225);doc.text('—',135,mid+2);
+    }
+
+    // Valor
+    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(15,23,42);
+    doc.text(fmt(item.valor),158,mid+2);
+
+    // Status
+    if(item.pago){
+      doc.setFillColor(220,252,231);doc.roundedRect(175,y-3,19,5,1,1,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(21,128,61);
+      doc.text('✓ Pago',177,y+1);
+      if(hasDP){
+        const dp=new Date(item.dataPagamento);
+        doc.setFont('helvetica','normal');doc.setFontSize(6);doc.setTextColor(100,116,139);
+        doc.text(dp.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dp.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),175,y+6.5);
+      }
+    }else{
+      doc.setFillColor(255,237,213);doc.roundedRect(175,y-3,19,5,1,1,'F');
+      doc.setFont('helvetica','bold');doc.setFontSize(6.5);doc.setTextColor(194,65,12);
+      doc.text('Pend.',177,y+1);
+    }
+
+    // Divisória
+    doc.setDrawColor(226,232,240);doc.setLineWidth(0.15);
+    doc.line(18,y-4+rowH,192,y-4+rowH);
+    y+=rowH;
   });
 
-  // ── Linha e total final ──
-  doc.setDrawColor(200,200,200);doc.setLineWidth(0.4);doc.line(20,y+2,190,y+2);
-  doc.setFillColor(232,240,254);doc.roundedRect(130,y+5,60,10,2,2,'F');
-  doc.setTextColor(26,35,126);doc.setFont('helvetica','bold');doc.setFontSize(9);
-  doc.text('TOTAL: '+fmt(total),134,y+12);
+  // Totais finais
+  y+=5;
+  if(y>272){drawFooter();doc.addPage();doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');y=20;}
+  doc.setDrawColor(226,232,240);doc.setLineWidth(0.4);doc.line(18,y,192,y);
+  y+=6;
+  doc.setFillColor(37,99,235);doc.roundedRect(120,y,36,13,2,2,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(7);
+  doc.text('TOTAL',122,y+5);
+  doc.setFontSize(9);doc.text(fmt(total),122,y+11);
+  if(pendT>0){
+    doc.setFillColor(255,237,213);doc.roundedRect(160,y,32,13,2,2,'F');
+    doc.setTextColor(194,65,12);doc.setFont('helvetica','bold');doc.setFontSize(7);
+    doc.text('PENDENTES',162,y+5);
+    doc.setFontSize(8.5);doc.text(fmt(pendT),162,y+11);
+  }
 
-  // ── Rodapé ──
-  doc.setDrawColor(220,220,220);doc.line(20,285,190,285);
-  doc.setTextColor(150,150,150);doc.setFontSize(7);doc.setFont('helvetica','normal');
-  doc.text(appName+' - Relatorio gerado automaticamente',20,290);
-  doc.text('Pagina 1',180,290);
-
+  drawFooter();
   doc.save('financas-'+mLabel.toLowerCase().replace(' ','-')+'.pdf');
 }
+
 
 // ── Periodic Background Sync ──
 const PBS_TAG = 'fpro-sync';
@@ -2100,7 +2157,7 @@ document.addEventListener('click', function(e) {
 </script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-body{background:#050a0f;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overscroll-behavior:none}
+body{background:#000000;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overscroll-behavior:none}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#1e293b}::-webkit-scrollbar-thumb{background:#334155;border-radius:2px}
 .glass{background:rgba(30,41,59,0.72);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(148,163,184,0.1)}
 .glass-modal{background:rgba(8,14,28,0.97);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid rgba(148,163,184,0.12)}
@@ -2203,23 +2260,12 @@ body.theme-light{background:#f0f4f8!important;color:#0f172a!important}
 body.theme-light .glass{background:rgba(255,255,255,0.96)!important;border-color:rgba(0,0,0,0.08)!important}
 body.theme-light .glass-modal{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important}
 body.theme-light .glass-modal h2,body.theme-light .glass-modal p,body.theme-light .glass-modal span,body.theme-light .glass-modal label,body.theme-light .glass-modal div{color:#1e293b!important}
-/* Header — mês e nome do usuário */
-body.theme-light #monthLabel{color:#0f172a!important}
-body.theme-light #headerDate{color:#1e293b!important}
-body.theme-light #userDisplayName{color:#2563eb!important}
-body.theme-light .text-slate-200{color:#1e293b!important}
-body.theme-light .text-slate-500{color:#475569!important}
-body.theme-light .text-blue-400{color:#1d4ed8!important}
-body.theme-light .text-blue-300{color:#1e40af!important}
-body.theme-light .text-blue-400.font-semibold{color:#1d4ed8!important}
-/* Items */
 body.theme-light .item-row{background:#ffffff!important;border-color:rgba(0,0,0,0.09)!important;box-shadow:0 1px 4px rgba(0,0,0,0.06)!important}
 body.theme-light .item-row *{color:#1e293b!important}
-body.theme-light .item-row .status-paid,body.theme-light .status-paid{color:#15803d!important;background:rgba(220,252,231,0.8)!important;border-color:rgba(34,197,94,0.3)!important}
-body.theme-light .item-row .status-pending,body.theme-light .status-pending{color:#b45309!important;background:rgba(254,243,199,0.8)!important;border-color:rgba(234,179,8,0.3)!important}
+body.theme-light .item-row .status-paid *,body.theme-light .status-paid{color:#15803d!important;background:rgba(220,252,231,0.8)!important;border-color:rgba(34,197,94,0.3)!important}
+body.theme-light .item-row .status-pending *,body.theme-light .status-pending{color:#b45309!important;background:rgba(254,243,199,0.8)!important;border-color:rgba(234,179,8,0.3)!important}
 body.theme-light .item-row.overdue{background:rgba(254,226,226,0.7)!important;border-color:rgba(239,68,68,0.25)!important}
 body.theme-light .item-row.due-soon{background:rgba(255,251,235,0.9)!important;border-color:rgba(245,158,11,0.25)!important}
-/* Cards de resumo */
 body.theme-light .card-green{background:linear-gradient(135deg,#dcfce7,#bbf7d0)!important;border-color:rgba(34,197,94,0.3)!important}
 body.theme-light .card-green *{color:#14532d!important}
 body.theme-light .card-red{background:linear-gradient(135deg,#fee2e2,#fecaca)!important;border-color:rgba(239,68,68,0.3)!important}
@@ -2228,29 +2274,24 @@ body.theme-light .card-yellow{background:linear-gradient(135deg,#fef9c3,#fde68a)
 body.theme-light .card-yellow *{color:#78350f!important}
 body.theme-light .card-blue{background:linear-gradient(135deg,#dbeafe,#bfdbfe)!important;border-color:rgba(37,99,235,0.3)!important}
 body.theme-light .card-blue *{color:#1e3a8a!important}
-/* Navegação e filtros */
 body.theme-light .filter-btn{background:#ffffff!important;border-color:rgba(0,0,0,0.12)!important;color:#334155!important}
 body.theme-light .filter-btn.filter-active{background:rgba(37,99,235,0.1)!important;border-color:rgba(37,99,235,0.4)!important;color:#1d4ed8!important}
 body.theme-light .nav-btn{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important;color:#334155!important}
-/* Menu */
 body.theme-light .menu-item,body.theme-light .menu-item span,body.theme-light .menu-item p{color:#1e293b!important}
 body.theme-light .menu-item:active{background:rgba(0,0,0,0.04)!important}
 body.theme-light .menu-divider{background:rgba(0,0,0,0.07)!important}
 body.theme-light .modal-handle{background:rgba(0,0,0,0.12)!important}
-/* Inputs */
 body.theme-light .btn-secondary{background:#f1f5f9!important;border-color:rgba(0,0,0,0.12)!important;color:#334155!important}
 body.theme-light .search-input,body.theme-light .search-input:focus{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important;color:#1e293b!important}
 body.theme-light input:not([type=checkbox]),body.theme-light select,body.theme-light textarea{background:#ffffff!important;border-color:rgba(0,0,0,0.12)!important;color:#0f172a!important}
 body.theme-light select option{background:#fff!important;color:#0f172a!important}
 body.theme-light .auth-input{background:#ffffff!important;border-color:rgba(0,0,0,0.12)!important;color:#0f172a!important}
 body.theme-light .toast{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important;color:#0f172a!important}
-/* Barra total e auth */
 body.theme-light .total-bar{background:linear-gradient(135deg,rgba(219,234,254,0.6),rgba(191,219,254,0.4))!important;border-color:rgba(37,99,235,0.2)!important}
 body.theme-light .total-bar *{color:#1e40af!important}
 body.theme-light .select-bar{background:rgba(254,226,226,0.4)!important;border-color:rgba(239,68,68,0.2)!important}
 body.theme-light #authScreen{background:radial-gradient(ellipse at 50% 0%,#dbeafe 0%,#f0f4f8 55%)!important}
-/* Inline styles */
-body.theme-light [style*="color:#94a3b8"],body.theme-light [style*="color:#64748b"],body.theme-light [style*="color:#475569"]{color:#334155!important}
+body.theme-light [style*="color:#94a3b8"],[style*="color:#64748b"],body.theme-light [style*="color:#475569"]{color:#334155!important}
 body.theme-light [style*="color:#e2e8f0"],body.theme-light [style*="color:#cbd5e1"],body.theme-light [style*="color:#f1f5f9"]{color:#1e293b!important}
 body.theme-light [style*="background:rgba(15,23,42"],body.theme-light [style*="background:rgba(8,14,28"],body.theme-light [style*="background:rgba(30,41,59"]{background:rgba(255,255,255,0.96)!important;color:#1e293b!important}
 body.theme-light .empty-state{color:#64748b!important}
