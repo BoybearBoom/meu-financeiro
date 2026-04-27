@@ -1736,17 +1736,19 @@ window.exportPDF=function(){
     doc.text('Página '+pg,185,289);
   };
 
+  // Posições fixas das colunas — alinhadas entre header e dados
+  const C={data:19,desc:41,cat:84,obs:107,venc:143,valor:160,status:179};
+
   const drawTableHeader=(yy)=>{
-    doc.setFillColor(...BLUE_LIGHT);doc.rect(18,yy,174,9,'F');
-    doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(...BLUE_DARK);
-    // Colunas: DATA(20) DESC(44) CAT(88) OBS(113) VENC(148) VALOR(163) STATUS(180)
-    doc.text('DATA',20,yy+6);
-    doc.text('DESCRIÇÃO',44,yy+6);
-    doc.text('CAT.',88,yy+6);
-    doc.text('OBSERVAÇÃO',113,yy+6);
-    doc.text('VENC.',148,yy+6);
-    doc.text('VALOR',163,yy+6);
-    doc.text('STATUS',180,yy+6);
+    doc.setFillColor(...BLUE_LIGHT);doc.rect(18,yy,174,8,'F');
+    doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(...BLUE_DARK);
+    doc.text('DATA',C.data,yy+5.5);
+    doc.text('DESCRIÇÃO',C.desc,yy+5.5);
+    doc.text('CAT.',C.cat,yy+5.5);
+    doc.text('OBS.',C.obs,yy+5.5);
+    doc.text('VENC.',C.venc,yy+5.5);
+    doc.text('VALOR',C.valor,yy+5.5);
+    doc.text('STATUS',C.status,yy+5.5);
   };
 
   // Página 1
@@ -1762,7 +1764,7 @@ window.exportPDF=function(){
   sorted.forEach((item,idx)=>{
     const obs=item.obs?doc.splitTextToSize(item.obs,32):[];
     const hasDP=item.pago&&item.dataPagamento;
-    const rowH=Math.max(13,hasDP?17:13,obs.length>1?obs.length*4.5+8:13);
+    const rowH=Math.max(8,hasDP?12:8,obs.length>1?obs.length*3.5+4:8);
 
     if(y+rowH>275){
       drawFooter();
@@ -1781,25 +1783,27 @@ window.exportPDF=function(){
     // Centro vertical correto
     const mid=y-3+(rowH/2)+1;
 
-    // Data de adição — mais escura
+    // Data
     doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(50,65,85);
-    doc.text(fmtDate(item.data),20,mid);
+    doc.text(fmtDate(item.data),C.data,mid);
 
-    // Descrição
+    // Descrição — max 16 chars
     doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(15,23,42);
-    doc.text(item.nome.length>17?item.nome.substring(0,15)+'…':item.nome,44,mid);
+    const nomeStr=item.nome.length>16?item.nome.substring(0,14)+'…':item.nome;
+    doc.text(nomeStr,C.desc,mid);
 
-    // Categoria
+    // Categoria — max 8 chars
     doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(71,85,105);
-    doc.text(item.categoria.substring(0,9),88,mid);
+    doc.text(item.categoria.substring(0,8),C.cat,mid);
 
-    // Observação
+    // Observação — max 28 chars por linha
+    const obsMaxW=C.venc-C.obs-2;
     if(obs.length>0){
       doc.setFontSize(6.5);doc.setTextColor(100,116,139);
-      const obsY=obs.length>1?y-3+(rowH/2)-((obs.length-1)*2.2):mid;
-      doc.text(obs,113,obsY);
+      const obsY=obs.length>1?mid-((obs.length-1)*2.2):mid;
+      doc.text(obs,C.obs,obsY);
     }else{
-      doc.setFontSize(7);doc.setTextColor(203,213,225);doc.text('—',113,mid);
+      doc.setFontSize(7);doc.setTextColor(203,213,225);doc.text('—',C.obs,mid);
     }
 
     // Vencimento
@@ -1811,28 +1815,28 @@ window.exportPDF=function(){
       doc.setTextColor(!item.pago&&diff<0?220:!item.pago&&diff<=3?234:71,
                        !item.pago&&diff<0?38:!item.pago&&diff<=3?88:85,
                        !item.pago&&diff<0?38:!item.pago&&diff<=3?12:105);
-      doc.text(fmtDate(item.vencimento),148,mid);
+      doc.text(fmtDate(item.vencimento),C.venc,mid);
     }else{
-      doc.setTextColor(203,213,225);doc.text('—',148,mid);
+      doc.setTextColor(203,213,225);doc.text('—',C.venc,mid);
     }
 
-    // Valor
+    // Valor — alinhado à direita da coluna
     doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(15,23,42);
-    doc.text(fmt(item.valor),163,mid);
+    doc.text(fmt(item.valor),C.valor,mid);
 
     // Status
     doc.setFont('helvetica','bold');doc.setFontSize(7);
     if(item.pago){
       doc.setTextColor(21,128,61);
-      doc.text('Pago',180,mid);
+      doc.text('Pago',C.status,mid);
       if(hasDP){
         const dp=new Date(item.dataPagamento);
         doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(21,128,61);
-        doc.text(dp.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dp.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),180,mid+4.5);
+        doc.text(dp.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dp.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),C.status,mid+4.5);
       }
     }else{
       doc.setTextColor(194,65,12);
-      doc.text('Pendente',180,mid);
+      doc.text('Pendente',C.status,mid);
     }
 
     // Linha divisória preta fina
