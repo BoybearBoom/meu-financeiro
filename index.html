@@ -1737,15 +1737,16 @@ window.exportPDF=function(){
   };
 
   const drawTableHeader=(yy)=>{
-    doc.setFillColor(...BLUE_LIGHT);doc.rect(18,yy,174,8,'F');
+    doc.setFillColor(...BLUE_LIGHT);doc.rect(18,yy,174,9,'F');
     doc.setFontSize(7.5);doc.setFont('helvetica','bold');doc.setTextColor(...BLUE_DARK);
-    doc.text('DATA',22,yy+5.5);
-    doc.text('DESCRIÇÃO',42,yy+5.5);
-    doc.text('CAT.',90,yy+5.5);
-    doc.text('OBSERVAÇÃO',112,yy+5.5);
-    doc.text('VENC.',152,yy+5.5);
-    doc.text('VALOR',168,yy+5.5);
-    doc.text('STATUS',184,yy+5.5);
+    // Colunas: DATA(20) DESC(44) CAT(88) OBS(113) VENC(148) VALOR(163) STATUS(180)
+    doc.text('DATA',20,yy+6);
+    doc.text('DESCRIÇÃO',44,yy+6);
+    doc.text('CAT.',88,yy+6);
+    doc.text('OBSERVAÇÃO',113,yy+6);
+    doc.text('VENC.',148,yy+6);
+    doc.text('VALOR',163,yy+6);
+    doc.text('STATUS',180,yy+6);
   };
 
   // Página 1
@@ -1755,18 +1756,13 @@ window.exportPDF=function(){
   drawTableHeader(y);
   y+=11;
 
-  // Ordenar por vencimento crescente (sem vencimento vai para o final)
-  const sorted=[...items].sort((a,b)=>{
-    if(!a.vencimento&&!b.vencimento)return 0;
-    if(!a.vencimento)return 1;
-    if(!b.vencimento)return -1;
-    return a.vencimento>b.vencimento?1:-1;
-  });
+  // Ordenar por data de adição crescente
+  const sorted=[...items].sort((a,b)=>a.data>b.data?1:a.data<b.data?-1:0);
 
   sorted.forEach((item,idx)=>{
-    const obs=item.obs?doc.splitTextToSize(item.obs,26):[];
+    const obs=item.obs?doc.splitTextToSize(item.obs,32):[];
     const hasDP=item.pago&&item.dataPagamento;
-    const rowH=Math.max(10,hasDP?14:10,obs.length>1?obs.length*4+6:10);
+    const rowH=Math.max(13,hasDP?17:13,obs.length>1?obs.length*4.5+8:13);
 
     if(y+rowH>275){
       drawFooter();
@@ -1775,33 +1771,35 @@ window.exportPDF=function(){
       drawHeader();
       y=45;
       drawTableHeader(y);
-      y+=11;
+      y+=12;
     }
 
     // Fundo alternado
-    doc.setFillColor(idx%2===0?248:255,idx%2===0?250:255,idx%2===0?252:255);
-    doc.rect(18,y-4,174,rowH,'F');
+    doc.setFillColor(idx%2===0?247:255,idx%2===0?249:255,idx%2===0?252:255);
+    doc.rect(18,y-3,174,rowH,'F');
 
-    const mid=y+(rowH-10)/2;
+    // Centro vertical correto
+    const mid=y-3+(rowH/2)+1;
 
-    // Data de adição
-    doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(100,116,139);
-    doc.text(fmtDate(item.data),22,mid+2);
+    // Data de adição — mais escura
+    doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(50,65,85);
+    doc.text(fmtDate(item.data),20,mid);
 
     // Descrição
-    doc.setFont('helvetica','bold');doc.setFontSize(8);doc.setTextColor(15,23,42);
-    doc.text(item.nome.length>18?item.nome.substring(0,16)+'…':item.nome,42,mid+2);
+    doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(15,23,42);
+    doc.text(item.nome.length>17?item.nome.substring(0,15)+'…':item.nome,44,mid);
 
     // Categoria
     doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(71,85,105);
-    doc.text(item.categoria.substring(0,10),90,mid+2);
+    doc.text(item.categoria.substring(0,9),88,mid);
 
-    // Observação (coluna maior)
+    // Observação
     if(obs.length>0){
       doc.setFontSize(6.5);doc.setTextColor(100,116,139);
-      doc.text(obs,112,mid+2);
+      const obsY=obs.length>1?y-3+(rowH/2)-((obs.length-1)*2.2):mid;
+      doc.text(obs,113,obsY);
     }else{
-      doc.setFontSize(7);doc.setTextColor(203,213,225);doc.text('—',112,mid+2);
+      doc.setFontSize(7);doc.setTextColor(203,213,225);doc.text('—',113,mid);
     }
 
     // Vencimento
@@ -1813,34 +1811,33 @@ window.exportPDF=function(){
       doc.setTextColor(!item.pago&&diff<0?220:!item.pago&&diff<=3?234:71,
                        !item.pago&&diff<0?38:!item.pago&&diff<=3?88:85,
                        !item.pago&&diff<0?38:!item.pago&&diff<=3?12:105);
-      doc.text(fmtDate(item.vencimento),152,mid+2);
+      doc.text(fmtDate(item.vencimento),148,mid);
     }else{
-      doc.setTextColor(203,213,225);doc.text('—',152,mid+2);
+      doc.setTextColor(203,213,225);doc.text('—',148,mid);
     }
 
     // Valor
     doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(15,23,42);
-    doc.text(fmt(item.valor),168,mid+2);
+    doc.text(fmt(item.valor),163,mid);
 
-    // Status — só texto, sem fundo
+    // Status
     doc.setFont('helvetica','bold');doc.setFontSize(7);
     if(item.pago){
       doc.setTextColor(21,128,61);
-      doc.text('Pago',184,mid+2);
+      doc.text('Pago',180,mid);
       if(hasDP){
         const dp=new Date(item.dataPagamento);
-        // Data/hora em negrito
         doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(21,128,61);
-        doc.text(dp.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dp.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),184,mid+6);
+        doc.text(dp.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dp.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),180,mid+4.5);
       }
     }else{
       doc.setTextColor(194,65,12);
-      doc.text('Pendente',184,mid+2);
+      doc.text('Pendente',180,mid);
     }
 
     // Linha divisória preta fina
-    doc.setDrawColor(0,0,0);doc.setLineWidth(0.2);
-    doc.line(18,y-4+rowH,192,y-4+rowH);
+    doc.setDrawColor(0,0,0);doc.setLineWidth(0.15);
+    doc.line(18,y-3+rowH,192,y-3+rowH);
     y+=rowH;
   });
 
