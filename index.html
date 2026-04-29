@@ -1157,6 +1157,7 @@ window.openModal=function(editId){
   document.getElementById('inputNome').value=isEdit?nomeBase(item.nome):'';
   document.getElementById('inputValor').value=isEdit?item.valor:'';
   document.getElementById('inputData').value=isEdit?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
+  initCompetencia(isEdit?item.monthKey:null);
   document.getElementById('inputVencimento').value=isEdit&&item.vencimento?item.vencimento:'';
   document.getElementById('inputCategoria').value=isEdit?item.categoria:'Moradia';
   updateCartaoSelect(isEdit?item.categoria:'Moradia', isEdit?item.cartaoNome:'');
@@ -1368,6 +1369,12 @@ window.saveItem=function(){
       if(fech)all[idx].monthKey=monthKeyParaCartao(data,fech);
       else{const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;}
     }else{const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;}
+    // Aplica offset de competência se selecionado
+    if(_competenciaOffset===1&&cat!=='Cartão'){
+      const base=new Date(data+'T12:00:00');
+      const next=new Date(base.getFullYear(),base.getMonth()+1,1);
+      all[idx].monthKey=`${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}`;
+    }
 
     const editedItem={...all[idx]};
 
@@ -1449,6 +1456,12 @@ window.saveItem=function(){
     const itemDataStr=`${y}-${mStr}-${dayStr}`;
     let mKey=`${y}-${mStr}`;
     if(fechamento){mKey=monthKeyParaCartao(itemDataStr,fechamento);}
+    // Aplica offset de competência (só na 1ª parcela e sem cartão)
+    if(p===0&&_competenciaOffset===1&&!fechamento){
+      const baseC=new Date(itemDataStr+'T12:00:00');
+      const nextC=new Date(baseC.getFullYear(),baseC.getMonth()+1,1);
+      mKey=`${nextC.getFullYear()}-${String(nextC.getMonth()+1).padStart(2,'0')}`;
+    }
     let vencStr='';
     if(venc){const vd=new Date(venc+'T12:00:00');vd.setMonth(vd.getMonth()+p);vencStr=`${vd.getFullYear()}-${String(vd.getMonth()+1).padStart(2,'0')}-${String(vd.getDate()).padStart(2,'0')}`;}
     all.push({
@@ -1875,7 +1888,37 @@ window.exportPDF=function(){
 
 
 
-// ── Periodic Background Sync ──
+// ── Mês de competência ──
+let _competenciaOffset=0; // 0 = mês atual, 1 = próximo mês
+
+window.selectCompetencia=function(offset){
+  _competenciaOffset=offset;
+  const b0=document.getElementById('compBtn0'),b1=document.getElementById('compBtn1');
+  if(!b0||!b1)return;
+  b0.style.borderColor=offset===0?'rgba(37,99,235,0.6)':'rgba(148,163,184,0.15)';
+  b0.style.background=offset===0?'rgba(37,99,235,0.15)':'rgba(148,163,184,0.06)';
+  b0.style.color=offset===0?'#93c5fd':'#64748b';
+  b1.style.borderColor=offset===1?'rgba(37,99,235,0.6)':'rgba(148,163,184,0.15)';
+  b1.style.background=offset===1?'rgba(37,99,235,0.15)':'rgba(148,163,184,0.06)';
+  b1.style.color=offset===1?'#93c5fd':'#64748b';
+}
+
+function initCompetencia(editMonthKey){
+  _competenciaOffset=0;
+  const now=new Date();
+  const m0=new Date(now.getFullYear(),now.getMonth(),1);
+  const m1=new Date(now.getFullYear(),now.getMonth()+1,1);
+  const fmt2=(d)=>MONTHS[d.getMonth()].substring(0,3)+' '+d.getFullYear();
+  const l0=document.getElementById('compLabel0'),l1=document.getElementById('compLabel1');
+  if(l0)l0.textContent=fmt2(m0);
+  if(l1)l1.textContent=fmt2(m1);
+  // Se editando, detecta qual mês estava selecionado
+  if(editMonthKey){
+    const nextKey=`${m1.getFullYear()}-${String(m1.getMonth()+1).padStart(2,'0')}`;
+    if(editMonthKey===nextKey)_competenciaOffset=1;
+  }
+  window.selectCompetencia(_competenciaOffset);
+}
 const PBS_TAG = 'fpro-sync';
 const PBS_MIN_INTERVAL = 12 * 60 * 60 * 1000; // 12h em ms
 
@@ -2607,6 +2650,20 @@ body.theme-light .empty-state{color:#64748b!important}
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">📅 Data de vencimento <span style="color:#2563eb">(para alertas)</span></label>
         <input type="date" id="inputVencimento"/>
         <p class="text-slate-600 text-xs mt-1 ml-1">Você receberá notificações até 3 dias antes</p>
+      </div>
+
+      <!-- Mês de competência -->
+      <div id="competenciaGrp">
+        <label class="text-slate-400 text-xs block mb-1.5 ml-1">📆 Mês de competência</label>
+        <div style="display:flex;gap:8px" id="competenciaBtns">
+          <button type="button" id="compBtn0" onclick="selectCompetencia(0)" style="flex:1;padding:10px 6px;border-radius:12px;border:2px solid rgba(37,99,235,0.5);background:rgba(37,99,235,0.12);color:#93c5fd;font-weight:700;font-size:12px;cursor:pointer">
+            <span id="compLabel0"></span>
+          </button>
+          <button type="button" id="compBtn1" onclick="selectCompetencia(1)" style="flex:1;padding:10px 6px;border-radius:12px;border:2px solid rgba(148,163,184,0.15);background:rgba(148,163,184,0.06);color:#64748b;font-weight:700;font-size:12px;cursor:pointer">
+            <span id="compLabel1"></span>
+          </button>
+        </div>
+        <p class="text-slate-600 text-xs mt-1 ml-1">Define em qual mês a conta aparece no app</p>
       </div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Categoria</label>
