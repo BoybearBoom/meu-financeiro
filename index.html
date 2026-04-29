@@ -904,7 +904,7 @@ function render(){
           <p class="text-slate-200 text-sm font-medium truncate">${item.nome}</p>
           ${item.recorrente?'<span style="font-size:9px;background:rgba(37,99,235,0.18);color:#93c5fd;padding:1px 6px;border-radius:8px;font-weight:700;flex-shrink:0">↻</span>':''}
           ${item.obs?'<span style="font-size:9px;background:rgba(148,163,184,0.1);color:#64748b;padding:1px 5px;border-radius:8px;flex-shrink:0">📝</span>':''}
-          ${item.comprovante?'<span style="font-size:9px;background:rgba(74,222,128,0.1);color:#4ade80;padding:1px 5px;border-radius:8px;flex-shrink:0">🧾</span>':''}
+          
         </div>
         <p class="text-slate-500 text-xs mt-0.5">${item.cartaoNome?item.cartaoNome:item.categoria} · ${fmtDate(item.data)}${item.vencimento?' · Venc: <span style="color:'+(isOverdue?'#f87171':isDueSoon?'#fbbf24':'#94a3b8')+'">'+fmtDate(item.vencimento)+'</span>':''}</p>
         ${isOverdue?'<p style="font-size:10px;color:#ef4444;font-weight:700;margin-top:1px">⚠️ VENCIDA</p>':''}
@@ -1115,7 +1115,7 @@ window.cancelCartaoForm=function(){document.getElementById('cartaoForm').style.d
 window.autoCalcFechamento=function(venc){
   const v=parseInt(venc);
   if(v>=1&&v<=31){
-    let f=v-7;if(f<1)f=f+31;
+    let f=v-7;if(f<1)f=f+28; // usa 28 para ser seguro em todos os meses
     document.getElementById('inputCartaoFechamento').value=f;
   }else{
     document.getElementById('inputCartaoFechamento').value='';
@@ -1127,10 +1127,9 @@ window.saveCartao=function(){
   let fechInput=parseInt(document.getElementById('inputCartaoFechamento').value)||0;
   const icone=document.getElementById('inputCartaoIcone').value.trim()||'💳';
   if(!nome){showToast('Informe o nome do cartão','#ef4444');return;}
-  // Auto-calc fechamento from vencimento if provided
   if(vencInput>=1&&vencInput<=31){
     fechInput=vencInput-7;
-    if(fechInput<1)fechInput=fechInput+31; // wrap around (ex: vence dia 3 → fecha dia 27 do mês anterior)
+    if(fechInput<1)fechInput=fechInput+28; // wrap seguro para todos os meses
   }
   if(!fechInput||fechInput<1||fechInput>31){showToast('Informe o dia de vencimento ou fechamento','#ef4444');return;}
   const cartoes=getCartoes();
@@ -1157,14 +1156,12 @@ window.openModal=function(editId){
   document.getElementById('inputNome').value=isEdit?nomeBase(item.nome):'';
   document.getElementById('inputValor').value=isEdit?item.valor:'';
   document.getElementById('inputData').value=isEdit?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
-  initCompetencia(isEdit?item.monthKey:null);
   document.getElementById('inputVencimento').value=isEdit&&item.vencimento?item.vencimento:'';
   document.getElementById('inputCategoria').value=isEdit?item.categoria:'Moradia';
   updateCartaoSelect(isEdit?item.categoria:'Moradia', isEdit?item.cartaoNome:'');
   document.getElementById('inputParcelas').value='1';
   document.getElementById('parcelasGrp').style.display=isEdit?'none':'';
   document.getElementById('inputObs').value=isEdit&&item.obs?item.obs:'';
-  resetComprovanteUI(isEdit&&item.comprovante?item.comprovante:null);
   const isParcela=isEdit&&!!(item.groupId&&item.parcelNum&&item.totalParcelas);
   const parcelaInfo=document.getElementById('modalParcelaInfo');
   const recInfo=document.getElementById('modalRecInfo');
@@ -1369,12 +1366,6 @@ window.saveItem=function(){
       if(fech)all[idx].monthKey=monthKeyParaCartao(data,fech);
       else{const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;}
     }else{const[y,m]=data.split('-');all[idx].monthKey=`${y}-${m}`;}
-    // Aplica offset de competência se selecionado
-    if(_competenciaOffset===1&&cat!=='Cartão'){
-      const base=new Date(data+'T12:00:00');
-      const next=new Date(base.getFullYear(),base.getMonth()+1,1);
-      all[idx].monthKey=`${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}`;
-    }
 
     const editedItem={...all[idx]};
 
@@ -1456,12 +1447,6 @@ window.saveItem=function(){
     const itemDataStr=`${y}-${mStr}-${dayStr}`;
     let mKey=`${y}-${mStr}`;
     if(fechamento){mKey=monthKeyParaCartao(itemDataStr,fechamento);}
-    // Aplica offset de competência (só na 1ª parcela e sem cartão)
-    if(p===0&&_competenciaOffset===1&&!fechamento){
-      const baseC=new Date(itemDataStr+'T12:00:00');
-      const nextC=new Date(baseC.getFullYear(),baseC.getMonth()+1,1);
-      mKey=`${nextC.getFullYear()}-${String(nextC.getMonth()+1).padStart(2,'0')}`;
-    }
     let vencStr='';
     if(venc){const vd=new Date(venc+'T12:00:00');vd.setMonth(vd.getMonth()+p);vencStr=`${vd.getFullYear()}-${String(vd.getMonth()+1).padStart(2,'0')}-${String(vd.getDate()).padStart(2,'0')}`;}
     all.push({
@@ -1717,207 +1702,195 @@ window.exportPDF=function(){
   const doc=new jsPDF({orientation:'p',unit:'mm',format:'a4'});
   const items=getMonthItems(),mLabel=MONTHS[curMonth]+' '+curYear;
   const appName=getAppName();
-  const total=items.reduce((s,i)=>s+parseFloat(i.valor),0);
-  const pendT=items.filter(i=>!i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
-  const userName=currentUser?(currentUser.displayName||currentUser.email.split('@')[0]):'';
-  // Azul gelo (quase branco) para cabeçalho e total
-  const BLUE_LIGHT=[220,232,245]; // #DCE8F5
-  const BLUE_DARK=[30,58,138];    // azul escuro para texto
-  const BLUE_MID=[102,153,204];   // #6699CC para linha
 
-  const drawHeader=()=>{
-    doc.setFillColor(0,0,0);doc.rect(0,0,210,36,'F');
-    doc.setFillColor(...BLUE_MID);doc.rect(0,34,210,2,'F');
-    doc.setFontSize(18);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
-    doc.text(appName,20,16);
-    doc.setFontSize(9);doc.setFont('helvetica','normal');doc.setTextColor(180,210,240);
-    doc.text('Relatório — '+mLabel,20,24);
-    doc.text('Gerado: '+fmtDate(new Date().toISOString().split('T')[0]),20,31);
-    if(userName){
-      doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(255,255,255);
-      doc.text(userName,190,14,{align:'right'});
-      doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(180,210,240);
-      doc.text('@financespro',190,21,{align:'right'});
-    }
-  };
-
-  const drawFooter=()=>{
-    const pg=doc.getNumberOfPages();
-    doc.setDrawColor(226,232,240);doc.setLineWidth(0.3);doc.line(18,284,192,284);
-    doc.setTextColor(148,163,184);doc.setFontSize(7);doc.setFont('helvetica','normal');
-    doc.text(appName+' — Relatório gerado automaticamente',20,289);
-    doc.text('Página '+pg,185,289);
-  };
-
-  // Posições fixas das colunas — alinhadas entre header e dados
-  const C={data:19,desc:41,cat:84,obs:107,venc:143,valor:160,status:179};
-
-  const drawTableHeader=(yy)=>{
-    doc.setFillColor(...BLUE_LIGHT);doc.rect(18,yy,174,8,'F');
-    doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(...BLUE_DARK);
-    doc.text('DATA',C.data,yy+5.5);
-    doc.text('DESCRIÇÃO',C.desc,yy+5.5);
-    doc.text('CAT.',C.cat,yy+5.5);
-    doc.text('OBS.',C.obs,yy+5.5);
-    doc.text('VENC.',C.venc,yy+5.5);
-    doc.text('VALOR',C.valor,yy+5.5);
-    doc.text('STATUS',C.status,yy+5.5);
-  };
-
-  // Página 1
+  // ── Fundo branco ──
   doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');
-  drawHeader();
-  let y=45;
-  drawTableHeader(y);
-  y+=11;
 
-  // Ordenar por data de adição crescente
-  const sorted=[...items].sort((a,b)=>a.data>b.data?1:a.data<b.data?-1:0);
-
-  sorted.forEach((item,idx)=>{
-    const obs=item.obs?doc.splitTextToSize(item.obs,32):[];
-    const hasDP=item.pago&&item.dataPagamento;
-    const rowH=Math.max(8,hasDP?12:8,obs.length>1?obs.length*3.5+4:8);
-
-    if(y+rowH>275){
-      drawFooter();
-      doc.addPage();
-      doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');
-      drawHeader();
-      y=45;
-      drawTableHeader(y);
-      y+=12;
-    }
-
-    // Fundo alternado
-    doc.setFillColor(idx%2===0?247:255,idx%2===0?249:255,idx%2===0?252:255);
-    doc.rect(18,y-3,174,rowH,'F');
-
-    // Centro vertical correto
-    const mid=y-3+(rowH/2)+1;
-
-    // Data
-    doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(50,65,85);
-    doc.text(fmtDate(item.data),C.data,mid);
-
-    // Descrição — max 16 chars
-    doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(15,23,42);
-    const nomeStr=item.nome.length>16?item.nome.substring(0,14)+'…':item.nome;
-    doc.text(nomeStr,C.desc,mid);
-
-    // Categoria — max 8 chars
-    doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(71,85,105);
-    doc.text(item.categoria.substring(0,8),C.cat,mid);
-
-    // Observação — max 28 chars por linha
-    const obsMaxW=C.venc-C.obs-2;
-    if(obs.length>0){
-      doc.setFontSize(6.5);doc.setTextColor(100,116,139);
-      const obsY=obs.length>1?mid-((obs.length-1)*2.2):mid;
-      doc.text(obs,C.obs,obsY);
-    }else{
-      doc.setFontSize(7);doc.setTextColor(203,213,225);doc.text('—',C.obs,mid);
-    }
-
-    // Vencimento
-    doc.setFontSize(7);
-    if(item.vencimento){
-      const vd=new Date(item.vencimento+'T12:00:00');
-      const hoje=new Date();hoje.setHours(0,0,0,0);
-      const diff=Math.round((vd-hoje)/86400000);
-      doc.setTextColor(!item.pago&&diff<0?220:!item.pago&&diff<=3?234:71,
-                       !item.pago&&diff<0?38:!item.pago&&diff<=3?88:85,
-                       !item.pago&&diff<0?38:!item.pago&&diff<=3?12:105);
-      doc.text(fmtDate(item.vencimento),C.venc,mid);
-    }else{
-      doc.setTextColor(203,213,225);doc.text('—',C.venc,mid);
-    }
-
-    // Valor — alinhado à direita da coluna
-    doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(15,23,42);
-    doc.text(fmt(item.valor),C.valor,mid);
-
-    // Status
-    doc.setFont('helvetica','bold');doc.setFontSize(7);
-    if(item.pago){
-      doc.setTextColor(21,128,61);
-      doc.text('Pago',C.status,mid);
-      if(hasDP){
-        const dp=new Date(item.dataPagamento);
-        doc.setFont('helvetica','bold');doc.setFontSize(6);doc.setTextColor(21,128,61);
-        doc.text(dp.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dp.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),C.status,mid+4.5);
-      }
-    }else{
-      doc.setTextColor(194,65,12);
-      doc.text('Pendente',C.status,mid);
-    }
-
-    // Linha divisória preta fina
-    doc.setDrawColor(0,0,0);doc.setLineWidth(0.15);
-    doc.line(18,y-3+rowH,192,y-3+rowH);
-    y+=rowH;
-  });
-
-  // ── Totais finais — juntos no canto inferior direito ──
-  y+=5;
-  if(y>272){drawFooter();doc.addPage();doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');y=20;}
-  y+=6;
-
-  if(pendT>0){
-    // PENDENTES (esquerda do par, canto direito)
-    doc.setFillColor(255,237,213);doc.roundedRect(92,y,48,13,2,2,'F');
-    doc.setTextColor(194,65,12);doc.setFont('helvetica','bold');doc.setFontSize(7);
-    doc.text('PENDENTES',95,y+5);
-    doc.setFontSize(9);doc.text(fmt(pendT),95,y+11);
-    // TOTAL (direita do par)
-    doc.setFillColor(...BLUE_LIGHT);doc.roundedRect(144,y,48,13,2,2,'F');
-    doc.setTextColor(...BLUE_DARK);doc.setFont('helvetica','bold');doc.setFontSize(7);
-    doc.text('TOTAL',147,y+5);
-    doc.setFontSize(9);doc.text(fmt(total),147,y+11);
-  }else{
-    // Só TOTAL (canto direito)
-    doc.setFillColor(...BLUE_LIGHT);doc.roundedRect(144,y,48,13,2,2,'F');
-    doc.setTextColor(...BLUE_DARK);doc.setFont('helvetica','bold');doc.setFontSize(7);
-    doc.text('TOTAL',147,y+5);
-    doc.setFontSize(9);doc.text(fmt(total),147,y+11);
+  // ── Faixa de cabeçalho preta ──
+  doc.setFillColor(10,10,10);doc.rect(0,0,210,38,'F');
+  // Linha de destaque na base do cabeçalho
+  doc.setFillColor(37,99,235);doc.rect(0,36,210,2,'F');
+  doc.setTextColor(255,255,255);doc.setFontSize(20);doc.setFont('helvetica','bold');
+  doc.text(appName,20,18);
+  doc.setFontSize(10);doc.setFont('helvetica','normal');
+  doc.text('Relatorio - '+mLabel,20,27);
+  doc.text('Gerado: '+fmtDate(new Date().toISOString().split('T')[0]),20,34);
+  // Nome do usuário no canto superior direito
+  const userName=currentUser?(currentUser.displayName||currentUser.email.split('@')[0]):'';
+  if(userName){
+    doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(147,197,253);
+    doc.text(userName,190,14,{align:'right'});
+    doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(96,165,250);
+    doc.text('@financespro',190,21,{align:'right'});
   }
 
-  drawFooter();
+  // ── Cards de resumo ──
+  const total=items.reduce((s,i)=>s+parseFloat(i.valor),0);
+  const paidT=items.filter(i=>i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
+  const pendT=items.filter(i=>!i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
+  const cards=[
+    {v:fmt(paidT),l:'Pagas',bg:[232,245,233],valColor:[27,94,32],lColor:[56,142,60]},
+    {v:fmt(total),l:'Total',bg:[232,240,254],valColor:[26,35,126],lColor:[57,73,171]},
+    {v:fmt(pendT),l:'Pendentes',bg:[255,243,224],valColor:[230,81,0],lColor:[239,108,0]}
+  ];
+  cards.forEach(({v,l,bg,valColor,lColor},idx)=>{
+    const x=20+idx*62;
+    doc.setFillColor(...bg);doc.roundedRect(x,44,57,20,3,3,'F');
+    doc.setTextColor(...valColor);doc.setFontSize(10);doc.setFont('helvetica','bold');doc.text(v,x+4,53);
+    doc.setTextColor(...lColor);doc.setFontSize(8);doc.setFont('helvetica','normal');doc.text(l,x+4,61);
+  });
+
+  // ── Linha separadora ──
+  doc.setDrawColor(220,220,220);doc.setLineWidth(0.3);doc.line(20,70,190,70);
+
+  // ── Cabeçalho da tabela ──
+  doc.setFillColor(245,245,245);doc.rect(18,73,174,8,'F');
+  doc.setFontSize(8);doc.setTextColor(80,80,80);doc.setFont('helvetica','bold');
+  ['DESCRICAO','CAT.','VENC.','VALOR','STATUS'].forEach((h,i)=>doc.text(h,[21,91,122,148,172][i],79));
+  doc.setDrawColor(200,200,200);doc.line(20,81,190,81);
+
+  // ── Linhas da tabela ──
+  let y=90;
+  [...items].sort((a,b)=>a.data>b.data?1:-1).forEach((item,idx)=>{
+    if(y>275){
+      doc.addPage();
+      doc.setFillColor(255,255,255);doc.rect(0,0,210,297,'F');
+      doc.setFillColor(37,99,235);doc.rect(0,0,210,12,'F');
+      doc.setTextColor(255,255,255);doc.setFontSize(8);doc.setFont('helvetica','italic');
+      doc.text(appName+' – '+mLabel+' (continuacao)',20,8);
+      doc.setFillColor(245,245,245);doc.rect(18,15,174,7,'F');
+      doc.setFontSize(8);doc.setTextColor(80,80,80);doc.setFont('helvetica','bold');
+      ['DESCRICAO','CAT.','VENC.','VALOR','STATUS'].forEach((h,i)=>doc.text(h,[21,91,122,148,172][i],20));
+      doc.setDrawColor(200,200,200);doc.line(20,22,190,22);
+      y=31;
+    }
+    if(idx%2===0){doc.setFillColor(249,250,251);doc.rect(18,y-5,174,9,'F');}
+    doc.setFont('helvetica','normal');doc.setFontSize(8.5);
+    doc.setTextColor(30,30,30);
+    doc.text(item.nome.length>28?item.nome.substring(0,26)+'.':item.nome,21,y);
+    doc.setTextColor(80,80,80);
+    doc.text(item.categoria.substring(0,10),91,y);
+    doc.text(item.vencimento?fmtDate(item.vencimento):'-',122,y);
+    doc.setTextColor(30,30,30);doc.text(fmt(item.valor),148,y);
+    if(item.pago){doc.setTextColor(27,94,32);doc.text('Pago',172,y);}
+    else{doc.setTextColor(230,81,0);doc.text('Pend.',172,y);}
+    y+=9;
+  });
+
+  // ── Linha e total final ──
+  doc.setDrawColor(200,200,200);doc.setLineWidth(0.4);doc.line(20,y+2,190,y+2);
+  doc.setFillColor(232,240,254);doc.roundedRect(130,y+5,60,10,2,2,'F');
+  doc.setTextColor(26,35,126);doc.setFont('helvetica','bold');doc.setFontSize(9);
+  doc.text('TOTAL: '+fmt(total),134,y+12);
+
+  // ── Rodapé ──
+  doc.setDrawColor(220,220,220);doc.line(20,285,190,285);
+  doc.setTextColor(150,150,150);doc.setFontSize(7);doc.setFont('helvetica','normal');
+  doc.text(appName+' - Relatorio gerado automaticamente',20,290);
+  doc.text('Pagina 1',180,290);
+
   doc.save('financas-'+mLabel.toLowerCase().replace(' ','-')+'.pdf');
 }
 
+// ── Calendário ──
+let _calYear=new Date().getFullYear(),_calMonth=new Date().getMonth();
 
-
-// ── Mês de competência ──
-let _competenciaOffset=0; // 0 = mês atual, 1 = próximo mês
-
-window.selectCompetencia=function(offset){
-  _competenciaOffset=offset;
-  const b0=document.getElementById('compBtn0'),b1=document.getElementById('compBtn1');
-  if(!b0||!b1)return;
-  b0.style.borderColor=offset===0?'rgba(37,99,235,0.6)':'rgba(148,163,184,0.15)';
-  b0.style.background=offset===0?'rgba(37,99,235,0.15)':'rgba(148,163,184,0.06)';
-  b0.style.color=offset===0?'#93c5fd':'#64748b';
-  b1.style.borderColor=offset===1?'rgba(37,99,235,0.6)':'rgba(148,163,184,0.15)';
-  b1.style.background=offset===1?'rgba(37,99,235,0.15)':'rgba(148,163,184,0.06)';
-  b1.style.color=offset===1?'#93c5fd':'#64748b';
+window.openCalendario=function(){
+  _calYear=curYear;_calMonth=curMonth;
+  renderCalendario();
+  document.getElementById('calOverlay').style.display='flex';
+  closeQuickMenu();
+}
+window.closeCalendario=function(){document.getElementById('calOverlay').style.display='none';}
+window.closeCalOutside=function(e){if(e.target===document.getElementById('calOverlay'))window.closeCalendario();}
+window.calNavMonth=function(dir){
+  _calMonth+=dir;
+  if(_calMonth>11){_calMonth=0;_calYear++;}
+  if(_calMonth<0){_calMonth=11;_calYear--;}
+  renderCalendario();
 }
 
-function initCompetencia(editMonthKey){
-  _competenciaOffset=0;
-  const now=new Date();
-  const m0=new Date(now.getFullYear(),now.getMonth(),1);
-  const m1=new Date(now.getFullYear(),now.getMonth()+1,1);
-  const fmt2=(d)=>MONTHS[d.getMonth()].substring(0,3)+' '+d.getFullYear();
-  const l0=document.getElementById('compLabel0'),l1=document.getElementById('compLabel1');
-  if(l0)l0.textContent=fmt2(m0);
-  if(l1)l1.textContent=fmt2(m1);
-  // Se editando, detecta qual mês estava selecionado
-  if(editMonthKey){
-    const nextKey=`${m1.getFullYear()}-${String(m1.getMonth()+1).padStart(2,'0')}`;
-    if(editMonthKey===nextKey)_competenciaOffset=1;
+function renderCalendario(){
+  const el=document.getElementById('calGrid');
+  const titulo=document.getElementById('calTitulo');
+  if(!el||!titulo)return;
+  titulo.textContent=MONTHS[_calMonth]+' '+_calYear;
+
+  const allItems=getData();
+  // Dias com lançamentos neste mês
+  const mk=`${_calYear}-${String(_calMonth+1).padStart(2,'0')}`;
+  const diasComConta=new Set(
+    allItems.filter(x=>x.data&&x.data.startsWith(mk)).map(x=>parseInt(x.data.split('-')[2]))
+  );
+
+  const primeiroDia=new Date(_calYear,_calMonth,1).getDay(); // 0=Dom
+  const ultimoDia=new Date(_calYear,_calMonth+1,0).getDate();
+  const hoje=new Date();
+  const ehMesAtual=_calYear===hoje.getFullYear()&&_calMonth===hoje.getMonth();
+
+  const dias=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  let html=dias.map(d=>`<div style="text-align:center;font-size:10px;font-weight:700;color:#475569;padding:4px 0">${d}</div>`).join('');
+
+  // Células vazias antes do primeiro dia
+  for(let i=0;i<primeiroDia;i++) html+=`<div></div>`;
+
+  for(let d=1;d<=ultimoDia;d++){
+    const temConta=diasComConta.has(d);
+    const eHoje=ehMesAtual&&d===hoje.getDate();
+    html+=`<div onclick="calDiaClick(${d})" style="
+      text-align:center;padding:6px 2px;border-radius:8px;cursor:pointer;position:relative;
+      font-size:12px;font-weight:${eHoje?'800':'500'};
+      color:${eHoje?'#ffffff':temConta?'#1e293b':'#94a3b8'};
+      background:${eHoje?'#2563eb':'transparent'};
+      border:${eHoje?'none':temConta?'1.5px solid rgba(239,68,68,0.4)':'1px solid transparent'};
+    " onmouseover="this.style.background='${eHoje?'#1d4ed8':'rgba(37,99,235,0.1)'}'" onmouseout="this.style.background='${eHoje?'#2563eb':'transparent'}'">
+      ${d}
+      ${temConta&&!eHoje?`<span style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:#ef4444;display:block"></span>`:''}
+    </div>`;
   }
-  window.selectCompetencia(_competenciaOffset);
+  el.innerHTML=html;
+}
+
+window.calDiaClick=function(dia){
+  const mk=`${_calYear}-${String(_calMonth+1).padStart(2,'0')}`;
+  const dataStr=`${mk}-${String(dia).padStart(2,'0')}`;
+  const allItems=getData();
+  const dodia=allItems.filter(x=>x.data===dataStr);
+  const popup=document.getElementById('calDiaPopup');
+  const popupTitulo=document.getElementById('calDiaTitle');
+  const popupList=document.getElementById('calDiaList');
+  if(!dodia.length){popup.style.display='none';return;}
+  popupTitulo.textContent=`${String(dia).padStart(2,'0')}/${String(_calMonth+1).padStart(2,'0')}/${_calYear} — ${dodia.length} lançamento(s)`;
+  popupList.innerHTML=dodia.map(item=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(15,23,42,0.5);border-radius:10px;margin-bottom:6px;border:1px solid rgba(148,163,184,0.08)">
+      <div>
+        <p style="color:#e2e8f0;font-size:12px;font-weight:600;margin:0">${item.nome}</p>
+        <p style="color:#64748b;font-size:10px;margin:2px 0 0">${item.categoria}</p>
+      </div>
+      <div style="text-align:right">
+        <p style="color:#e2e8f0;font-size:12px;font-weight:700;margin:0">${fmt(item.valor)}</p>
+        <p style="color:${item.pago?'#4ade80':'#f59e0b'};font-size:10px;margin:2px 0 0">${item.pago?'✓ Pago':'Pendente'}</p>
+      </div>
+    </div>`).join('');
+  popup.style.display='block';
+}
+
+window.toggleQuickMenu=function(){
+  const qm=document.getElementById('quickMenu');
+  const overlay=document.getElementById('quickMenuOverlay');
+  const icon=document.getElementById('fabIcon');
+  const isOpen=qm.style.display==='flex';
+  qm.style.display=isOpen?'none':'flex';
+  overlay.style.display=isOpen?'none':'block';
+  icon.innerHTML=isOpen?'<path d="M12 5v14M5 12h14"/>':'<path d="M18 6L6 18M6 6l12 12"/>';
+}
+function closeQuickMenu(){
+  const qm=document.getElementById('quickMenu');
+  const overlay=document.getElementById('quickMenuOverlay');
+  const icon=document.getElementById('fabIcon');
+  if(qm)qm.style.display='none';
+  if(overlay)overlay.style.display='none';
+  if(icon)icon.innerHTML='<path d="M12 5v14M5 12h14"/>';
 }
 const PBS_TAG = 'fpro-sync';
 const PBS_MIN_INTERVAL = 12 * 60 * 60 * 1000; // 12h em ms
@@ -2425,14 +2398,9 @@ body.theme-light .empty-state{color:#64748b!important}
           <p class="text-xs text-slate-500 leading-none mt-0.5">Olá, <span id="userDisplayName" class="text-blue-400 font-semibold"></span></p>
         </div>
       </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button onclick="window.exportPDF()" class="btn-secondary px-2.5 py-2 rounded-xl shrink-0" title="Exportar PDF do mês" style="color:#6699CC">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M12 3v13M7 11l5 5 5-5"/><path d="M5 21h14"/></svg>
-        </button>
-        <button onclick="openMenu()" class="btn-secondary px-2.5 py-2 rounded-xl shrink-0" title="Menu">
-          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
-        </button>
-      </div>
+      <button onclick="openMenu()" class="btn-secondary px-2.5 py-2 rounded-xl shrink-0" title="Menu">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+      </button>
     </div>
   </div>
 
@@ -2532,10 +2500,29 @@ body.theme-light .empty-state{color:#64748b!important}
   </div>
 </div>
 
+<!-- Quick Menu -->
+<div id="quickMenu" style="display:none;position:fixed;bottom:85px;right:16px;z-index:998;display:none;flex-direction:column;gap:8px;align-items:flex-end">
+  <div onclick="openCalendario()" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+    <span style="background:rgba(15,23,42,0.95);color:#e2e8f0;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid rgba(148,163,184,0.15);white-space:nowrap">Calendário</span>
+    <div style="width:42px;height:42px;border-radius:50%;background:rgba(37,99,235,0.9);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
+      <svg width="20" height="20" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    </div>
+  </div>
+  <div onclick="closeQuickMenu();openModal()" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+    <span style="background:rgba(15,23,42,0.95);color:#e2e8f0;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid rgba(148,163,184,0.15);white-space:nowrap">Nova despesa</span>
+    <div style="width:42px;height:42px;border-radius:50%;background:rgba(37,99,235,0.9);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
+      <svg width="20" height="20" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+  </div>
+</div>
+
 <!-- FAB -->
-<button class="fab" onclick="openModal()">
-  <svg width="24" height="24" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+<button class="fab" id="fabBtn" onclick="toggleQuickMenu()">
+  <svg id="fabIcon" width="24" height="24" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
 </button>
+
+<!-- Overlay para fechar quick menu -->
+<div id="quickMenuOverlay" style="display:none;position:fixed;inset:0;z-index:997" onclick="closeQuickMenu()"></div>
 
 <!-- ══ MENU ══ -->
 <div class="menu-overlay" id="menuOverlay" style="display:none" onclick="closeMenuOutside(event)">
@@ -2651,20 +2638,6 @@ body.theme-light .empty-state{color:#64748b!important}
         <input type="date" id="inputVencimento"/>
         <p class="text-slate-600 text-xs mt-1 ml-1">Você receberá notificações até 3 dias antes</p>
       </div>
-
-      <!-- Mês de competência -->
-      <div id="competenciaGrp">
-        <label class="text-slate-400 text-xs block mb-1.5 ml-1">📆 Mês de competência</label>
-        <div style="display:flex;gap:8px" id="competenciaBtns">
-          <button type="button" id="compBtn0" onclick="selectCompetencia(0)" style="flex:1;padding:10px 6px;border-radius:12px;border:2px solid rgba(37,99,235,0.5);background:rgba(37,99,235,0.12);color:#93c5fd;font-weight:700;font-size:12px;cursor:pointer">
-            <span id="compLabel0"></span>
-          </button>
-          <button type="button" id="compBtn1" onclick="selectCompetencia(1)" style="flex:1;padding:10px 6px;border-radius:12px;border:2px solid rgba(148,163,184,0.15);background:rgba(148,163,184,0.06);color:#64748b;font-weight:700;font-size:12px;cursor:pointer">
-            <span id="compLabel1"></span>
-          </button>
-        </div>
-        <p class="text-slate-600 text-xs mt-1 ml-1">Define em qual mês a conta aparece no app</p>
-      </div>
       <div class="grid grid-cols-2 gap-3">
         <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Categoria</label>
         <select id="inputCategoria" onchange="updateCartaoSelect(this.value,'')">
@@ -2695,27 +2668,6 @@ body.theme-light .empty-state{color:#64748b!important}
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">📝 Observação <span style="color:#475569">(opcional)</span></label>
         <textarea id="inputObs" placeholder="Anote detalhes, o que foi feito, informações extras..." rows="2" style="resize:none;padding-bottom:8px"></textarea>
       </div>
-
-      <!-- Comprovante -->
-      <div>
-        <label class="text-slate-400 text-xs block mb-1.5 ml-1">🧾 Comprovante <span style="color:#475569">(opcional · máx. 2MB)</span></label>
-        <div id="comprovanteBox" onclick="document.getElementById('inputComprovante').click()" style="border:1.5px dashed rgba(148,163,184,0.2);border-radius:12px;padding:12px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;transition:border-color .15s;background:rgba(148,163,184,0.03)" onmouseover="this.style.borderColor='rgba(37,99,235,0.4)'" onmouseout="this.style.borderColor='rgba(148,163,184,0.2)'">
-          <div id="comprovanteThumb" style="display:none;position:relative;flex-shrink:0">
-            <img id="comprovantePreview" style="width:48px;height:48px;object-fit:cover;border-radius:8px;border:1px solid rgba(148,163,184,0.15)" src="" alt="Comprovante"/>
-            <button onclick="event.stopPropagation();clearComprovante()" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#ef4444;border:none;color:white;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1">×</button>
-          </div>
-          <div id="comprovanteEmpty" style="display:flex;align-items:center;gap:10px;width:100%">
-            <div style="width:36px;height:36px;border-radius:10px;background:rgba(37,99,235,0.1);display:flex;align-items:center;justify-content:center;flex-shrink:0">
-              <svg width="16" height="16" fill="none" stroke="#818cf8" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            </div>
-            <div>
-              <p style="color:#94a3b8;font-size:13px;font-weight:500;margin:0">Toque para anexar foto</p>
-              <p style="color:#475569;font-size:11px;margin:2px 0 0">JPG, PNG ou WEBP</p>
-            </div>
-          </div>
-          <p id="comprovanteFileName" style="display:none;color:#93c5fd;font-size:12px;font-weight:500;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></p>
-        </div>
-        <input type="file" id="inputComprovante" accept="image/*" style="display:none" onchange="handleComprovanteChange(this)"/>
       </div>
 
       <!-- Checkbox Gasto Recorrente -->
@@ -2857,10 +2809,6 @@ body.theme-light .empty-state{color:#64748b!important}
       <p style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">✅ Data de pagamento</p>
       <p id="detailDataPag" style="color:#4ade80;font-size:14px;font-weight:700;margin:0"></p>
     </div>
-    <div id="detailComprovanteBox" style="display:none;margin-bottom:16px">
-      <p style="color:#64748b;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🧾 Comprovante</p>
-      <img id="detailComprovanteImg" src="" alt="Comprovante" onclick="window.toggleComprovanteZoom()" style="width:100%;max-height:180px;object-fit:cover;border-radius:12px;border:1px solid rgba(148,163,184,0.12);cursor:zoom-in;transition:all .2s"/>
-    </div>
     <div id="detailRecBox" style="display:none;background:rgba(37,99,235,0.06);border:1px solid rgba(37,99,235,0.15);border-radius:14px;padding:12px;margin-bottom:16px">
       <p style="color:#93c5fd;font-size:12px;font-weight:600">↻ Gasto Recorrente — lançado nos próximos meses</p>
     </div>
@@ -2874,11 +2822,6 @@ body.theme-light .empty-state{color:#64748b!important}
   </div>
 </div>
 <!-- ══ COMPROVANTE LIGHTBOX ══ -->
-<div id="comprovanteLightbox" onclick="window.toggleComprovanteZoom()" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.92);align-items:center;justify-content:center;padding:16px;cursor:zoom-out">
-  <img id="lightboxImg" src="" alt="Comprovante ampliado" style="max-width:100%;max-height:100%;border-radius:12px;object-fit:contain;box-shadow:0 0 60px rgba(0,0,0,0.8)"/>
-  <button onclick="event.stopPropagation();window.toggleComprovanteZoom()" style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.1);border:none;color:white;width:36px;height:36px;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center">×</button>
-</div>
-
 <!-- ══ DUE ALERTS MODAL ══ -->
 <div class="modal-overlay" id="dueAlertsOverlay" style="display:none;align-items:flex-end">
   <div class="glass-modal modal-sheet animate-in" style="max-height:85vh;overflow-y:auto">
@@ -3045,6 +2988,47 @@ body.theme-light .empty-state{color:#64748b!important}
         <button onclick="confirmarRecebimento()" style="flex:1;padding:12px;border-radius:14px;background:linear-gradient(135deg,#22c55e,#16a34a);border:none;color:white;cursor:pointer;font-weight:700;font-size:13px">Confirmar</button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ══ CALENDÁRIO ══ -->
+<div class="modal-overlay" id="calOverlay" style="display:none" onclick="closeCalOutside(event)">
+  <div class="glass-modal modal-sheet animate-in" style="max-height:90vh;overflow-y:auto">
+    <div class="modal-handle"></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <button onclick="calNavMonth(-1)" style="background:rgba(148,163,184,0.08);border:none;color:#94a3b8;width:34px;height:34px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
+      </button>
+      <h2 id="calTitulo" style="color:#e2e8f0;font-weight:800;font-size:16px;margin:0"></h2>
+      <button onclick="calNavMonth(1)" style="background:rgba(148,163,184,0.08);border:none;color:#94a3b8;width:34px;height:34px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
+      </button>
+    </div>
+
+    <!-- Grid -->
+    <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px"></div>
+
+    <!-- Legenda -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:0 4px">
+      <div style="display:flex;align-items:center;gap:5px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block"></span>
+        <span style="color:#64748b;font-size:11px">Com lançamento</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:5px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#2563eb;display:inline-block"></span>
+        <span style="color:#64748b;font-size:11px">Hoje</span>
+      </div>
+    </div>
+
+    <!-- Popup do dia -->
+    <div id="calDiaPopup" style="display:none">
+      <div style="border-top:1px solid rgba(148,163,184,0.1);padding-top:12px;margin-bottom:8px">
+        <p id="calDiaTitle" style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px"></p>
+        <div id="calDiaList"></div>
+      </div>
+    </div>
+
+    <button onclick="closeCalendario()" style="width:100%;padding:12px;border-radius:14px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:13px">Fechar</button>
   </div>
 </div>
 
