@@ -1799,13 +1799,12 @@ window.openCalendario=function(){
   _calYear=curYear;_calMonth=curMonth;
   renderCalendario();
   document.getElementById('calOverlay').style.display='flex';
-  // Fechar FAB se aberto
-  const fab=document.getElementById('fabMenu');
-  if(fab)fab.style.display='none';
-  document.getElementById('fabOverlay').style.display='none';
-  document.getElementById('fabMain').innerHTML='<path d="M12 5v14M5 12h14"/>';
+  fabFechar();
 }
-window.closeCalendario=function(){document.getElementById('calOverlay').style.display='none';}
+window.closeCalendario=function(){
+  document.getElementById('calOverlay').style.display='none';
+  fabFechar();
+}
 window.closeCalOutside=function(e){if(e.target===document.getElementById('calOverlay'))window.closeCalendario();}
 window.calNavMonth=function(dir){
   _calMonth+=dir;
@@ -3009,7 +3008,7 @@ body.theme-light .empty-state{color:#64748b!important}
 </style>
 
 <!-- Overlay -->
-<div id="fabOverlay" onclick="fabFechar()"></div>
+<div id="fabOverlay" style="display:none" onclick="fabFechar()"></div>
 
 <!-- Sub-menu -->
 <div id="fabMenu">
@@ -3045,10 +3044,16 @@ function fabToggle(){
 }
 function fabFechar(){
   _fabOpen = false;
-  document.getElementById('fabMenu').style.display = 'none';
-  document.getElementById('fabOverlay').style.display = 'none';
-  document.getElementById('fabPath').setAttribute('d', 'M12 5v14M5 12h14');
+  var menu = document.getElementById('fabMenu');
+  var overlay = document.getElementById('fabOverlay');
+  var path = document.getElementById('fabPath');
+  if(menu) menu.style.display = 'none';
+  if(overlay) overlay.style.display = 'none';
+  if(path) path.setAttribute('d', 'M12 5v14M5 12h14');
 }
+// Expor globalmente para o module ES6 poder chamar
+window.fabFechar = fabFechar;
+window.fabToggle = fabToggle;
 </script>
 
 </body>
