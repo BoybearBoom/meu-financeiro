@@ -893,31 +893,35 @@ function render(){
     const isDueSoon=item.vencimento&&!item.pago&&!isOverdue&&new Date(item.vencimento+'T00:00:00')<=new Date(Date.now()+3*86400000);
     const clickable=!selectMode?`onclick="openDetail('${item.id}')" style="cursor:pointer"`:'';
     const vencColor=isOverdue?'#f87171':isDueSoon?'#fbbf24':'#64748b';
+    const vencBadge=isOverdue?'<span style="font-size:9px;background:rgba(239,68,68,0.15);color:#f87171;padding:1px 6px;border-radius:6px;font-weight:700;flex-shrink:0">VENCIDA</span>':isDueSoon?'<span style="font-size:9px;background:rgba(251,191,36,0.13);color:#fbbf24;padding:1px 6px;border-radius:6px;font-weight:700;flex-shrink:0">EM BREVE</span>':'';
     return`<div class="item-row px-3 py-3${isSel?' selected':''}${isOverdue?' overdue':''}${isDueSoon?' due-soon':''}" ${clickable}>
-      <div style="display:flex;align-items:flex-start;gap:10px">
-        ${selectMode?`<div class="checkbox-item${isSel?' checked':''}" onclick="event.stopPropagation();toggleSelect('${item.id}')" style="margin-top:2px">
+      <div style="display:flex;align-items:center;gap:10px">
+        ${selectMode?`<div class="checkbox-item${isSel?' checked':''}" onclick="event.stopPropagation();toggleSelect('${item.id}')">
           ${isSel?'<svg width="11" height="11" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>':''}
         </div>`:''}
-        <div class="shrink-0 w-9 h-9 rounded-xl flex items-center justify-content:center" style="background:rgba(148,163,184,0.08);font-size:17px;display:flex;align-items:center;justify-content:center;margin-top:1px">${icon}</div>
-        <div style="flex:1;min-width:0">
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px">
-            <p class="text-slate-200 text-sm font-semibold truncate">${nomeBase(item.nome)}${item.totalParcelas?`<span style="font-size:10px;color:#64748b;font-weight:400"> (${item.parcelNum}/${item.totalParcelas})</span>`:''}</p>
-            <p class="text-slate-200 text-sm font-bold shrink-0">${fmt(item.valor)}</p>
+        <div style="width:38px;height:38px;border-radius:12px;background:rgba(148,163,184,0.08);font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${icon}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
+          <!-- Row 1: nome + valor -->
+          <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
+            <p style="color:#e2e8f0;font-size:14px;font-weight:600;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">${nomeBase(item.nome)}${item.totalParcelas?`<span style="font-size:10px;color:#64748b;font-weight:400"> ${item.parcelNum}/${item.totalParcelas}</span>`:''}</p>
+            <p style="color:#e2e8f0;font-size:14px;font-weight:700;margin:0;flex-shrink:0">${fmt(item.valor)}</p>
           </div>
+          <!-- Row 2: cat + data adicionada -->
+          <div style="display:flex;align-items:center;gap:4px">
+            <span style="color:#475569;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px">${item.cartaoNome?item.cartaoNome:item.categoria}</span>
+            <span style="color:#2d3f55;font-size:10px;flex-shrink:0">·</span>
+            <span style="color:#475569;font-size:11px;white-space:nowrap;flex-shrink:0">+${fmtDate(item.data)}</span>
+            ${item.recorrente?'<span style="font-size:9px;background:rgba(37,99,235,0.18);color:#93c5fd;padding:1px 5px;border-radius:6px;font-weight:700;flex-shrink:0;margin-left:2px">↻</span>':''}
+          </div>
+          <!-- Row 3: vencimento + pago badge (only if vencimento exists, otherwise badge alone) -->
           <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
-            <div style="display:flex;align-items:center;gap:5px;min-width:0;flex:1">
-              <span style="color:#475569;font-size:11px;white-space:nowrap">${item.cartaoNome?item.cartaoNome:item.categoria}</span>
-              <span style="color:#334155;font-size:9px">•</span>
-              <span style="color:#475569;font-size:11px;white-space:nowrap">+${fmtDate(item.data)}</span>
-              ${item.vencimento?`<span style="color:#334155;font-size:9px">•</span><span style="color:${vencColor};font-size:11px;white-space:nowrap;font-weight:${isOverdue||isDueSoon?'600':'400'}">📅${fmtDate(item.vencimento)}</span>`:''}
-              ${item.recorrente?'<span style="font-size:9px;background:rgba(37,99,235,0.18);color:#93c5fd;padding:1px 5px;border-radius:6px;font-weight:700;flex-shrink:0">↻</span>':''}
+            <div style="display:flex;align-items:center;gap:4px;min-width:0">
+              ${item.vencimento?`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${vencColor}" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span style="color:${vencColor};font-size:11px;white-space:nowrap;font-weight:${isOverdue||isDueSoon?'600':'400'}">${fmtDate(item.vencimento)}</span>${vencBadge}`:'<span></span>'}
             </div>
-            <button onclick="event.stopPropagation();togglePago('${item.id}')" class="badge cursor-pointer shrink-0${item.pago?' status-paid':' status-pending'}" style="font-size:10px;padding:2px 8px">
+            <button onclick="event.stopPropagation();togglePago('${item.id}')" class="badge cursor-pointer shrink-0${item.pago?' status-paid':' status-pending'}" style="font-size:10px;padding:3px 10px;border-radius:20px">
               ${item.pago?'✓ Pago':'Pendente'}
             </button>
           </div>
-          ${isOverdue?'<p style="font-size:10px;color:#ef4444;font-weight:700;margin-top:2px">⚠️ VENCIDA</p>':''}
-          ${isDueSoon&&!isOverdue?'<p style="font-size:10px;color:#f59e0b;font-weight:600;margin-top:2px">⏰ Vence em breve</p>':''}
         </div>
       </div>
     </div>`;
@@ -2194,12 +2198,12 @@ window.openFab=function(){
   const add=document.getElementById('fabAddAction');
   const main=document.getElementById('fabMain');
   const bd=document.getElementById('fabBackdrop');
-  if(cal){cal.style.opacity='1';cal.style.transform='translateY(0) scale(1)';cal.style.pointerEvents='auto';}
-  if(add){add.style.opacity='1';add.style.transform='translateY(0) scale(1)';add.style.pointerEvents='auto';}
-  if(main){main.style.transform='rotate(45deg)';main.style.background='rgba(30,41,59,0.95)';}
+  if(cal){cal.style.opacity='1';cal.style.transform='translateY(0)';cal.style.pointerEvents='auto';}
+  if(add){add.style.opacity='1';add.style.transform='translateY(0)';add.style.pointerEvents='auto';}
+  if(main){main.style.transform='rotate(45deg)';main.style.background='linear-gradient(145deg,#334155,#1e293b)';main.style.boxShadow='0 6px 20px rgba(0,0,0,0.4)';}
   const pi=document.getElementById('fabIconPlus'),xi=document.getElementById('fabIconX');
-  if(pi){pi.style.opacity='0';pi.style.transform='rotate(45deg)';}
-  if(xi){xi.style.opacity='1';xi.style.transform='rotate(0)';}
+  if(pi){pi.style.opacity='0';}
+  if(xi){xi.style.opacity='1';}
   if(bd){bd.style.display='block';}
 }
 window.closeFab=function(){
@@ -2208,11 +2212,11 @@ window.closeFab=function(){
   const add=document.getElementById('fabAddAction');
   const main=document.getElementById('fabMain');
   const bd=document.getElementById('fabBackdrop');
-  if(cal){cal.style.opacity='0';cal.style.transform='translateY(12px) scale(0.85)';cal.style.pointerEvents='none';}
-  if(add){add.style.opacity='0';add.style.transform='translateY(12px) scale(0.85)';add.style.pointerEvents='none';}
-  if(main){main.style.transform='rotate(0)';main.style.background='';}
+  if(cal){cal.style.opacity='0';cal.style.transform='translateY(16px)';cal.style.pointerEvents='none';}
+  if(add){add.style.opacity='0';add.style.transform='translateY(16px)';add.style.pointerEvents='none';}
+  if(main){main.style.transform='rotate(0)';main.style.background='linear-gradient(145deg,#2563eb,#1d4ed8)';main.style.boxShadow='0 6px 24px rgba(37,99,235,0.5)';}
   const pi=document.getElementById('fabIconPlus'),xi=document.getElementById('fabIconX');
-  if(pi){pi.style.opacity='1';pi.style.transform='rotate(0)';}
+  if(pi){pi.style.opacity='1';}
   if(xi){xi.style.opacity='0';}
   if(bd){bd.style.display='none';}
 }
@@ -2275,43 +2279,49 @@ window.calSelectDay=function(day){
 function renderCalendario(){
   const key=`${calYear}-${String(calMonth+1).padStart(2,'0')}`;
   document.getElementById('calMonthLabel').textContent=MONTHS[calMonth]+' '+calYear;
-  const firstDay=new Date(calYear,calMonth,1).getDay(); // 0=Sun
+  // firstDay: 0=Sun. new Date(year, month, 1).getDay() is correct
+  const firstDay=new Date(calYear,calMonth,1).getDay();
+  // daysInMonth: day 0 of next month = last day of this month. Handles all months correctly (28/29/30/31)
   const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
   const today=new Date();today.setHours(0,0,0,0);
   const todayStr=today.toISOString().split('T')[0];
   const allData=getData();
-  // Build set of days with lançamentos (vencimento OR data adicionada)
+  // Build set of days with lançamentos (vencimento OR data adicionada) in this month
   const daysWithItems=new Set();
   allData.forEach(i=>{
     if(i.isTemplate)return;
-    if(i.vencimento&&i.vencimento.startsWith(key)){
-      const d=parseInt(i.vencimento.split('-')[2]);
-      daysWithItems.add(d);
+    if(i.vencimento&&i.vencimento.startsWith(key+'−'))return; // safety guard
+    if(i.vencimento&&i.vencimento.slice(0,7)===key){
+      const d=parseInt(i.vencimento.slice(8,10),10);
+      if(d>=1&&d<=31) daysWithItems.add(d);
     }
-    if(i.data&&i.data.startsWith(key)){
-      const d=parseInt(i.data.split('-')[2]);
-      daysWithItems.add(d);
+    if(i.data&&i.data.slice(0,7)===key){
+      const d=parseInt(i.data.slice(8,10),10);
+      if(d>=1&&d<=31) daysWithItems.add(d);
     }
   });
   const grid=document.getElementById('calGrid');
   if(!grid)return;
   const cells=[];
-  // Blank cells
+  // Blank cells before first day
   for(let i=0;i<firstDay;i++) cells.push('<div></div>');
+  // Day cells
   for(let d=1;d<=daysInMonth;d++){
     const dStr=`${key}-${String(d).padStart(2,'0')}`;
     const isToday=dStr===todayStr;
     const hasDot=daysWithItems.has(d);
     const isSel=calSelectedDate===d;
+    let bg='transparent',border='1px solid transparent',numColor=hasDot?'#e2e8f0':'#64748b',fontW=hasDot?'600':'400';
+    if(isToday){bg='#2563eb';border='none';numColor='white';fontW='800';}
+    else if(isSel){bg='rgba(239,68,68,0.12)';border='1.5px solid rgba(239,68,68,0.55)';}
+    else if(hasDot){border='1.5px solid rgba(239,68,68,0.4)';}
     cells.push(`<div onclick="calSelectDay(${d})" style="
-      display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
-      padding:6px 2px;border-radius:12px;cursor:pointer;position:relative;
-      border:${isSel?'2px solid rgba(239,68,68,0.5)':hasDot?'1px solid rgba(239,68,68,0.35)':'1px solid transparent'};
-      background:${isToday?'#2563eb':isSel?'rgba(239,68,68,0.1)':hasDot?'rgba(239,68,68,0.05)':'transparent'};
-      transition:background .15s
+      aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+      border-radius:12px;cursor:pointer;border:${border};background:${bg};
+      transition:background .12s,border-color .12s;-webkit-tap-highlight-color:transparent
     ">
-      <span style="color:${isToday?'white':hasDot||isSel?'#e2e8f0':'#94a3b8'};font-size:14px;font-weight:${isToday?'800':hasDot?'600':'400'};line-height:1">${d}</span>
-      ${hasDot?`<span style="width:5px;height:5px;border-radius:50%;background:${isToday?'white':'#ef4444'};display:block"></span>`:'<span style="width:5px;height:5px;display:block"></span>'}
+      <span style="color:${numColor};font-size:15px;font-weight:${fontW};line-height:1">${d}</span>
+      <span style="width:5px;height:5px;border-radius:50%;background:${hasDot?(isToday?'rgba(255,255,255,0.7)':'#ef4444'):'transparent'};display:block;flex-shrink:0"></span>
     </div>`);
   }
   grid.innerHTML=cells.join('');
@@ -2644,28 +2654,28 @@ body.theme-light .empty-state{color:#64748b!important}
 </div>
 
 <!-- FAB Container -->
-<div id="fabContainer" style="position:fixed;bottom:24px;right:18px;z-index:50;display:flex;flex-direction:column;align-items:flex-end;gap:10px">
-  <!-- Sub-action: Calendário -->
-  <div id="fabCalAction" style="display:flex;align-items:center;gap:10px;opacity:0;transform:translateY(12px) scale(0.85);transition:all .22s cubic-bezier(.34,1.56,.64,1);pointer-events:none">
-    <span style="background:rgba(8,14,28,0.92);color:#cbd5e1;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid rgba(148,163,184,0.18);white-space:nowrap;backdrop-filter:blur(8px)">Calendário</span>
-    <button onclick="event.stopPropagation();closeFab();openCalendario()" style="width:48px;height:48px;border-radius:16px;background:rgba(30,41,59,0.95);border:1px solid rgba(148,163,184,0.2);color:#93c5fd;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.35);backdrop-filter:blur(12px)">
-      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+<div id="fabContainer" style="position:fixed;bottom:22px;right:16px;z-index:50;display:flex;flex-direction:column;align-items:flex-end;gap:12px">
+  <!-- Sub: Calendário -->
+  <div id="fabCalAction" style="display:flex;align-items:center;gap:12px;opacity:0;transform:translateY(16px);transition:opacity .2s,transform .2s cubic-bezier(.34,1.56,.64,1);pointer-events:none">
+    <span style="background:rgba(10,18,35,0.95);color:#cbd5e1;font-size:13px;font-weight:600;padding:7px 14px;border-radius:22px;border:1px solid rgba(148,163,184,0.2);white-space:nowrap;backdrop-filter:blur(12px);box-shadow:0 4px 16px rgba(0,0,0,0.4)">Calendário</span>
+    <button onclick="event.stopPropagation();closeFab();openCalendario()" style="width:52px;height:52px;border-radius:18px;background:rgba(22,33,55,0.97);border:1px solid rgba(148,163,184,0.18);color:#93c5fd;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(0,0,0,0.45);flex-shrink:0">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     </button>
   </div>
-  <!-- Sub-action: Nova despesa -->
-  <div id="fabAddAction" style="display:flex;align-items:center;gap:10px;opacity:0;transform:translateY(12px) scale(0.85);transition:all .22s cubic-bezier(.34,1.56,.64,1) .06s;pointer-events:none">
-    <span style="background:rgba(8,14,28,0.92);color:#cbd5e1;font-size:12px;font-weight:600;padding:5px 12px;border-radius:20px;border:1px solid rgba(148,163,184,0.18);white-space:nowrap;backdrop-filter:blur(8px)">Nova despesa</span>
-    <button onclick="event.stopPropagation();closeFab();openModal()" style="width:48px;height:48px;border-radius:16px;background:linear-gradient(135deg,#2563eb,#3b82f6);border:none;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(37,99,235,0.45)">
-      <svg width="22" height="22" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+  <!-- Sub: Nova despesa -->
+  <div id="fabAddAction" style="display:flex;align-items:center;gap:12px;opacity:0;transform:translateY(16px);transition:opacity .2s .05s,transform .2s .05s cubic-bezier(.34,1.56,.64,1);pointer-events:none">
+    <span style="background:rgba(10,18,35,0.95);color:#cbd5e1;font-size:13px;font-weight:600;padding:7px 14px;border-radius:22px;border:1px solid rgba(148,163,184,0.2);white-space:nowrap;backdrop-filter:blur(12px);box-shadow:0 4px 16px rgba(0,0,0,0.4)">Nova despesa</span>
+    <button onclick="event.stopPropagation();closeFab();openModal()" style="width:52px;height:52px;border-radius:18px;background:linear-gradient(145deg,#2563eb,#1d4ed8);border:none;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(37,99,235,0.55);flex-shrink:0">
+      <svg width="24" height="24" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
     </button>
   </div>
   <!-- Main FAB -->
-  <button id="fabMain" onclick="toggleFab()" class="fab" style="position:relative;z-index:1;transition:transform .22s cubic-bezier(.34,1.56,.64,1),background .2s">
-    <svg id="fabIconPlus" width="24" height="24" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24" style="transition:opacity .15s,transform .15s"><path d="M12 5v14M5 12h14"/></svg>
-    <svg id="fabIconX" width="22" height="22" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24" style="position:absolute;opacity:0;transition:opacity .15s,transform .15s"><path d="M18 6L6 18M6 6l12 12"/></svg>
+  <button id="fabMain" onclick="toggleFab()" style="width:58px;height:58px;border-radius:20px;background:linear-gradient(145deg,#2563eb,#1d4ed8);border:none;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 24px rgba(37,99,235,0.5);transition:transform .2s cubic-bezier(.34,1.56,.64,1),background .2s,box-shadow .2s;flex-shrink:0;position:relative;overflow:hidden">
+    <svg id="fabIconPlus" width="26" height="26" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24" style="position:absolute;transition:opacity .18s,transform .18s"><path d="M12 5v14M5 12h14"/></svg>
+    <svg id="fabIconX" width="22" height="22" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24" style="position:absolute;opacity:0;transition:opacity .18s,transform .18s"><path d="M18 6L6 18M6 6l12 12"/></svg>
   </button>
 </div>
-<!-- FAB backdrop -->
+<!-- FAB backdrop (invisible, closes on tap outside) -->
 <div id="fabBackdrop" onclick="closeFab()" style="display:none;position:fixed;inset:0;z-index:49"></div>
 
 <!-- ══ MENU ══ -->
@@ -3151,38 +3161,51 @@ body.theme-light .empty-state{color:#64748b!important}
 </div>
 <!-- ══ CALENDÁRIO MODAL ══ -->
 <div class="modal-overlay" id="calendarioOverlay" style="display:none" onclick="closeCalendarioOutside(event)">
-  <div class="glass-modal modal-sheet animate-in" style="max-height:90vh;overflow-y:auto;padding-bottom:32px">
+  <div class="glass-modal modal-sheet animate-in" style="max-height:92vh;overflow-y:auto;padding-bottom:32px">
     <div class="modal-handle"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
-      <button onclick="calChangeMonth(-1)" style="width:36px;height:36px;border-radius:12px;background:rgba(148,163,184,0.1);border:1px solid rgba(148,163,184,0.12);color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <button onclick="calChangeMonth(-1)" style="width:40px;height:40px;border-radius:14px;background:rgba(148,163,184,0.1);border:1px solid rgba(148,163,184,0.12);color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
-      <h2 id="calMonthLabel" style="color:#e2e8f0;font-weight:800;font-size:17px;margin:0"></h2>
-      <button onclick="calChangeMonth(1)" style="width:36px;height:36px;border-radius:12px;background:rgba(148,163,184,0.1);border:1px solid rgba(148,163,184,0.12);color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center">
+      <h2 id="calMonthLabel" style="color:#e2e8f0;font-weight:800;font-size:18px;margin:0"></h2>
+      <button onclick="calChangeMonth(1)" style="width:40px;height:40px;border-radius:14px;background:rgba(148,163,184,0.1);border:1px solid rgba(148,163,184,0.12);color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
       </button>
     </div>
-    <!-- Day headers -->
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:8px">
-      ${['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'].map(d=>`<div style="text-align:center;color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.3px;padding:4px 0">${d}</div>`).join('')}
+    <!-- Day headers (static HTML, no template literal) -->
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px">
+      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Dom</div>
+      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Seg</div>
+      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Ter</div>
+      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Qua</div>
+      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Qui</div>
+      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Sex</div>
+      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Sáb</div>
     </div>
-    <!-- Day grid -->
-    <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:14px"></div>
+    <!-- Day grid (populated by JS) -->
+    <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:16px"></div>
     <!-- Legend -->
-    <div style="display:flex;align-items:center;gap:16px;padding:0 4px;margin-bottom:16px">
-      <div style="display:flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#ef4444;display:inline-block"></span><span style="color:#64748b;font-size:11px">Com lançamento</span></div>
-      <div style="display:flex;align-items:center;gap:5px"><span style="width:22px;height:22px;border-radius:8px;background:#2563eb;display:inline-block"></span><span style="color:#64748b;font-size:11px">Hoje</span></div>
+    <div style="display:flex;align-items:center;gap:20px;padding:0 2px;margin-bottom:16px">
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0"></span>
+        <span style="color:#64748b;font-size:12px">Com lançamento</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <span style="width:20px;height:20px;border-radius:7px;background:#2563eb;display:inline-block;flex-shrink:0"></span>
+        <span style="color:#64748b;font-size:12px">Hoje</span>
+      </div>
     </div>
     <!-- Day detail section -->
     <div id="calDaySection" style="display:none">
       <div style="border-top:1px solid rgba(148,163,184,0.1);padding-top:14px;margin-bottom:12px">
-        <p id="calDayHeader" style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px"></p>
+        <p id="calDayHeader" style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:0"></p>
       </div>
       <div id="calDayList"></div>
     </div>
-    <button onclick="closeCalendario()" style="width:100%;margin-top:8px;padding:12px;border-radius:14px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:13px">Fechar</button>
+    <button onclick="closeCalendario()" style="width:100%;margin-top:8px;padding:14px;border-radius:16px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:14px">Fechar</button>
   </div>
 </div>
 
 </body>
+</html>
 </html>
