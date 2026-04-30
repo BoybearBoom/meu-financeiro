@@ -2509,28 +2509,28 @@ body.theme-light .empty-state{color:#64748b!important}
 </div>
 
 <!-- Quick Menu -->
-<div id="quickMenu" data-open="0" style="display:none;position:fixed;bottom:85px;right:16px;z-index:998;flex-direction:column;gap:8px;align-items:flex-end">
-  <div onclick="openCalendario()" style="display:flex;align-items:center;gap:10px;cursor:pointer">
-    <span style="background:rgba(15,23,42,0.95);color:#e2e8f0;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid rgba(148,163,184,0.15);white-space:nowrap">Calendário</span>
-    <div style="width:42px;height:42px;border-radius:50%;background:rgba(37,99,235,0.9);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
-      <svg width="20" height="20" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-    </div>
+<div id="quickMenu" data-open="0" style="display:none;position:fixed;bottom:88px;right:16px;z-index:10001;flex-direction:column;gap:10px;align-items:flex-end">
+  <div style="display:flex;align-items:center;gap:10px">
+    <span style="background:#1e293b;color:#f1f5f9;font-size:13px;font-weight:600;padding:7px 14px;border-radius:20px;border:1px solid rgba(93,165,253,0.3);white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4)">Calendário</span>
+    <button onclick="openCalendario()" style="width:46px;height:46px;border-radius:50%;background:#2563eb;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(37,99,235,0.5)">
+      <svg width="21" height="21" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    </button>
   </div>
-  <div onclick="closeQuickMenu();setTimeout(()=>openModal(),80)" style="display:flex;align-items:center;gap:10px;cursor:pointer">
-    <span style="background:rgba(15,23,42,0.95);color:#e2e8f0;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid rgba(148,163,184,0.15);white-space:nowrap">Nova despesa</span>
-    <div style="width:42px;height:42px;border-radius:50%;background:rgba(37,99,235,0.9);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
-      <svg width="20" height="20" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-    </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span style="background:#1e293b;color:#f1f5f9;font-size:13px;font-weight:600;padding:7px 14px;border-radius:20px;border:1px solid rgba(93,165,253,0.3);white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4)">Nova despesa</span>
+    <button onclick="closeQuickMenu();setTimeout(function(){openModal()},80)" style="width:46px;height:46px;border-radius:50%;background:#2563eb;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(37,99,235,0.5)">
+      <svg width="21" height="21" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
   </div>
 </div>
 
+<!-- Overlay para fechar -->
+<div id="quickMenuOverlay" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.3)" onclick="closeQuickMenu()"></div>
+
 <!-- FAB -->
-<button class="fab" id="fabBtn" onclick="toggleQuickMenu()">
+<button class="fab" id="fabBtn" onclick="toggleQuickMenu()" style="z-index:10002;position:fixed;bottom:20px;right:16px">
   <svg id="fabIcon" width="24" height="24" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
 </button>
-
-<!-- Overlay para fechar quick menu -->
-<div id="quickMenuOverlay" style="display:none;position:fixed;inset:0;z-index:997" onclick="closeQuickMenu()"></div>
 
 <!-- ══ MENU ══ -->
 <div class="menu-overlay" id="menuOverlay" style="display:none" onclick="closeMenuOutside(event)">
