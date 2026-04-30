@@ -1799,7 +1799,11 @@ window.openCalendario=function(){
   _calYear=curYear;_calMonth=curMonth;
   renderCalendario();
   document.getElementById('calOverlay').style.display='flex';
-  closeQuickMenu();
+  // Fechar FAB se aberto
+  const fab=document.getElementById('fabMenu');
+  if(fab)fab.style.display='none';
+  document.getElementById('fabOverlay').style.display='none';
+  document.getElementById('fabMain').innerHTML='<path d="M12 5v14M5 12h14"/>';
 }
 window.closeCalendario=function(){document.getElementById('calOverlay').style.display='none';}
 window.closeCalOutside=function(e){if(e.target===document.getElementById('calOverlay'))window.closeCalendario();}
@@ -1875,31 +1879,6 @@ window.calDiaClick=function(dia){
   popup.style.display='block';
 }
 
-window.toggleQuickMenu=function(){
-  const qm=document.getElementById('quickMenu');
-  const overlay=document.getElementById('quickMenuOverlay');
-  const icon=document.getElementById('fabIcon');
-  const isOpen=qm.getAttribute('data-open')==='1';
-  if(isOpen){
-    qm.setAttribute('data-open','0');
-    qm.style.setProperty('display','none','important');
-    overlay.style.display='none';
-    icon.innerHTML='<path d="M12 5v14M5 12h14"/>';
-  }else{
-    qm.setAttribute('data-open','1');
-    qm.style.setProperty('display','flex','important');
-    overlay.style.display='block';
-    icon.innerHTML='<path d="M18 6L6 18M6 6l12 12"/>';
-  }
-}
-function closeQuickMenu(){
-  const qm=document.getElementById('quickMenu');
-  const overlay=document.getElementById('quickMenuOverlay');
-  const icon=document.getElementById('fabIcon');
-  if(qm){qm.setAttribute('data-open','0');qm.style.setProperty('display','none','important');}
-  if(overlay)overlay.style.display='none';
-  if(icon)icon.innerHTML='<path d="M12 5v14M5 12h14"/>';
-}
 const PBS_TAG = 'fpro-sync';
 const PBS_MIN_INTERVAL = 12 * 60 * 60 * 1000; // 12h em ms
 
@@ -2508,29 +2487,7 @@ body.theme-light .empty-state{color:#64748b!important}
   </div>
 </div>
 
-<!-- Quick Menu -->
-<div id="quickMenu" data-open="0" style="display:none;position:fixed;bottom:88px;right:16px;z-index:10003;flex-direction:column;gap:10px;align-items:flex-end">
-  <div style="display:flex;align-items:center;gap:10px">
-    <span style="background:#1e293b;color:#f1f5f9;font-size:13px;font-weight:600;padding:7px 14px;border-radius:20px;border:1px solid rgba(93,165,253,0.3);white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4)">Calendário</span>
-    <button onclick="openCalendario()" style="width:46px;height:46px;border-radius:50%;background:#2563eb;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(37,99,235,0.5)">
-      <svg width="21" height="21" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-    </button>
-  </div>
-  <div style="display:flex;align-items:center;gap:10px">
-    <span style="background:#1e293b;color:#f1f5f9;font-size:13px;font-weight:600;padding:7px 14px;border-radius:20px;border:1px solid rgba(93,165,253,0.3);white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4)">Nova despesa</span>
-    <button onclick="closeQuickMenu();setTimeout(function(){openModal()},80)" style="width:46px;height:46px;border-radius:50%;background:#2563eb;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(37,99,235,0.5)">
-      <svg width="21" height="21" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-    </button>
-  </div>
-</div>
 
-<!-- Overlay para fechar -->
-<div id="quickMenuOverlay" style="display:none;position:fixed;inset:0;z-index:10001;background:rgba(0,0,0,0.3)" onclick="closeQuickMenu()"></div>
-
-<!-- FAB -->
-<button class="fab" id="fabBtn" onclick="toggleQuickMenu()" style="z-index:10002;position:fixed;bottom:20px;right:16px">
-  <svg id="fabIcon" width="24" height="24" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
-</button>
 
 <!-- ══ MENU ══ -->
 <div class="menu-overlay" id="menuOverlay" style="display:none" onclick="closeMenuOutside(event)">
@@ -3039,6 +2996,60 @@ body.theme-light .empty-state{color:#64748b!important}
     <button onclick="closeCalendario()" style="width:100%;padding:12px;border-radius:14px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:13px">Fechar</button>
   </div>
 </div>
+
+<!-- ══ FAB ══ -->
+<style>
+#fabMain{position:fixed;bottom:22px;right:22px;width:56px;height:56px;border-radius:50%;background:#2563eb;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(37,99,235,0.5);z-index:9999;transition:transform .2s}
+#fabMain:active{transform:scale(0.92)}
+#fabMenu{position:fixed;bottom:90px;right:22px;display:none;flex-direction:column;gap:10px;align-items:flex-end;z-index:9999}
+#fabOverlay{display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,0.35)}
+.fab-item{display:flex;align-items:center;gap:10px}
+.fab-item-label{background:#1e293b;color:#f1f5f9;font-size:13px;font-weight:600;padding:7px 14px;border-radius:20px;border:1px solid rgba(93,165,253,0.25);white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,0.4)}
+.fab-item-btn{width:46px;height:46px;border-radius:50%;background:#2563eb;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(37,99,235,0.4);flex-shrink:0}
+</style>
+
+<!-- Overlay -->
+<div id="fabOverlay" onclick="fabFechar()"></div>
+
+<!-- Sub-menu -->
+<div id="fabMenu">
+  <div class="fab-item">
+    <span class="fab-item-label">Calendário</span>
+    <button class="fab-item-btn" onclick="fabFechar();setTimeout(function(){openCalendario()},80)">
+      <svg width="20" height="20" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    </button>
+  </div>
+  <div class="fab-item">
+    <span class="fab-item-label">Nova despesa</span>
+    <button class="fab-item-btn" onclick="fabFechar();setTimeout(function(){openModal()},80)">
+      <svg width="20" height="20" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- Botão principal -->
+<button id="fabMain" onclick="fabToggle()">
+  <svg id="fabIcon" width="24" height="24" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path id="fabPath" d="M12 5v14M5 12h14"/></svg>
+</button>
+
+<script>
+var _fabOpen = false;
+function fabToggle(){
+  _fabOpen = !_fabOpen;
+  var menu = document.getElementById('fabMenu');
+  var overlay = document.getElementById('fabOverlay');
+  var path = document.getElementById('fabPath');
+  menu.style.display = _fabOpen ? 'flex' : 'none';
+  overlay.style.display = _fabOpen ? 'block' : 'none';
+  path.setAttribute('d', _fabOpen ? 'M18 6L6 18M6 6l12 12' : 'M12 5v14M5 12h14');
+}
+function fabFechar(){
+  _fabOpen = false;
+  document.getElementById('fabMenu').style.display = 'none';
+  document.getElementById('fabOverlay').style.display = 'none';
+  document.getElementById('fabPath').setAttribute('d', 'M12 5v14M5 12h14');
+}
+</script>
 
 </body>
 </html>
