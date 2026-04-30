@@ -1718,9 +1718,9 @@ window.exportPDF=function(){
   // Nome do usuário no canto superior direito
   const userName=currentUser?(currentUser.displayName||currentUser.email.split('@')[0]):'';
   if(userName){
-    doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(147,197,253);
+    doc.setFontSize(8.5);doc.setFont('helvetica','bold');doc.setTextColor(180,180,255);
     doc.text(userName,190,14,{align:'right'});
-    doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(96,165,250);
+    doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(120,120,180);
     doc.text('@financespro',190,21,{align:'right'});
   }
 
@@ -1829,23 +1829,23 @@ function renderCalendario(){
   const ehMesAtual=_calYear===hoje.getFullYear()&&_calMonth===hoje.getMonth();
 
   const dias=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-  let html=dias.map(d=>`<div style="text-align:center;font-size:10px;font-weight:700;color:#94a3b8;padding:4px 0">${d}</div>`).join('');
+  let html=dias.map(d=>`<div style="text-align:center;font-size:10px;font-weight:700;color:#475569;padding:4px 0">${d}</div>`).join('');
 
+  // Células vazias antes do primeiro dia
   for(let i=0;i<primeiroDia;i++) html+=`<div></div>`;
 
   for(let d=1;d<=ultimoDia;d++){
     const temConta=diasComConta.has(d);
     const eHoje=ehMesAtual&&d===hoje.getDate();
     html+=`<div onclick="calDiaClick(${d})" style="
-      text-align:center;padding:7px 2px;border-radius:10px;cursor:pointer;position:relative;
-      font-size:13px;font-weight:${eHoje?'800':temConta?'700':'400'};
-      color:${eHoje?'#ffffff':temConta?'#f1f5f9':'#64748b'};
-      background:${eHoje?'#2563eb':temConta?'rgba(239,68,68,0.12)':'transparent'};
-      border:${eHoje?'2px solid #2563eb':temConta?'1.5px solid rgba(239,68,68,0.5)':'1px solid transparent'};
-      transition:all .15s
-    " onmouseover="this.style.background='${eHoje?'#1d4ed8':temConta?'rgba(239,68,68,0.22)':'rgba(37,99,235,0.1)'}'" onmouseout="this.style.background='${eHoje?'#2563eb':temConta?'rgba(239,68,68,0.12)':'transparent'}'">
+      text-align:center;padding:6px 2px;border-radius:8px;cursor:pointer;position:relative;
+      font-size:12px;font-weight:${eHoje?'800':'500'};
+      color:${eHoje?'#ffffff':temConta?'#1e293b':'#94a3b8'};
+      background:${eHoje?'#2563eb':'transparent'};
+      border:${eHoje?'none':temConta?'1.5px solid rgba(239,68,68,0.4)':'1px solid transparent'};
+    " onmouseover="this.style.background='${eHoje?'#1d4ed8':'rgba(37,99,235,0.1)'}'" onmouseout="this.style.background='${eHoje?'#2563eb':'transparent'}'">
       ${d}
-      ${temConta&&!eHoje?`<span style="position:absolute;bottom:3px;left:50%;transform:translateX(-50%);width:4px;height:4px;border-radius:50%;background:#ef4444;display:block"></span>`:''}
+      ${temConta&&!eHoje?`<span style="position:absolute;bottom:2px;left:50%;transform:translateX(-50%);width:5px;height:5px;border-radius:50%;background:#ef4444;display:block"></span>`:''}
     </div>`;
   }
   el.innerHTML=html;
@@ -1862,14 +1862,14 @@ window.calDiaClick=function(dia){
   if(!dodia.length){popup.style.display='none';return;}
   popupTitulo.textContent=`${String(dia).padStart(2,'0')}/${String(_calMonth+1).padStart(2,'0')}/${_calYear} — ${dodia.length} lançamento(s)`;
   popupList.innerHTML=dodia.map(item=>`
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:rgba(30,41,59,0.8);border-radius:12px;margin-bottom:8px;border:1px solid rgba(148,163,184,0.15)">
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:rgba(15,23,42,0.5);border-radius:10px;margin-bottom:6px;border:1px solid rgba(148,163,184,0.08)">
       <div>
-        <p style="color:#f1f5f9;font-size:13px;font-weight:600;margin:0">${item.nome}</p>
-        <p style="color:#94a3b8;font-size:11px;margin:3px 0 0">${item.categoria}</p>
+        <p style="color:#e2e8f0;font-size:12px;font-weight:600;margin:0">${item.nome}</p>
+        <p style="color:#64748b;font-size:10px;margin:2px 0 0">${item.categoria}</p>
       </div>
       <div style="text-align:right">
-        <p style="color:#f1f5f9;font-size:13px;font-weight:700;margin:0">${fmt(item.valor)}</p>
-        <p style="color:${item.pago?'#4ade80':'#fbbf24'};font-size:11px;margin:3px 0 0">${item.pago?'✓ Pago':'Pendente'}</p>
+        <p style="color:#e2e8f0;font-size:12px;font-weight:700;margin:0">${fmt(item.valor)}</p>
+        <p style="color:${item.pago?'#4ade80':'#f59e0b'};font-size:10px;margin:2px 0 0">${item.pago?'✓ Pago':'Pendente'}</p>
       </div>
     </div>`).join('');
   popup.style.display='block';
@@ -1882,12 +1882,12 @@ window.toggleQuickMenu=function(){
   const isOpen=qm.getAttribute('data-open')==='1';
   if(isOpen){
     qm.setAttribute('data-open','0');
-    qm.style.display='none';
+    qm.style.setProperty('display','none','important');
     overlay.style.display='none';
     icon.innerHTML='<path d="M12 5v14M5 12h14"/>';
   }else{
     qm.setAttribute('data-open','1');
-    qm.style.display='flex';
+    qm.style.setProperty('display','flex','important');
     overlay.style.display='block';
     icon.innerHTML='<path d="M18 6L6 18M6 6l12 12"/>';
   }
@@ -1896,7 +1896,7 @@ function closeQuickMenu(){
   const qm=document.getElementById('quickMenu');
   const overlay=document.getElementById('quickMenuOverlay');
   const icon=document.getElementById('fabIcon');
-  if(qm){qm.setAttribute('data-open','0');qm.style.display='none';}
+  if(qm){qm.setAttribute('data-open','0');qm.style.setProperty('display','none','important');}
   if(overlay)overlay.style.display='none';
   if(icon)icon.innerHTML='<path d="M12 5v14M5 12h14"/>';
 }
@@ -2345,39 +2345,6 @@ body.theme-light [style*="background:rgba(15,23,42"],body.theme-light [style*="b
 body.theme-light .empty-state{color:#64748b!important}
 .btn-primary,.btn-danger{position:relative;overflow:hidden}
 .btn-primary .ripple,.btn-danger .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,0.25);width:60px;height:60px;margin-top:-30px;margin-left:-30px;animation:ripple .5s linear;pointer-events:none}
-/* ════ PATCH PERMANENTE: AZUL + PRETO ════ */
-body:not(.theme-light){background:#000000!important;color:#e2e8f0!important}
-/* Roxo → Azul em todos os elementos */
-:root{
-  --color-primary:#2563eb;
-  --color-primary-light:#93c5fd;
-  --color-primary-dark:#1d4ed8;
-}
-/* Botões e destaques primários */
-body:not(.theme-light) .btn-primary,
-body:not(.theme-light) .fab,
-body:not(.theme-light) [style*="background:#2563eb"],
-body:not(.theme-light) [style*="background: #2563eb"],
-body:not(.theme-light) [style*="background-color:#2563eb"]{background:#2563eb!important}
-body:not(.theme-light) [style*="background:linear-gradient(135deg,#2563eb"],
-body:not(.theme-light) [style*="background:linear-gradient(135deg, #2563eb"]{background:linear-gradient(135deg,#2563eb,#3b82f6)!important}
-/* Textos roxos → azul */
-body:not(.theme-light) [style*="color:#2563eb"]{color:#2563eb!important}
-body:not(.theme-light) [style*="color:#3b82f6"]{color:#3b82f6!important}
-body:not(.theme-light) [style*="color:#60a5fa"]{color:#60a5fa!important}
-body:not(.theme-light) [style*="color:#93c5fd"]{color:#93c5fd!important}
-body:not(.theme-light) .text-blue-400{color:#60a5fa!important}
-body:not(.theme-light) .text-blue-300{color:#93c5fd!important}
-/* Bordas roxas → azul */
-body:not(.theme-light) [style*="border-color:#2563eb"]{border-color:#2563eb!important}
-body:not(.theme-light) [style*="border:.*2563eb"]{border-color:#2563eb!important}
-/* Backgrounds rgba roxos → azul */
-body:not(.theme-light) [style*="rgba(37,99,235"]{--override-bg:rgba(37,99,235}
-/* Filter btn ativo */
-body:not(.theme-light) .filter-btn.filter-active{background:rgba(37,99,235,0.2)!important;border-color:rgba(37,99,235,0.5)!important;color:#93c5fd!important}
-/* Sync dots e badges */
-body:not(.theme-light) .sync-dot[style*="background:#2563eb"],
-body:not(.theme-light) .sync-dot[style*="background:#3b82f6"]{background:#2563eb!important}
 </style>
 </head>
 <body>
@@ -2549,7 +2516,7 @@ body:not(.theme-light) .sync-dot[style*="background:#3b82f6"]{background:#2563eb
       <svg width="20" height="20" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
     </div>
   </div>
-  <div onclick="closeQuickMenu();setTimeout(()=>openModal(),50)" style="display:flex;align-items:center;gap:10px;cursor:pointer">
+  <div onclick="closeQuickMenu();setTimeout(()=>openModal(),80)" style="display:flex;align-items:center;gap:10px;cursor:pointer">
     <span style="background:rgba(15,23,42,0.95);color:#e2e8f0;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;border:1px solid rgba(148,163,184,0.15);white-space:nowrap">Nova despesa</span>
     <div style="width:42px;height:42px;border-radius:50%;background:rgba(37,99,235,0.9);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,0.3)">
       <svg width="20" height="20" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
@@ -3034,39 +3001,42 @@ body:not(.theme-light) .sync-dot[style*="background:#3b82f6"]{background:#2563eb
 
 <!-- ══ CALENDÁRIO ══ -->
 <div class="modal-overlay" id="calOverlay" style="display:none" onclick="closeCalOutside(event)">
-  <div class="glass-modal modal-sheet animate-in" style="max-height:90vh;overflow-y:auto;background:rgba(15,23,42,0.98)!important">
+  <div class="glass-modal modal-sheet animate-in" style="max-height:90vh;overflow-y:auto">
     <div class="modal-handle"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px">
-      <button onclick="calNavMonth(-1)" style="background:rgba(37,99,235,0.15);border:1px solid rgba(37,99,235,0.3);color:#93c5fd;width:36px;height:36px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <button onclick="calNavMonth(-1)" style="background:rgba(148,163,184,0.08);border:none;color:#94a3b8;width:34px;height:34px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
-      <h2 id="calTitulo" style="color:#f1f5f9;font-weight:800;font-size:17px;margin:0"></h2>
-      <button onclick="calNavMonth(1)" style="background:rgba(37,99,235,0.15);border:1px solid rgba(37,99,235,0.3);color:#93c5fd;width:36px;height:36px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+      <h2 id="calTitulo" style="color:#e2e8f0;font-weight:800;font-size:16px;margin:0"></h2>
+      <button onclick="calNavMonth(1)" style="background:rgba(148,163,184,0.08);border:none;color:#94a3b8;width:34px;height:34px;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
       </button>
     </div>
 
-    <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:16px"></div>
+    <!-- Grid -->
+    <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:14px"></div>
 
-    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;padding:10px 12px;background:rgba(30,41,59,0.5);border-radius:12px">
-      <div style="display:flex;align-items:center;gap:6px">
+    <!-- Legenda -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px;padding:0 4px">
+      <div style="display:flex;align-items:center;gap:5px">
         <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block"></span>
-        <span style="color:#94a3b8;font-size:11px">Com lançamento</span>
+        <span style="color:#64748b;font-size:11px">Com lançamento</span>
       </div>
-      <div style="display:flex;align-items:center;gap:6px">
+      <div style="display:flex;align-items:center;gap:5px">
         <span style="width:8px;height:8px;border-radius:50%;background:#2563eb;display:inline-block"></span>
-        <span style="color:#94a3b8;font-size:11px">Hoje</span>
+        <span style="color:#64748b;font-size:11px">Hoje</span>
       </div>
     </div>
 
+    <!-- Popup do dia -->
     <div id="calDiaPopup" style="display:none">
-      <div style="border-top:1px solid rgba(148,163,184,0.15);padding-top:14px;margin-bottom:10px">
-        <p id="calDiaTitle" style="color:#93c5fd;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px"></p>
+      <div style="border-top:1px solid rgba(148,163,184,0.1);padding-top:12px;margin-bottom:8px">
+        <p id="calDiaTitle" style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px"></p>
         <div id="calDiaList"></div>
       </div>
     </div>
 
-    <button onclick="closeCalendario()" style="width:100%;padding:13px;border-radius:14px;background:rgba(37,99,235,0.15);border:1.5px solid rgba(37,99,235,0.35);color:#93c5fd;cursor:pointer;font-weight:700;font-size:14px;letter-spacing:.3px">Fechar</button>
+    <button onclick="closeCalendario()" style="width:100%;padding:12px;border-radius:14px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:13px">Fechar</button>
   </div>
 </div>
 
