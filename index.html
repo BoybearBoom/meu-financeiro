@@ -640,6 +640,7 @@ window.closeSettingsOutside=function(e){if(e.target===document.getElementById('s
 window.openPersonalizacaoModal=function(){
   document.getElementById('inputAppName').value=getAppName();
   document.getElementById('inputFaturaAviso').value=localStorage.getItem('fpro_fatura_aviso')||'3';
+  document.getElementById('inputVencPadrao').value=localStorage.getItem('fpro_venc_padrao')||'';
   const t=getTheme();
   setTimeout(()=>{
     const db=document.getElementById('themeDarkBtn'),lb=document.getElementById('themeLightBtn');
@@ -654,8 +655,11 @@ window.closePersonalizacaoOutside=function(e){if(e.target===document.getElementB
 window.savePersonalizacao=function(){
   const name=document.getElementById('inputAppName').value.trim()||'FinancesPro';
   const dias=parseInt(document.getElementById('inputFaturaAviso').value)||3;
+  const vencDia=parseInt(document.getElementById('inputVencPadrao').value)||0;
   saveAppName(name);applyAppName(name);
   localStorage.setItem('fpro_fatura_aviso',Math.min(Math.max(dias,1),7));
+  if(vencDia>=1&&vencDia<=31) localStorage.setItem('fpro_venc_padrao',vencDia);
+  else localStorage.removeItem('fpro_venc_padrao');
   window.closePersonalizacaoModal();
   showToast('Personalização salva ✓','#4ade80');
 }
@@ -892,33 +896,38 @@ function render(){
     const isOverdue=item.vencimento&&!item.pago&&new Date(item.vencimento+'T00:00:00')<new Date();
     const isDueSoon=item.vencimento&&!item.pago&&!isOverdue&&new Date(item.vencimento+'T00:00:00')<=new Date(Date.now()+3*86400000);
     const clickable=!selectMode?`onclick="openDetail('${item.id}')" style="cursor:pointer"`:'';
-    const vencColor=isOverdue?'#f87171':isDueSoon?'#fbbf24':'#64748b';
-    const vencBadge=isOverdue?'<span style="font-size:9px;background:rgba(239,68,68,0.15);color:#f87171;padding:1px 6px;border-radius:6px;font-weight:700;flex-shrink:0">VENCIDA</span>':isDueSoon?'<span style="font-size:9px;background:rgba(251,191,36,0.13);color:#fbbf24;padding:1px 6px;border-radius:6px;font-weight:700;flex-shrink:0">EM BREVE</span>':'';
+    const vencColor=isOverdue?'#f87171':isDueSoon?'#fbbf24':'#94a3b8';
+    const vencBg=isOverdue?'rgba(239,68,68,0.12)':isDueSoon?'rgba(251,191,36,0.1)':'rgba(148,163,184,0.07)';
+    const vencBorder=isOverdue?'rgba(239,68,68,0.3)':isDueSoon?'rgba(251,191,36,0.25)':'rgba(148,163,184,0.12)';
+    const statusBadge=isOverdue?'<span style="font-size:9px;background:rgba(239,68,68,0.15);color:#f87171;padding:1px 6px;border-radius:6px;font-weight:700;border:1px solid rgba(239,68,68,0.25)">VENCIDA</span>':isDueSoon?'<span style="font-size:9px;background:rgba(251,191,36,0.13);color:#fbbf24;padding:1px 6px;border-radius:6px;font-weight:700;border:1px solid rgba(251,191,36,0.2)">EM BREVE</span>':'';
     return`<div class="item-row px-3 py-3${isSel?' selected':''}${isOverdue?' overdue':''}${isDueSoon?' due-soon':''}" ${clickable}>
       <div style="display:flex;align-items:center;gap:10px">
         ${selectMode?`<div class="checkbox-item${isSel?' checked':''}" onclick="event.stopPropagation();toggleSelect('${item.id}')">
           ${isSel?'<svg width="11" height="11" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>':''}
         </div>`:''}
-        <div style="width:38px;height:38px;border-radius:12px;background:rgba(148,163,184,0.08);font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${icon}</div>
-        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:3px">
-          <!-- Row 1: nome + valor -->
+        <div style="width:40px;height:40px;border-radius:13px;background:rgba(148,163,184,0.08);font-size:19px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${icon}</div>
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+          <!-- Linha 1: nome + valor -->
           <div style="display:flex;align-items:baseline;justify-content:space-between;gap:8px">
-            <p style="color:#e2e8f0;font-size:14px;font-weight:600;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0">${nomeBase(item.nome)}${item.totalParcelas?`<span style="font-size:10px;color:#64748b;font-weight:400"> ${item.parcelNum}/${item.totalParcelas}</span>`:''}</p>
-            <p style="color:#e2e8f0;font-size:14px;font-weight:700;margin:0;flex-shrink:0">${fmt(item.valor)}</p>
-          </div>
-          <!-- Row 2: cat + data adicionada -->
-          <div style="display:flex;align-items:center;gap:4px">
-            <span style="color:#475569;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:80px">${item.cartaoNome?item.cartaoNome:item.categoria}</span>
-            <span style="color:#2d3f55;font-size:10px;flex-shrink:0">·</span>
-            <span style="color:#475569;font-size:11px;white-space:nowrap;flex-shrink:0">+${fmtDate(item.data)}</span>
-            ${item.recorrente?'<span style="font-size:9px;background:rgba(37,99,235,0.18);color:#93c5fd;padding:1px 5px;border-radius:6px;font-weight:700;flex-shrink:0;margin-left:2px">↻</span>':''}
-          </div>
-          <!-- Row 3: vencimento + pago badge (only if vencimento exists, otherwise badge alone) -->
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
-            <div style="display:flex;align-items:center;gap:4px;min-width:0">
-              ${item.vencimento?`<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="${vencColor}" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span style="color:${vencColor};font-size:11px;white-space:nowrap;font-weight:${isOverdue||isDueSoon?'600':'400'}">${fmtDate(item.vencimento)}</span>${vencBadge}`:'<span></span>'}
+            <div style="display:flex;align-items:center;gap:5px;min-width:0;flex:1">
+              <p style="color:#f1f5f9;font-size:14px;font-weight:700;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nomeBase(item.nome)}</p>
+              ${item.totalParcelas?`<span style="font-size:11px;color:#f1f5f9;font-weight:700;background:rgba(37,99,235,0.25);border:1px solid rgba(37,99,235,0.35);padding:1px 7px;border-radius:8px;flex-shrink:0;white-space:nowrap">${item.parcelNum}/${item.totalParcelas}</span>`:''}
+              ${item.recorrente?'<span style="font-size:10px;background:rgba(37,99,235,0.2);color:#93c5fd;padding:1px 6px;border-radius:7px;font-weight:700;border:1px solid rgba(37,99,235,0.3);flex-shrink:0">↻</span>':''}
             </div>
-            <button onclick="event.stopPropagation();togglePago('${item.id}')" class="badge cursor-pointer shrink-0${item.pago?' status-paid':' status-pending'}" style="font-size:10px;padding:3px 10px;border-radius:20px">
+            <p style="color:#f1f5f9;font-size:15px;font-weight:800;margin:0;flex-shrink:0">${fmt(item.valor)}</p>
+          </div>
+          <!-- Linha 2: categoria + data adicionada -->
+          <div style="display:flex;align-items:center;gap:5px">
+            <span style="color:#64748b;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px">${item.cartaoNome?item.cartaoNome:item.categoria}</span>
+            <span style="color:#2d3f55;font-size:10px">·</span>
+            <span style="font-size:11px;color:#475569;white-space:nowrap">📅 ${fmtDate(item.data)}</span>
+          </div>
+          <!-- Linha 3: vencimento + badge pago -->
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
+            <div style="display:flex;align-items:center;gap:5px;min-width:0">
+              ${item.vencimento?`<span style="display:inline-flex;align-items:center;gap:4px;background:${vencBg};border:1px solid ${vencBorder};border-radius:8px;padding:2px 8px;font-size:11px;font-weight:600;color:${vencColor};white-space:nowrap">VENC ${fmtDate(item.vencimento)}</span>${statusBadge}`:''}
+            </div>
+            <button onclick="event.stopPropagation();togglePago('${item.id}')" class="badge cursor-pointer shrink-0${item.pago?' status-paid':' status-pending'}" style="font-size:11px;padding:4px 12px;border-radius:20px;font-weight:700">
               ${item.pago?'✓ Pago':'Pendente'}
             </button>
           </div>
@@ -1165,7 +1174,15 @@ window.openModal=function(editId){
   document.getElementById('inputNome').value=isEdit?nomeBase(item.nome):'';
   document.getElementById('inputValor').value=isEdit?item.valor:'';
   document.getElementById('inputData').value=isEdit?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
-  document.getElementById('inputVencimento').value=isEdit&&item.vencimento?item.vencimento:'';
+  document.getElementById('inputVencimento').value=isEdit&&item.vencimento?item.vencimento:(()=>{
+    if(isEdit) return '';
+    const dia=parseInt(localStorage.getItem('fpro_venc_padrao')||'0');
+    if(!dia) return '';
+    // build date for this day in current month, clamped to actual days in month
+    const daysInMonth=new Date(curYear,curMonth+1,0).getDate();
+    const d=Math.min(dia,daysInMonth);
+    return `${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  })();
   document.getElementById('inputCategoria').value=isEdit?item.categoria:'Moradia';
   updateCartaoSelect(isEdit?item.categoria:'Moradia', isEdit?item.cartaoNome:'');
   document.getElementById('inputParcelas').value='1';
@@ -2260,15 +2277,21 @@ window.calSelectDay=function(day){
     }else{
       listEl.innerHTML=dayItems.map(item=>{
         const icon=CATS[item.categoria]||'💸';
-        return`<div onclick="closeCalendario();setTimeout(()=>openDetail('${item.id}'),80)" style="background:rgba(15,23,42,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:14px;padding:13px 14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px">
-          <span style="font-size:20px">${icon}</span>
+        const hasVenc=item.vencimento===dateStr;
+        const hasData=item.data===dateStr;
+        return`<div onclick="closeCalendario();setTimeout(()=>openDetail('${item.id}'),80)" style="background:rgba(15,23,42,0.7);border:1px solid rgba(148,163,184,0.12);border-radius:14px;padding:13px 14px;margin-bottom:10px;cursor:pointer;display:flex;align-items:center;gap:12px;-webkit-tap-highlight-color:transparent">
+          <div style="width:38px;height:38px;border-radius:12px;background:rgba(148,163,184,0.08);font-size:19px;display:flex;align-items:center;justify-content:center;flex-shrink:0">${icon}</div>
           <div style="flex:1;min-width:0">
-            <p style="color:#e2e8f0;font-size:14px;font-weight:600;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nomeBase(item.nome)}</p>
-            <p style="color:#64748b;font-size:12px;margin:2px 0 0">${item.cartaoNome||item.categoria}${item.vencimento===dateStr?' · <span style="color:#93c5fd">venc. aqui</span>':' · adicionado'}</p>
+            <p style="color:#f1f5f9;font-size:14px;font-weight:700;margin:0 0 3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${nomeBase(item.nome)}${item.totalParcelas?` <span style="font-size:11px;background:rgba(37,99,235,0.25);border:1px solid rgba(37,99,235,0.35);color:#f1f5f9;padding:0 5px;border-radius:6px;font-weight:700">${item.parcelNum}/${item.totalParcelas}</span>`:''}</p>
+            <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap">
+              <span style="color:#64748b;font-size:11px">${item.cartaoNome||item.categoria}</span>
+              ${hasData?`<span style="color:#334155;font-size:9px">·</span><span style="font-size:11px;color:#475569">📅 ${fmtDate(item.data)}</span>`:''}
+              ${hasVenc?`<span style="color:#334155;font-size:9px">·</span><span style="font-size:11px;background:rgba(147,197,253,0.1);color:#93c5fd;padding:1px 6px;border-radius:6px;font-weight:600;border:1px solid rgba(147,197,253,0.2)">VENC ${fmtDate(item.vencimento)}</span>`:''}
+            </div>
           </div>
           <div style="text-align:right;flex-shrink:0">
-            <p style="color:#e2e8f0;font-size:14px;font-weight:700;margin:0">${fmt(item.valor)}</p>
-            <p style="color:${item.pago?'#4ade80':'#fbbf24'};font-size:11px;font-weight:600;margin:2px 0 0">${item.pago?'✓ Pago':'Pendente'}</p>
+            <p style="color:#f1f5f9;font-size:14px;font-weight:800;margin:0 0 3px">${fmt(item.valor)}</p>
+            <p style="color:${item.pago?'#4ade80':'#fbbf24'};font-size:11px;font-weight:700;margin:0">${item.pago?'✓ Pago':'Pendente'}</p>
           </div>
         </div>`;
       }).join('');
@@ -2779,35 +2802,52 @@ body.theme-light .empty-state{color:#64748b!important}
     <div id="modalParcelaInfo" style="display:none;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;padding:9px 13px;font-size:12px;color:#fbbf24;margin-bottom:4px"></div>
     <div id="modalRecInfo" style="display:none;background:rgba(37,99,235,0.07);border:1px solid rgba(37,99,235,0.18);border-radius:10px;padding:9px 13px;font-size:12px;color:#93c5fd;margin-bottom:4px">↻ Recorrente — salvar vai atualizar todos os meses seguintes em cascata</div>
     <div class="space-y-3">
-      <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Descrição *</label>
-      <input type="text" id="inputNome" placeholder="Ex: Netflix, Aluguel, Mercado..."/></div>
-      <div class="grid grid-cols-2 gap-3">
-        <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Valor (R$) *</label>
-        <input type="number" id="inputValor" placeholder="0,00" step="0.01" min="0"/></div>
-        <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Data</label>
-        <input type="date" id="inputData"/></div>
-      </div>
+      <!-- Descrição -->
       <div>
-        <label class="text-slate-400 text-xs block mb-1.5 ml-1">📅 Data de vencimento <span style="color:#2563eb">(para alertas)</span></label>
-        <input type="date" id="inputVencimento"/>
-        <p class="text-slate-600 text-xs mt-1 ml-1">Você receberá notificações até 3 dias antes</p>
+        <label class="text-slate-400 text-xs block mb-1.5 ml-1">Descrição *</label>
+        <input type="text" id="inputNome" placeholder="Ex: Netflix, Aluguel, Mercado..."/>
       </div>
+
+      <!-- Valor + Data numa linha -->
       <div class="grid grid-cols-2 gap-3">
-        <div><label class="text-slate-400 text-xs block mb-1.5 ml-1">Categoria</label>
-        <select id="inputCategoria" onchange="updateCartaoSelect(this.value,'')">
-          <option value="Moradia">🏠 Moradia</option><option value="Mercado">🛒 Mercado</option>
-          <option value="Transporte">🚗 Transporte</option><option value="Lazer">🍕 Lazer</option>
-          <option value="Cartão">💳 Cartão</option><option value="Saúde">🏥 Saúde</option>
-          <option value="Assinaturas">🛡️ Assinaturas</option><option value="Investimentos">💰 Investimentos</option>
-        </select></div>
-        <div id="parcelasGrp"><label class="text-slate-400 text-xs block mb-1.5 ml-1">Parcelas</label>
-        <select id="inputParcelas">
-          <option value="1">1x / À vista</option><option value="2">2x</option><option value="3">3x</option>
-          <option value="4">4x</option><option value="5">5x</option><option value="6">6x</option>
-          <option value="7">7x</option><option value="8">8x</option><option value="9">9x</option>
-          <option value="10">10x</option><option value="11">11x</option><option value="12">12x</option>
-          <option value="15">15x</option><option value="18">18x</option><option value="24">24x</option>
-        </select></div>
+        <div>
+          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Valor (R$) *</label>
+          <input type="number" id="inputValor" placeholder="0,00" step="0.01" min="0"/>
+        </div>
+        <div>
+          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Data de adição</label>
+          <input type="date" id="inputData"/>
+        </div>
+      </div>
+
+      <!-- Vencimento — campo de destaque -->
+      <div style="background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:14px;padding:12px 14px">
+        <label style="color:#fbbf24;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">📅 Data de vencimento <span style="color:#92400e;font-weight:500;font-size:10px">(para alertas)</span></label>
+        <input type="date" id="inputVencimento" style="background:rgba(0,0,0,0.2)!important"/>
+        <p style="color:#78350f;font-size:11px;margin:6px 0 0">Você receberá notificações até 3 dias antes do vencimento</p>
+      </div>
+
+      <!-- Categoria + Parcelas numa linha -->
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Categoria</label>
+          <select id="inputCategoria" onchange="updateCartaoSelect(this.value,'')">
+            <option value="Moradia">🏠 Moradia</option><option value="Mercado">🛒 Mercado</option>
+            <option value="Transporte">🚗 Transporte</option><option value="Lazer">🍕 Lazer</option>
+            <option value="Cartão">💳 Cartão</option><option value="Saúde">🏥 Saúde</option>
+            <option value="Assinaturas">🛡️ Assinaturas</option><option value="Investimentos">💰 Investimentos</option>
+          </select>
+        </div>
+        <div id="parcelasGrp">
+          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Parcelas</label>
+          <select id="inputParcelas">
+            <option value="1">1x / À vista</option><option value="2">2x</option><option value="3">3x</option>
+            <option value="4">4x</option><option value="5">5x</option><option value="6">6x</option>
+            <option value="7">7x</option><option value="8">8x</option><option value="9">9x</option>
+            <option value="10">10x</option><option value="11">11x</option><option value="12">12x</option>
+            <option value="15">15x</option><option value="18">18x</option><option value="24">24x</option>
+          </select>
+        </div>
       </div>
 
       <!-- Cartão select -->
@@ -2825,9 +2865,9 @@ body.theme-light .empty-state{color:#64748b!important}
 
       <!-- Mês de Competência -->
       <div style="background:rgba(37,99,235,0.07);border:1px solid rgba(37,99,235,0.2);border-radius:14px;padding:12px 14px">
-        <label style="color:#93c5fd;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">📅 Mês de competência</label>
+        <label style="color:#93c5fd;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">📆 Mês de competência</label>
         <select id="inputCompetencia" style="width:100%"></select>
-        <p style="color:#475569;font-size:11px;margin:6px 0 0">Contas debitadas no próximo mês? Selecione "próximo".</p>
+        <p style="color:#475569;font-size:11px;margin:6px 0 0">Conta debitada no próximo mês? Selecione "próximo".</p>
       </div>
 
       <!-- Checkbox Gasto Recorrente -->
@@ -3029,6 +3069,19 @@ body.theme-light .empty-state{color:#64748b!important}
       <p style="color:#475569;font-size:11px;margin:4px 0 0 2px">Aparece no topo e na aba do navegador</p>
     </div>
 
+    <!-- Dia padrão de vencimento -->
+    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📅 Vencimento padrão</p>
+    <div style="background:rgba(30,41,59,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:14px;padding:14px 16px;margin-bottom:20px">
+      <p style="color:#cbd5e1;font-size:13px;font-weight:500;margin-bottom:10px">Preencher vencimento automaticamente no dia:</p>
+      <div style="display:flex;align-items:center;gap:12px">
+        <input type="number" id="inputVencPadrao" min="1" max="31" placeholder="—" style="width:80px!important;text-align:center;font-size:18px!important;font-weight:700!important;padding:10px!important"/>
+        <div>
+          <p style="color:#94a3b8;font-size:13px;margin:0">do mês</p>
+          <p style="color:#475569;font-size:11px;margin:2px 0 0">Deixe vazio para não preencher</p>
+        </div>
+      </div>
+    </div>
+
     <!-- Alerta de fechamento de fatura -->
     <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">💳 Alerta de fechamento de fatura</p>
     <div style="background:rgba(30,41,59,0.6);border:1px solid rgba(148,163,184,0.1);border-radius:14px;padding:14px 16px;margin-bottom:20px">
@@ -3040,6 +3093,20 @@ body.theme-light .empty-state{color:#64748b!important}
           <p style="color:#475569;font-size:11px;margin:2px 0 0">Requer notificações ativadas</p>
         </div>
       </div>
+    </div>
+
+    <!-- Dia de vencimento padrão -->
+    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">📅 Dia de vencimento padrão</p>
+    <div style="background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:14px;padding:14px 16px;margin-bottom:20px">
+      <p style="color:#cbd5e1;font-size:13px;font-weight:500;margin-bottom:10px">Preencher automaticamente o vencimento ao criar despesas?</p>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <input type="number" id="inputVencPadrao" min="1" max="31" placeholder="—" style="width:80px!important;text-align:center;font-size:18px!important;font-weight:700!important;padding:10px!important"/>
+        <div>
+          <p style="color:#94a3b8;font-size:13px;margin:0">dia do mês</p>
+          <p style="color:#475569;font-size:11px;margin:2px 0 0">Deixe vazio para não preencher</p>
+        </div>
+      </div>
+      <p style="color:#78350f;font-size:11px;margin:0">Ao abrir "Nova Despesa", o campo de vencimento será preenchido automaticamente com este dia no mês atual.</p>
     </div>
 
     <div style="display:flex;gap:10px">
