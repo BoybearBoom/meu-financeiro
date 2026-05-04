@@ -2204,269 +2204,6 @@ window.ignorarApelidoSugerido = function(i) {
 
 
 // Inicia tudo ao carregar
-// ══════════════════════════════════════════════
-// ── GEMINI IA ASSISTENTE ──
-// ══════════════════════════════════════════════
-let geminiHistory=[];
-let geminiTyping=false;
-
-// Salva/carrega API Key do Firestore (por usuário)
-async function saveGeminiKey(key){
-  if(!currentUser)return;
-  try{
-    await setDoc(doc(db,'users_settings',currentUser.uid),{geminiKey:key},{merge:true});
-    localStorage.setItem('fpro_gk_cache',key);
-  }catch(e){console.log('Gemini key save error:',e);}
-}
-async function loadGeminiKey(){
-  const cached=localStorage.getItem('fpro_gk_cache');
-  if(cached)return cached;
-  if(!currentUser)return null;
-  try{
-    const snap=await getDoc(doc(db,'users_settings',currentUser.uid));
-    if(snap.exists()&&snap.data().geminiKey){
-      localStorage.setItem('fpro_gk_cache',snap.data().geminiKey);
-      return snap.data().geminiKey;
-    }
-  }catch(e){}
-  return null;
-}
-async function deleteGeminiKey(){
-  localStorage.removeItem('fpro_gk_cache');
-  if(!currentUser)return;
-  try{await setDoc(doc(db,'users_settings',currentUser.uid),{geminiKey:''},{merge:true});}
-  catch(e){}
-}
-
-// Monta contexto financeiro do usuário
-function buildFinancialContext(){
-  const all=getData();
-  const today=new Date();
-  const thisKey=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
-  const prevDate=new Date(today.getFullYear(),today.getMonth()-1,1);
-  const prevKey=`${prevDate.getFullYear()}-${String(prevDate.getMonth()+1).padStart(2,'0')}`;
-
-  function summarize(key){
-    const items=all.filter(i=>i.monthKey===key&&!i.isTemplate);
-    const total=items.reduce((s,i)=>s+parseFloat(i.valor),0);
-    const paid=items.filter(i=>i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
-    const pending=items.filter(i=>!i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
-    const byCat={};
-    items.forEach(i=>{byCat[i.categoria]=(byCat[i.categoria]||0)+parseFloat(i.valor);});
-    const top=Object.entries(byCat).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([c,v])=>`${c}: R$ ${v.toFixed(2)}`).join(', ');
-    const list=items.slice(0,20).map(i=>`- ${i.nome} (${i.categoria}): R$ ${parseFloat(i.valor).toFixed(2)} ${i.pago?'[PAGO]':'[PENDENTE]'}${i.vencimento?' venc.'+i.vencimento:''}`).join('\n');
-    return{total,paid,pending,top,list,count:items.length};
-  }
-
-  const cur=summarize(thisKey);
-  const prev=summarize(prevKey);
-  const areceber=getAReceber().filter(x=>!x.quitado);
-  const cartoes=getCartoes();
-  const userName=currentUser?(currentUser.displayName||currentUser.email.split('@')[0]):'Usuário';
-  const monthName=MONTHS[today.getMonth()];
-
-  return `Você é o assistente financeiro pessoal de ${userName} no app FinancesPro.
-Data atual: ${today.toLocaleDateString('pt-BR')}.
-
-=== MÊS ATUAL (${monthName} ${today.getFullYear()}) ===
-Total de despesas: R$ ${cur.total.toFixed(2)} (${cur.count} lançamentos)
-Já pago: R$ ${cur.paid.toFixed(2)} | Pendente: R$ ${cur.pending.toFixed(2)}
-Top categorias: ${cur.top||'nenhuma'}
-Lançamentos recentes:
-${cur.list||'(nenhum)'}
-
-=== MÊS ANTERIOR ===
-Total: R$ ${prev.total.toFixed(2)} | Pago: R$ ${prev.paid.toFixed(2)} | Pendente: R$ ${prev.pending.toFixed(2)}
-
-=== A RECEBER ===
-${areceber.length?areceber.map(x=>`- ${x.devedor}: R$ ${(x.valor-x.valorRecebido).toFixed(2)} (${x.desc})`).join('\n'):'Nenhum registro'}
-
-=== CARTÕES CADASTRADOS ===
-${cartoes.length?cartoes.map(c=>`- ${c.icone||'💳'} ${c.nome}: fecha dia ${c.fechamento}`).join('\n'):'Nenhum cartão'}
-
-Você pode responder perguntas financeiras com base nesses dados E também conversar sobre qualquer outro assunto (receitas, viagens, código, etc.). Seja direto, amigável e use emojis com moderação. Responda em português do Brasil.`;
-}
-
-// Chama a API do Gemini
-async function callGemini(userMessage){
-  const key=localStorage.getItem('fpro_gk_cache');
-  if(!key)throw new Error('NO_KEY');
-
-  const systemPrompt=buildFinancialContext();
-  const messages=geminiHistory.map(m=>({role:m.role,parts:[{text:m.text}]}));
-  messages.push({role:'user',parts:[{text:userMessage}]});
-
-  const body={
-    system_instruction:{parts:[{text:systemPrompt}]},
-    contents:messages,
-    generationConfig:{temperature:0.7,maxOutputTokens:1500}
-  };
-
-  let resp,err;
-  try{
-    resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify(body)
-    });
-  }catch(netErr){
-    throw new Error('Sem conexão ou CORS: '+netErr.message);
-  }
-
-  if(!resp.ok){
-    err=await resp.json().catch(()=>({}));
-    const msg=err?.error?.message||'';
-    console.error('Gemini API error',resp.status,msg);
-    if(resp.status===401||resp.status===403||(resp.status===400&&(msg.includes('API key')||msg.includes('api key'))))throw new Error('INVALID_KEY');
-    throw new Error('Erro '+resp.status+(msg?': '+msg:''));
-  }
-
-  const data=await resp.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text||'Sem resposta.';
-}
-
-// Abre modal do Gemini
-window.openGemini=async function(){
-  document.getElementById('geminiOverlay').style.display='flex';
-  const key=await loadGeminiKey();
-  if(key){
-    showGeminiChat();
-  }else{
-    showGeminiSetup();
-  }
-}
-window.closeGemini=function(){document.getElementById('geminiOverlay').style.display='none';}
-window.closeGeminiOutside=function(e){if(e.target===document.getElementById('geminiOverlay'))window.closeGemini();}
-
-function showGeminiSetup(){
-  document.getElementById('geminiSetup').style.display='block';
-  document.getElementById('geminiChat').style.display='none';
-  document.getElementById('geminiKeyInput').value='';
-}
-function showGeminiChat(){
-  document.getElementById('geminiSetup').style.display='none';
-  document.getElementById('geminiChat').style.display='flex';
-  if(!geminiHistory.length)renderGeminiWelcome();
-}
-
-window.saveGeminiKeyUI=async function(){
-  const key=document.getElementById('geminiKeyInput').value.trim();
-  if(!key||!key.startsWith('AIza')){showToast('Cole uma chave válida (começa com AIza...)','#ef4444');return;}
-  const btn=document.getElementById('btnSaveGeminiKey');
-  btn.textContent='Verificando...';btn.disabled=true;
-  // Testa a chave antes de salvar
-  localStorage.setItem('fpro_gk_cache',key);
-  try{
-    await callGemini('Olá, responda apenas: OK');
-    await saveGeminiKey(key);
-    showToast('Chave salva! Gemini ativado 🤖','#4ade80');
-    geminiHistory=[];
-    showGeminiChat();
-  }catch(e){
-    localStorage.removeItem('fpro_gk_cache');
-    console.error('Gemini setup error:',e.message);
-    if(e.message==='INVALID_KEY')showToast('Chave inválida ou sem permissão','#ef4444');
-    else showToast('Erro: '+e.message.slice(0,60),'#ef4444');
-  }finally{btn.textContent='Conectar';btn.disabled=false;}
-}
-
-window.geminiDisconnect=async function(){
-  if(!confirm('Remover a chave do Gemini?'))return;
-  await deleteGeminiKey();
-  geminiHistory=[];
-  showGeminiSetup();
-  showToast('Chave removida','#f59e0b');
-}
-
-function renderGeminiWelcome(){
-  const list=document.getElementById('geminiMsgList');
-  const name=currentUser?(currentUser.displayName||currentUser.email.split('@')[0]).split(' ')[0]:'';
-  list.innerHTML=`<div style="text-align:center;padding:24px 8px 8px">
-    <div style="font-size:36px;margin-bottom:8px">🤖</div>
-    <p style="color:#e2e8f0;font-size:15px;font-weight:700;margin:0 0 4px">Olá${name?', '+name:''}!</p>
-    <p style="color:#64748b;font-size:13px;margin:0">Seu assistente IA. Pergunte sobre seus gastos ou qualquer coisa!</p>
-  </div>
-  <div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 0 16px">
-    ${['📊 Como estou esse mês?','💡 Onde posso economizar?','📅 Tenho contas a vencer?','💬 Me conte uma curiosidade'].map(s=>`<button onclick="geminiQuickSend('${s}')" style="padding:8px 14px;border-radius:20px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.25);color:#a78bfa;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">${s}</button>`).join('')}
-  </div>`;
-}
-
-window.geminiQuickSend=function(msg){
-  document.getElementById('geminiInput').value=msg;
-  window.geminiSend();
-}
-
-function appendGeminiMsg(role,text){
-  const list=document.getElementById('geminiMsgList');
-  const isUser=role==='user';
-  const div=document.createElement('div');
-  div.style.cssText=`display:flex;justify-content:${isUser?'flex-end':'flex-start'};margin-bottom:12px`;
-  // Converte markdown simples (negrito, itálico, listas)
-  const html=text
-    .replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g,'<em>$1</em>')
-    .replace(/^- (.+)$/gm,'• $1')
-    .replace(/\n/g,'<br>');
-  div.innerHTML=`<div style="max-width:82%;padding:10px 14px;border-radius:${isUser?'18px 18px 4px 18px':'18px 18px 18px 4px'};background:${isUser?'linear-gradient(135deg,#4f46e5,#6366f1)':'rgba(30,41,59,0.9)'};border:${isUser?'none':'1px solid rgba(99,102,241,0.2)'};color:#f1f5f9;font-size:14px;line-height:1.5">${html}</div>`;
-  list.appendChild(div);
-  list.scrollTop=list.scrollHeight;
-}
-
-function appendGeminiTyping(){
-  const list=document.getElementById('geminiMsgList');
-  const div=document.createElement('div');
-  div.id='geminiTypingDot';
-  div.style.cssText='display:flex;justify-content:flex-start;margin-bottom:12px';
-  div.innerHTML=`<div style="padding:12px 16px;border-radius:18px 18px 18px 4px;background:rgba(30,41,59,0.9);border:1px solid rgba(99,102,241,0.2)">
-    <div style="display:flex;gap:4px;align-items:center">
-      <span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;animation:gDot 1.2s ease-in-out infinite"></span>
-      <span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;animation:gDot 1.2s ease-in-out .2s infinite"></span>
-      <span style="width:7px;height:7px;border-radius:50%;background:#a78bfa;animation:gDot 1.2s ease-in-out .4s infinite"></span>
-    </div>
-  </div>`;
-  list.appendChild(div);
-  list.scrollTop=list.scrollHeight;
-}
-
-window.geminiSend=async function(){
-  if(geminiTyping)return;
-  const input=document.getElementById('geminiInput');
-  const msg=input.value.trim();
-  if(!msg)return;
-  input.value='';
-  // Limpa boas-vindas se existir
-  const welcomeEl=document.getElementById('geminiMsgList').querySelector('div[style*="text-align:center"]');
-  if(welcomeEl)welcomeEl.closest('div')?.remove();
-  appendGeminiMsg('user',msg);
-  geminiHistory.push({role:'user',text:msg});
-  geminiTyping=true;
-  document.getElementById('geminiSendBtn').disabled=true;
-  appendGeminiTyping();
-  try{
-    const reply=await callGemini(msg);
-    document.getElementById('geminiTypingDot')?.remove();
-    appendGeminiMsg('model',reply);
-    geminiHistory.push({role:'model',text:reply});
-    // Limita histórico a 20 pares
-    if(geminiHistory.length>40)geminiHistory=geminiHistory.slice(-40);
-  }catch(e){
-    document.getElementById('geminiTypingDot')?.remove();
-    if(e.message==='NO_KEY'||e.message==='INVALID_KEY'){
-      appendGeminiMsg('model','⚠️ Chave da API inválida. Clique em "Trocar chave" para configurar.');
-    }else{
-      appendGeminiMsg('model','❌ Erro: '+e.message);
-    }
-  }finally{
-    geminiTyping=false;
-    document.getElementById('geminiSendBtn').disabled=false;
-    input.focus();
-  }
-}
-
-window.geminiKeyEnter=function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();window.geminiSend();}}
-window.geminiSetupEnter=function(e){if(e.key==='Enter')window.saveGeminiKeyUI();}
-window.geminiClearHistory=function(){geminiHistory=[];renderGeminiWelcome();showToast('Conversa reiniciada','#6366f1');}
-
 window.addEventListener('load', ()=>{registerSWAndPBS();initPersonalization();});
 
 // ── FAB expandível ──
@@ -2474,12 +2211,10 @@ let fabOpen=false;
 window.toggleFab=function(){fabOpen?closeFab():openFab();}
 window.openFab=function(){
   fabOpen=true;
-  const ia=document.getElementById('fabIAAction');
   const cal=document.getElementById('fabCalAction');
   const add=document.getElementById('fabAddAction');
   const main=document.getElementById('fabMain');
   const bd=document.getElementById('fabBackdrop');
-  if(ia){ia.style.opacity='1';ia.style.transform='translateY(0)';ia.style.pointerEvents='auto';}
   if(cal){cal.style.opacity='1';cal.style.transform='translateY(0)';cal.style.pointerEvents='auto';}
   if(add){add.style.opacity='1';add.style.transform='translateY(0)';add.style.pointerEvents='auto';}
   if(main){main.style.transform='rotate(45deg)';main.style.background='linear-gradient(145deg,#334155,#1e293b)';main.style.boxShadow='0 6px 20px rgba(0,0,0,0.4)';}
@@ -2490,12 +2225,10 @@ window.openFab=function(){
 }
 window.closeFab=function(){
   fabOpen=false;
-  const ia=document.getElementById('fabIAAction');
   const cal=document.getElementById('fabCalAction');
   const add=document.getElementById('fabAddAction');
   const main=document.getElementById('fabMain');
   const bd=document.getElementById('fabBackdrop');
-  if(ia){ia.style.opacity='0';ia.style.transform='translateY(16px)';ia.style.pointerEvents='none';}
   if(cal){cal.style.opacity='0';cal.style.transform='translateY(16px)';cal.style.pointerEvents='none';}
   if(add){add.style.opacity='0';add.style.transform='translateY(16px)';add.style.pointerEvents='none';}
   if(main){main.style.transform='rotate(0)';main.style.background='linear-gradient(145deg,#2563eb,#1d4ed8)';main.style.boxShadow='0 6px 24px rgba(37,99,235,0.5)';}
@@ -2945,13 +2678,6 @@ body.theme-light .empty-state{color:#64748b!important}
 
 <!-- FAB Container -->
 <div id="fabContainer" style="position:fixed;bottom:22px;right:16px;z-index:50;display:flex;flex-direction:column;align-items:flex-end;gap:12px">
-  <!-- Sub: IA Gemini -->
-  <div id="fabIAAction" style="display:flex;align-items:center;gap:12px;opacity:0;transform:translateY(16px);transition:opacity .2s .0s,transform .2s .0s cubic-bezier(.34,1.56,.64,1);pointer-events:none">
-    <span style="background:rgba(10,18,35,0.95);color:#cbd5e1;font-size:13px;font-weight:600;padding:7px 14px;border-radius:22px;border:1px solid rgba(148,163,184,0.2);white-space:nowrap;backdrop-filter:blur(12px);box-shadow:0 4px 16px rgba(0,0,0,0.4)">Assistente IA</span>
-    <button onclick="event.stopPropagation();closeFab();openGemini()" style="width:52px;height:52px;border-radius:18px;background:linear-gradient(145deg,#1a1a2e,#16213e);border:1px solid rgba(99,102,241,0.35);color:#a78bfa;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 20px rgba(99,102,241,0.3);flex-shrink:0">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a5 5 0 015 5c0 1.5-.6 2.8-1.5 3.8L21 17l-1.5 1.5-6.2-5.7A5 5 0 1112 2z"/><circle cx="12" cy="7" r="2" fill="currentColor" stroke="none"/></svg>
-    </button>
-  </div>
   <!-- Sub: Calendário -->
   <div id="fabCalAction" style="display:flex;align-items:center;gap:12px;opacity:0;transform:translateY(16px);transition:opacity .2s,transform .2s cubic-bezier(.34,1.56,.64,1);pointer-events:none">
     <span style="background:rgba(10,18,35,0.95);color:#cbd5e1;font-size:13px;font-weight:600;padding:7px 14px;border-radius:22px;border:1px solid rgba(148,163,184,0.2);white-space:nowrap;backdrop-filter:blur(12px);box-shadow:0 4px 16px rgba(0,0,0,0.4)">Calendário</span>
@@ -3534,69 +3260,6 @@ body.theme-light .empty-state{color:#64748b!important}
   </div>
 </div>
 
-<!-- ══ GEMINI IA MODAL ══ -->
-<style>
-@keyframes gDot{0%,80%,100%{transform:scale(0.6);opacity:.4}40%{transform:scale(1);opacity:1}}
-</style>
-<div class="modal-overlay" id="geminiOverlay" style="display:none" onclick="closeGeminiOutside(event)">
-  <div class="glass-modal modal-sheet animate-in" style="max-height:92vh;display:flex;flex-direction:column;padding:0;overflow:hidden">
-    <!-- Header -->
-    <div style="display:flex;align-items:center;gap:12px;padding:18px 18px 14px;border-bottom:1px solid rgba(99,102,241,0.15);flex-shrink:0">
-      <div style="width:38px;height:38px;border-radius:12px;background:linear-gradient(135deg,#4f46e5,#7c3aed);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🤖</div>
-      <div style="flex:1;min-width:0">
-        <p style="color:#e2e8f0;font-size:15px;font-weight:800;margin:0">Assistente IA</p>
-        <p style="color:#6366f1;font-size:11px;font-weight:600;margin:0">Gemini · FinancesPro</p>
-      </div>
-      <div style="display:flex;gap:8px;align-items:center">
-        <button id="btnGeminiHistory" onclick="geminiClearHistory()" title="Nova conversa" style="width:34px;height:34px;border-radius:10px;background:rgba(99,102,241,0.1);border:1px solid rgba(99,102,241,0.2);color:#a78bfa;cursor:pointer;display:flex;align-items:center;justify-content:center">
-          <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 102.13-9.36L1 10"/></svg>
-        </button>
-        <button onclick="closeGemini()" style="width:34px;height:34px;border-radius:10px;background:rgba(148,163,184,0.08);border:none;color:#64748b;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px">×</button>
-      </div>
-    </div>
-
-    <!-- SETUP (sem chave) -->
-    <div id="geminiSetup" style="display:none;padding:24px 18px;overflow-y:auto">
-      <div style="text-align:center;margin-bottom:24px">
-        <div style="font-size:48px;margin-bottom:12px">🔑</div>
-        <p style="color:#e2e8f0;font-size:16px;font-weight:800;margin:0 0 8px">Configure seu Gemini</p>
-        <p style="color:#64748b;font-size:13px;line-height:1.5;margin:0">Para usar a IA, você precisa de uma chave gratuita do Google AI Studio. Cada usuário usa a própria chave.</p>
-      </div>
-
-      <div style="background:rgba(99,102,241,0.08);border:1px solid rgba(99,102,241,0.2);border-radius:16px;padding:16px;margin-bottom:20px">
-        <p style="color:#a78bfa;font-size:12px;font-weight:700;margin:0 0 8px">📋 Como obter sua chave gratuita:</p>
-        <p style="color:#94a3b8;font-size:12px;line-height:1.6;margin:0">1. Acesse <strong style="color:#c4b5fd">aistudio.google.com</strong><br>2. Faça login com sua conta Google<br>3. Clique em <strong style="color:#c4b5fd">"Get API Key"</strong><br>4. Copie e cole a chave abaixo</p>
-      </div>
-
-      <div style="margin-bottom:16px">
-        <label style="color:#94a3b8;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Sua API Key do Google AI Studio</label>
-        <input id="geminiKeyInput" type="text" placeholder="AIzaSy..." onkeydown="geminiSetupEnter(event)" style="letter-spacing:.5px;font-family:monospace"/>
-        <p style="color:#475569;font-size:11px;margin:6px 0 0">🔒 Salva de forma segura no seu Firestore. Nunca compartilhada.</p>
-      </div>
-
-      <button id="btnSaveGeminiKey" onclick="saveGeminiKeyUI()" style="width:100%;padding:14px;border-radius:16px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border:none;color:white;cursor:pointer;font-weight:800;font-size:14px">Conectar</button>
-    </div>
-
-    <!-- CHAT -->
-    <div id="geminiChat" style="display:none;flex-direction:column;flex:1;overflow:hidden">
-      <!-- Trocar chave -->
-      <div style="padding:6px 18px;flex-shrink:0;display:flex;justify-content:flex-end">
-        <button onclick="geminiDisconnect()" style="background:none;border:none;color:#475569;font-size:11px;cursor:pointer;font-weight:600">Trocar chave ×</button>
-      </div>
-      <!-- Mensagens -->
-      <div id="geminiMsgList" style="flex:1;overflow-y:auto;padding:0 14px 8px;display:flex;flex-direction:column"></div>
-      <!-- Input -->
-      <div style="padding:12px 14px 18px;flex-shrink:0;border-top:1px solid rgba(99,102,241,0.12)">
-        <div style="display:flex;gap:10px;align-items:flex-end">
-          <textarea id="geminiInput" placeholder="Pergunte sobre seus gastos ou qualquer coisa..." onkeydown="geminiKeyEnter(event)" rows="1" style="flex:1;resize:none;border-radius:16px;padding:11px 14px;font-size:14px;line-height:1.4;max-height:100px;overflow-y:auto;background:rgba(15,23,42,0.8);border:1px solid rgba(99,102,241,0.25);color:#e2e8f0"></textarea>
-          <button id="geminiSendBtn" onclick="geminiSend()" style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,#4f46e5,#7c3aed);border:none;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;box-shadow:0 4px 14px rgba(99,102,241,0.4)">
-            <svg width="18" height="18" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 </body>
+</html>
 </html>
