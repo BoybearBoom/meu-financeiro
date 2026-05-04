@@ -2302,16 +2302,23 @@ async function callGemini(userMessage){
     generationConfig:{temperature:0.7,maxOutputTokens:1500}
   };
 
-  const resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,{
-    method:'POST',
-    headers:{'Content-Type':'application/json','x-goog-api-client':'genai-js/0.1.0'},
-    body:JSON.stringify(body)
-  });
+  let resp,err;
+  try{
+    resp=await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(body)
+    });
+  }catch(netErr){
+    throw new Error('Sem conexão ou CORS: '+netErr.message);
+  }
 
   if(!resp.ok){
-    const err=await resp.json().catch(()=>({}));
-    if(resp.status===400||resp.status===401||resp.status===403)throw new Error('INVALID_KEY');
-    throw new Error(err?.error?.message||'Erro na API');
+    err=await resp.json().catch(()=>({}));
+    const msg=err?.error?.message||'';
+    console.error('Gemini API error',resp.status,msg);
+    if(resp.status===401||resp.status===403||(resp.status===400&&(msg.includes('API key')||msg.includes('api key'))))throw new Error('INVALID_KEY');
+    throw new Error('Erro '+resp.status+(msg?': '+msg:''));
   }
 
   const data=await resp.json();
@@ -2357,8 +2364,9 @@ window.saveGeminiKeyUI=async function(){
     showGeminiChat();
   }catch(e){
     localStorage.removeItem('fpro_gk_cache');
+    console.error('Gemini setup error:',e.message);
     if(e.message==='INVALID_KEY')showToast('Chave inválida ou sem permissão','#ef4444');
-    else showToast('Erro ao verificar a chave','#ef4444');
+    else showToast('Erro: '+e.message.slice(0,60),'#ef4444');
   }finally{btn.textContent='Conectar';btn.disabled=false;}
 }
 
