@@ -155,9 +155,9 @@ window.openAReceberModal=function(id){
     document.getElementById('arValor').value='';
     document.getElementById('arData').value=new Date().toISOString().split('T')[0];
   }
-  document.getElementById('arOverlay').style.display='flex';
+  document.getElementById('arOverlay').style.display='flex';lockBody();
 }
-window.closeAReceberModal=function(){document.getElementById('arOverlay').style.display='none';window._arId=null;}
+window.closeAReceberModal=function(){document.getElementById('arOverlay').style.display='none';window._arId=null;unlockBody();}
 window.closeAReceberOutside=function(e){if(e.target===document.getElementById('arOverlay'))window.closeAReceberModal();}
 
 window.saveAReceber=function(){
@@ -572,14 +572,11 @@ function showDueAlertsModal(){
   }).join('');
 
   overlay.style.display='flex';
+  lockBody();
 }
 
 window.dueAlertPago=function(id){
   window.togglePago(id);
-  // Remove o item da lista flutuante
-  const all=getData();
-  const item=all.find(x=>x.id===id);
-  // Rerender a lista sem o item pago
   const today=new Date();today.setHours(0,0,0,0);
   const remaining=getData().filter(i=>{
     if(i.pago||!i.vencimento)return false;
@@ -588,6 +585,7 @@ window.dueAlertPago=function(id){
   });
   if(!remaining.length){
     document.getElementById('dueAlertsOverlay').style.display='none';
+    unlockBody();
     showToast('Tudo em dia! 🎉','#4ade80');
   }else{
     showDueAlertsModal._rebuild();
@@ -602,14 +600,13 @@ showDueAlertsModal._rebuild=function(){
 }
 
 window.dueAlertSkip=function(id){
-  // Marca como "não responder agora" removendo da lista sem pagar
   const el=document.querySelector(`button[onclick="dueAlertSkip('${id}')"]`);
   if(el){const card=el.closest('div[style*="border-radius:14px"]');if(card)card.remove();}
   const list=document.getElementById('dueAlertsList');
-  if(!list.children.length)document.getElementById('dueAlertsOverlay').style.display='none';
+  if(!list.children.length){document.getElementById('dueAlertsOverlay').style.display='none';unlockBody();}
 }
 
-window.closeDueAlerts=function(){document.getElementById('dueAlertsOverlay').style.display='none';}
+window.closeDueAlerts=function(){document.getElementById('dueAlertsOverlay').style.display='none';unlockBody();}
 
 // ── Menu ──
 function updateMenu(){
@@ -631,9 +628,9 @@ function updateMenu(){
 window.openSettingsModal=function(){
   const vl=document.getElementById('buildVersionLabel');
   if(vl)vl.textContent=BUILD_VERSION;
-  document.getElementById('settingsOverlay').style.display='flex';
+  document.getElementById('settingsOverlay').style.display='flex';lockBody();
 }
-window.closeSettingsModal=function(){document.getElementById('settingsOverlay').style.display='none';}
+window.closeSettingsModal=function(){document.getElementById('settingsOverlay').style.display='none';unlockBody();}
 window.closeSettingsOutside=function(e){if(e.target===document.getElementById('settingsOverlay'))window.closeSettingsModal();}
 
 // ── Modal de Personalização ──
@@ -642,14 +639,20 @@ window.openPersonalizacaoModal=function(){
   document.getElementById('inputFaturaAviso').value=localStorage.getItem('fpro_fatura_aviso')||'3';
   document.getElementById('inputVencPadrao').value=localStorage.getItem('fpro_venc_padrao')||'';
   const t=getTheme();
+  const nm=getNavMode();
   setTimeout(()=>{
     const db=document.getElementById('themeDarkBtn'),lb=document.getElementById('themeLightBtn');
     if(db)db.style.borderColor=t==='dark'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
     if(lb)lb.style.borderColor=t==='light'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
+    // Inicializa botões de modo de navegação
+    const barBtn=document.getElementById('navModeBarBtn');
+    const fabBtn=document.getElementById('navModeFabBtn');
+    if(barBtn)barBtn.style.borderColor=nm==='bar'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
+    if(fabBtn)fabBtn.style.borderColor=nm==='fab'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
   },50);
-  document.getElementById('personalizacaoOverlay').style.display='flex';
+  document.getElementById('personalizacaoOverlay').style.display='flex';lockBody();
 }
-window.closePersonalizacaoModal=function(){document.getElementById('personalizacaoOverlay').style.display='none';}
+window.closePersonalizacaoModal=function(){document.getElementById('personalizacaoOverlay').style.display='none';unlockBody();}
 window.closePersonalizacaoOutside=function(e){if(e.target===document.getElementById('personalizacaoOverlay'))window.closePersonalizacaoModal();}
 
 window.savePersonalizacao=function(){
@@ -660,6 +663,9 @@ window.savePersonalizacao=function(){
   localStorage.setItem('fpro_fatura_aviso',Math.min(Math.max(dias,1),7));
   if(vencDia>=1&&vencDia<=31) localStorage.setItem('fpro_venc_padrao',vencDia);
   else localStorage.removeItem('fpro_venc_padrao');
+  // Salva modo de navegação (já aplicado em tempo real pelo previewNavMode)
+  const currentMode=document.body.classList.contains('nav-mode-bar')?'bar':'fab';
+  saveNavMode(currentMode);
   window.closePersonalizacaoModal();
   showToast('Personalização salva ✓','#4ade80');
 }
@@ -698,11 +704,12 @@ window.importData=function(){
 
 window.openMenu=function(){
   document.getElementById('menuOverlay').style.display='flex';
+  lockBody();
   updateMenu();
   const mu=document.getElementById('menuUserName');
   if(mu&&currentUser)mu.textContent=(currentUser.displayName||currentUser.email.split('@')[0])+'@financespro';
 }
-window.closeMenu=function(){document.getElementById('menuOverlay').style.display='none';}
+window.closeMenu=function(){document.getElementById('menuOverlay').style.display='none';unlockBody();}
 window.closeMenuOutside=function(e){if(e.target===document.getElementById('menuOverlay'))window.closeMenu();}
 
 window.menuAction=function(action){
@@ -962,7 +969,7 @@ window.openProfileModal=function(){
   const unverifiedBadge=document.getElementById('unverifiedBadge');
   if(verifiedBadge)verifiedBadge.style.display=verified?'flex':'none';
   if(unverifiedBadge)unverifiedBadge.style.display=verified?'none':'flex';
-  document.getElementById('profileOverlay').style.display='flex';
+  document.getElementById('profileOverlay').style.display='flex';lockBody();
 }
 
 window.sendVerificationEmail=async function(){
@@ -981,7 +988,7 @@ window.sendVerificationEmail=async function(){
     }
   }
 }
-window.closeProfileModal=function(){document.getElementById('profileOverlay').style.display='none';}
+window.closeProfileModal=function(){document.getElementById('profileOverlay').style.display='none';unlockBody();}
 window.closeProfileOutside=function(e){if(e.target===document.getElementById('profileOverlay'))window.closeProfileModal();}
 window.saveProfile=async function(){
   const name=document.getElementById('profileName').value.trim();
@@ -1076,9 +1083,9 @@ window.updateCartaoSelect=function(cat, selectedNome){
 
 window.openCartoesModal=function(){
   renderCartoesList();
-  document.getElementById('cartoesOverlay').style.display='flex';
+  document.getElementById('cartoesOverlay').style.display='flex';lockBody();
 };
-window.closeCartoesModal=function(){document.getElementById('cartoesOverlay').style.display='none';}
+window.closeCartoesModal=function(){document.getElementById('cartoesOverlay').style.display='none';unlockBody();}
 window.closeCartoesOutside=function(e){if(e.target===document.getElementById('cartoesOverlay'))window.closeCartoesModal();}
 
 function renderCartoesList(){
@@ -1225,10 +1232,12 @@ window.openModal=function(editId){
   if(recBox){recBox.style.background=isRec?'#2563eb':'transparent';recBox.style.borderColor=isRec?'#2563eb':'rgba(148,163,184,0.35)';}
   if(recIcon)recIcon.style.display=isRec?'block':'none';
   document.getElementById('modalOverlay').style.display='flex';
+  lockBody();
   // Sem auto-focus para não abrir teclado automaticamente
 }
 window.closeModal=function(){
   document.getElementById('modalOverlay').style.display='none';
+  unlockBody();
 }
 window.closeModalOutside=function(e){if(e.target===document.getElementById('modalOverlay'))window.closeModal();}
 
@@ -1612,9 +1621,9 @@ window.openDetail=function(id){
     btn.style.cssText='flex:1;padding:12px;border-radius:14px;background:rgba(74,222,128,0.13);color:#4ade80;border:1px solid rgba(74,222,128,0.2);cursor:pointer;font-weight:700;font-size:13px';
   }
 
-  document.getElementById('detailOverlay').style.display='flex';
+  document.getElementById('detailOverlay').style.display='flex';lockBody();
 }
-window.closeDetail=function(){document.getElementById('detailOverlay').style.display='none';_detailId=null;}
+window.closeDetail=function(){document.getElementById('detailOverlay').style.display='none';_detailId=null;unlockBody();}
 window.closeDetailOutside=function(e){if(e.target===document.getElementById('detailOverlay'))window.closeDetail();}
 window.detailTogglePago=function(){if(_detailId)window.togglePago(_detailId);}
 window.detailEdit=function(){
@@ -1622,6 +1631,7 @@ window.detailEdit=function(){
   if(!id)return;
   document.getElementById('detailOverlay').style.display='none';
   _detailId=null;
+  unlockBody();
   setTimeout(()=>window.openModal(id),50);
 }
 window.detailDelete=function(){
@@ -1629,6 +1639,7 @@ window.detailDelete=function(){
   if(!id)return;
   document.getElementById('detailOverlay').style.display='none';
   _detailId=null;
+  unlockBody();
   setTimeout(()=>window.deleteItem(id),50);
 }
 
@@ -2245,9 +2256,9 @@ let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calSelectedD
 window.openCalendario=function(){
   calYear=curYear;calMonth=curMonth;
   renderCalendario();
-  document.getElementById('calendarioOverlay').style.display='flex';
+  document.getElementById('calendarioOverlay').style.display='flex';lockBody();
 }
-window.closeCalendario=function(){document.getElementById('calendarioOverlay').style.display='none';}
+window.closeCalendario=function(){document.getElementById('calendarioOverlay').style.display='none';unlockBody();}
 window.closeCalendarioOutside=function(e){if(e.target===document.getElementById('calendarioOverlay'))window.closeCalendario();}
 window.calChangeMonth=function(dir){
   calMonth+=dir;
@@ -2367,6 +2378,65 @@ document.addEventListener('click', function(e) {
   btn.appendChild(r);
   setTimeout(() => r.remove(), 500);
 });
+
+// ── Bottom Nav ──
+function getNavMode(){return localStorage.getItem('fpro_navmode')||'fab';}
+function saveNavMode(m){localStorage.setItem('fpro_navmode',m);}
+function applyNavMode(m){
+  document.body.classList.remove('nav-mode-bar','nav-mode-fab');
+  document.body.classList.add('nav-mode-'+m);
+}
+window.previewNavMode=function(m){
+  applyNavMode(m);
+  // atualiza visual dos botões
+  const barBtn=document.getElementById('navModeBarBtn');
+  const fabBtn=document.getElementById('navModeFabBtn');
+  if(barBtn)barBtn.style.borderColor=m==='bar'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
+  if(fabBtn)fabBtn.style.borderColor=m==='fab'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
+}
+window.bnavSelect=function(tab){
+  document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
+  const el=document.getElementById('bnav-'+tab);
+  if(el)el.classList.add('active');
+  // volta para transações após fechar modal (exceto transações)
+  if(tab!=='transactions'){
+    setTimeout(()=>{
+      document.querySelectorAll('.bnav-btn').forEach(b=>b.classList.remove('active'));
+      const t=document.getElementById('bnav-transactions');
+      if(t)t.classList.add('active');
+    },400);
+  }
+}
+
+// ── Modal scroll lock ──
+let _scrollY=0;
+function lockBody(){
+  if(document.body.classList.contains('modal-open'))return;
+  _scrollY=window.scrollY;
+  document.body.classList.add('modal-open');
+  document.body.style.top='-'+_scrollY+'px';
+}
+function unlockBody(){
+  // Só desbloqueia se não houver mais nenhum modal/menu aberto
+  const openModals=['menuOverlay','modalOverlay','cartoesOverlay','profileOverlay',
+    'detailOverlay','arOverlay','calendarioOverlay','personalizacaoOverlay',
+    'settingsOverlay','dueAlertsOverlay'];
+  const anyOpen=openModals.some(id=>{
+    const el=document.getElementById(id);
+    return el&&el.style.display!=='none';
+  });
+  if(!anyOpen){
+    document.body.classList.remove('modal-open');
+    document.body.style.top='';
+    window.scrollTo(0,_scrollY);
+  }
+}
+
+// Inicializa modo de navegação
+(function initNavMode(){
+  const m=getNavMode();
+  applyNavMode(m);
+})();
 </script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -2510,6 +2580,72 @@ body.theme-light [style*="background:rgba(15,23,42"],body.theme-light [style*="b
 body.theme-light .empty-state{color:#64748b!important}
 .btn-primary,.btn-danger{position:relative;overflow:hidden}
 .btn-primary .ripple,.btn-danger .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,0.25);width:60px;height:60px;margin-top:-30px;margin-left:-30px;animation:ripple .5s linear;pointer-events:none}
+
+/* ── Body scroll lock quando modal/menu aberto ── */
+body.modal-open{overflow:hidden;position:fixed;width:100%;left:0;right:0;}
+
+/* Toast: sobe quando bottom nav está visível */
+body.nav-mode-bar .toast{bottom:72px!important}
+
+/* ── Bottom Navigation Bar ── */
+#bottomNav{
+  position:fixed;bottom:0;left:0;right:0;
+  height:60px;
+  background:rgba(8,14,28,0.97);
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  border-top:1px solid rgba(148,163,184,0.1);
+  display:flex;align-items:center;justify-content:space-around;
+  z-index:50;
+  padding-bottom:env(safe-area-inset-bottom,0px);
+  padding-bottom:max(env(safe-area-inset-bottom,0px),0px);
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+}
+#bottomNav.hidden-nav{transform:translateY(100%)}
+.bnav-btn{
+  flex:1;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:3px;background:none;border:none;cursor:pointer;
+  color:#475569;transition:color .15s;
+  -webkit-tap-highlight-color:transparent;
+  position:relative;
+}
+.bnav-btn.active{color:#3b82f6}
+.bnav-btn svg,.bnav-btn span.bnav-icon{transition:transform .2s cubic-bezier(.34,1.56,.64,1)}
+.bnav-btn:active svg,.bnav-btn:active .bnav-icon{transform:scale(0.85)}
+.bnav-label{font-size:10px;font-weight:600;letter-spacing:.2px;line-height:1}
+/* Indicador ativo */
+.bnav-btn.active::before{
+  content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);
+  width:32px;height:2px;border-radius:0 0 3px 3px;
+  background:linear-gradient(90deg,#3b82f6,#2563eb);
+}
+/* FAB central na bottom nav */
+.bnav-fab-wrap{
+  flex:1;height:100%;display:flex;align-items:center;justify-content:center;
+  -webkit-tap-highlight-color:transparent;
+}
+.bnav-fab{
+  width:48px;height:48px;border-radius:16px;
+  background:linear-gradient(145deg,#2563eb,#1d4ed8);
+  border:none;color:white;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 18px rgba(37,99,235,0.5);
+  transition:transform .2s cubic-bezier(.34,1.56,.64,1),box-shadow .2s;
+  margin-top:-8px;
+}
+.bnav-fab:active{transform:scale(0.88);box-shadow:0 2px 8px rgba(37,99,235,0.4);transition-duration:.08s}
+
+/* Modo FAB: esconde bottom nav, modo bar: esconde FAB flutuante */
+body.nav-mode-bar #fabContainer{display:none!important}
+body.nav-mode-fab #bottomNav{display:none!important}
+
+/* Ajuste de padding inferior do conteúdo conforme modo */
+body.nav-mode-bar .px-3.pb-28{padding-bottom:80px!important}
+body.nav-mode-bar #mainApp > div:last-child{padding-bottom:80px!important}
+
+/* Tema claro — bottom nav */
+body.theme-light #bottomNav{background:rgba(255,255,255,0.97)!important;border-top-color:rgba(0,0,0,0.08)!important}
+body.theme-light .bnav-btn{color:#94a3b8!important}
+body.theme-light .bnav-btn.active{color:#2563eb!important}
 </style>
 </head>
 <body>
@@ -2702,6 +2838,36 @@ body.theme-light .empty-state{color:#64748b!important}
 </div>
 <!-- FAB backdrop (invisible, closes on tap outside) -->
 <div id="fabBackdrop" onclick="closeFab()" style="display:none;position:fixed;inset:0;z-index:49"></div>
+
+<!-- ══ BOTTOM NAVIGATION BAR ══ -->
+<nav id="bottomNav">
+  <!-- Transações -->
+  <button class="bnav-btn active" id="bnav-transactions" onclick="bnavSelect('transactions')" title="Transações">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="3"/><path d="M8 21h8M12 17v4"/></svg>
+    <span class="bnav-label">Transações</span>
+  </button>
+  <!-- A Receber -->
+  <button class="bnav-btn" id="bnav-areceber" onclick="bnavSelect('areceber');openAReceberModal()" title="A Receber">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+    <span class="bnav-label">A Receber</span>
+  </button>
+  <!-- Botão + central -->
+  <div class="bnav-fab-wrap">
+    <button class="bnav-fab" onclick="openModal()" title="Nova despesa">
+      <svg width="24" height="24" fill="none" stroke="white" stroke-width="2.5" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+    </button>
+  </div>
+  <!-- Calendário -->
+  <button class="bnav-btn" id="bnav-calendar" onclick="bnavSelect('calendar');openCalendario()" title="Calendário">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="3"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+    <span class="bnav-label">Calendário</span>
+  </button>
+  <!-- Mais / Menu -->
+  <button class="bnav-btn" id="bnav-menu" onclick="bnavSelect('menu');openMenu()" title="Mais">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/></svg>
+    <span class="bnav-label">Mais</span>
+  </button>
+</nav>
 
 <!-- ══ MENU ══ -->
 <div class="menu-overlay" id="menuOverlay" style="display:none" onclick="closeMenuOutside(event)">
@@ -3082,6 +3248,21 @@ body.theme-light .empty-state{color:#64748b!important}
           <p style="color:#475569;font-size:11px;margin:2px 0 0">Requer notificações ativadas</p>
         </div>
       </div>
+    </div>
+
+    <!-- Modo de navegação -->
+    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🧭 Modo de navegação</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+      <button id="navModeBarBtn" onclick="previewNavMode('bar')" style="padding:14px 10px;border-radius:14px;border:2px solid rgba(37,99,235,0.5);background:rgba(5,10,15,0.8);color:#e2e8f0;cursor:pointer;font-weight:700;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <svg width="32" height="16" viewBox="0 0 32 16" fill="none"><rect x="0" y="0" width="32" height="16" rx="4" fill="rgba(37,99,235,0.25)"/><circle cx="5" cy="8" r="3" fill="#3b82f6"/><rect x="10" y="5" width="12" height="6" rx="3" fill="#3b82f6"/><circle cx="27" cy="8" r="3" fill="#3b82f6"/></svg>
+        <span>Barra inferior</span>
+        <span style="font-size:10px;color:#64748b;font-weight:400">5 ações visíveis</span>
+      </button>
+      <button id="navModeFabBtn" onclick="previewNavMode('fab')" style="padding:14px 10px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.05);color:#e2e8f0;cursor:pointer;font-weight:700;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <svg width="32" height="20" viewBox="0 0 32 20" fill="none"><circle cx="26" cy="14" r="6" fill="rgba(37,99,235,0.25)"/><line x1="26" y1="11" x2="26" y2="17" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/><line x1="23" y1="14" x2="29" y2="14" stroke="#3b82f6" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>Botão flutuante</span>
+        <span style="font-size:10px;color:#64748b;font-weight:400">FAB clássico</span>
+      </button>
     </div>
 
     <!-- Dia de vencimento padrão -->
