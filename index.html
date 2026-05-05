@@ -1191,13 +1191,15 @@ window.openModal=function(editId){
   // Mês de competência
   const today=new Date();
   const thisKey=`${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}`;
-  const nextDate=new Date(today.getFullYear(),today.getMonth()+1,1);
-  const nextKey=`${nextDate.getFullYear()}-${String(nextDate.getMonth()+1).padStart(2,'0')}`;
-  const nextLabel=MONTHS[nextDate.getMonth()]+' '+nextDate.getFullYear();
-  const thisLabel=MONTHS[today.getMonth()]+' '+today.getFullYear();
   const compEl=document.getElementById('inputCompetencia');
   if(compEl){
-    compEl.innerHTML=`<option value="${thisKey}">${thisLabel} (atual)</option><option value="${nextKey}">${nextLabel} (próximo)</option>`;
+    const opts=[{offset:0,label:'atual'},{offset:1,label:'próximo'},{offset:2,label:'+ 2 meses'},{offset:3,label:'+ 3 meses'}];
+    compEl.innerHTML=opts.map(({offset,label})=>{
+      const d=new Date(today.getFullYear(),today.getMonth()+offset,1);
+      const key=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+      const lbl=MONTHS[d.getMonth()]+' '+d.getFullYear()+' ('+label+')';
+      return`<option value="${key}">${lbl}</option>`;
+    }).join('');
     compEl.value=isEdit?(item.competencia||item.monthKey||thisKey):thisKey;
   }
   const isParcela=isEdit&&!!(item.groupId&&item.parcelNum&&item.totalParcelas);
