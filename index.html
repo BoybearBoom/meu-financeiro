@@ -2255,10 +2255,57 @@ window.closeFab=function(){
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calSelectedDate=null;
 window.openCalendario=function(){
   calYear=curYear;calMonth=curMonth;
+  calSelectedDate=null;
+  document.getElementById('calDaySection').style.display='none';
   renderCalendario();
-  document.getElementById('calendarioOverlay').style.display='flex';lockBody();
+  const el=document.getElementById('calendarioOverlay');
+  el.style.display='flex';
+  el.style.opacity='0';
+  el.style.transform='translateY(24px)';
+  lockBody();
+  requestAnimationFrame(()=>{
+    el.style.transition='opacity .22s ease,transform .24s cubic-bezier(.34,1.2,.64,1)';
+    el.style.opacity='1';
+    el.style.transform='translateY(0)';
+  });
+  // Scroll-hide da topbar ao rolar para baixo
+  const scrollArea=document.getElementById('calScrollArea');
+  const topbar=document.getElementById('calTopbar');
+  scrollArea.scrollTop=0;
+  let lastScroll=0;
+  scrollArea._calScrollHandler=function(){
+    const y=scrollArea.scrollTop;
+    const delta=y-lastScroll;
+    lastScroll=Math.max(0,y);
+    if(y>50&&delta>2){
+      topbar.style.transform='translateY(-110%)';
+      topbar.style.opacity='0';
+    }else if(delta<-2||y<10){
+      topbar.style.transform='translateY(0)';
+      topbar.style.opacity='1';
+    }
+  };
+  scrollArea.addEventListener('scroll',scrollArea._calScrollHandler,{passive:true});
 }
-window.closeCalendario=function(){document.getElementById('calendarioOverlay').style.display='none';unlockBody();}
+window.closeCalendario=function(){
+  const el=document.getElementById('calendarioOverlay');
+  el.style.transition='opacity .18s ease,transform .18s ease';
+  el.style.opacity='0';
+  el.style.transform='translateY(16px)';
+  // Limpa handler de scroll
+  const scrollArea=document.getElementById('calScrollArea');
+  if(scrollArea&&scrollArea._calScrollHandler){
+    scrollArea.removeEventListener('scroll',scrollArea._calScrollHandler);
+    scrollArea._calScrollHandler=null;
+  }
+  setTimeout(()=>{
+    el.style.display='none';
+    el.style.transform='';el.style.transition='';el.style.opacity='';
+    const topbar=document.getElementById('calTopbar');
+    if(topbar){topbar.style.transform='';topbar.style.opacity='';}
+  },190);
+  unlockBody();
+}
 window.closeCalendarioOutside=function(e){if(e.target===document.getElementById('calendarioOverlay'))window.closeCalendario();}
 window.calChangeMonth=function(dir){
   calMonth+=dir;
@@ -2437,6 +2484,25 @@ function unlockBody(){
   const m=getNavMode();
   applyNavMode(m);
 })();
+
+// ── Header scroll-hide ──
+(function initHeaderScrollHide(){
+  let lastY=0,ticking=false;
+  window.addEventListener('scroll',()=>{
+    if(ticking)return;
+    ticking=true;
+    requestAnimationFrame(()=>{
+      const y=window.scrollY;
+      const header=document.getElementById('mainHeader');
+      if(header){
+        if(y>80&&y>lastY){header.classList.add('header-hidden');}
+        else if(y<lastY||y<40){header.classList.remove('header-hidden');}
+      }
+      lastY=Math.max(0,y);
+      ticking=false;
+    });
+  },{passive:true});
+})();
 </script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -2584,6 +2650,29 @@ body.theme-light .empty-state{color:#64748b!important}
 /* ── Body scroll lock quando modal/menu aberto ── */
 body.modal-open{overflow:hidden;position:fixed;width:100%;left:0;right:0;}
 
+/* ── Calendário fullscreen ── */
+#calendarioOverlay{
+  background:#050a0f;
+}
+#calTopbar{
+  will-change:transform,opacity;
+}
+body.theme-light #calendarioOverlay{background:#f0f4f8!important}
+body.theme-light #calTopbar{background:#f0f4f8!important}
+body.theme-light #calScrollArea > div:first-child{background:#f0f4f8!important}
+
+/* ── Header principal: scroll-hide ── */
+#mainHeader{
+  position:sticky;top:4px;z-index:40;
+  transition:transform .28s cubic-bezier(.4,0,.2,1),opacity .28s;
+  will-change:transform;
+}
+#mainHeader.header-hidden{
+  transform:translateY(-110%);
+  opacity:0;
+  pointer-events:none;
+}
+
 /* Toast: sobe quando bottom nav está visível */
 body.nav-mode-bar .toast{bottom:72px!important}
 
@@ -2694,7 +2783,7 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
 <div id="mainApp" style="display:none">
 
   <!-- Header -->
-  <div class="glass sticky top-1 z-40 mx-3 mt-2 rounded-2xl px-3 py-2.5 mb-3">
+  <div id="mainHeader" class="glass mx-3 mt-2 rounded-2xl px-3 py-2.5 mb-3">
     <div class="flex items-center justify-between gap-2">
       <div class="flex items-center gap-2.5 min-w-0">
         <img src="icon-192.png" style="width:36px;height:36px;border-radius:10px;flex-shrink:0;box-shadow:0 0 12px rgba(37,99,235,0.3)"/>
@@ -3396,50 +3485,67 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
     </div>
   </div>
 </div>
-<!-- ══ CALENDÁRIO MODAL ══ -->
-<div class="modal-overlay" id="calendarioOverlay" style="display:none" onclick="closeCalendarioOutside(event)">
-  <div class="glass-modal modal-sheet animate-in" style="max-height:92vh;overflow-y:auto;padding-bottom:32px">
-    <div class="modal-handle"></div>
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
-      <button onclick="calChangeMonth(-1)" style="width:40px;height:40px;border-radius:14px;background:rgba(148,163,184,0.1);border:1px solid rgba(148,163,184,0.12);color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center">
+<!-- ══ CALENDÁRIO FULLSCREEN ══ -->
+<div id="calendarioOverlay" style="display:none;position:fixed;inset:0;z-index:110;background:#050a0f;flex-direction:column;overflow:hidden">
+
+  <!-- Topbar fixa -->
+  <div id="calTopbar" style="display:flex;align-items:center;justify-content:space-between;padding:max(env(safe-area-inset-top,16px),16px) 16px 12px;background:#050a0f;flex-shrink:0;transition:transform .28s cubic-bezier(.4,0,.2,1),opacity .28s;z-index:2">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button onclick="closeCalendario()" style="width:36px;height:36px;border-radius:12px;background:rgba(148,163,184,0.1);border:1px solid rgba(148,163,184,0.12);color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+      </button>
+      <span style="color:#e2e8f0;font-size:16px;font-weight:700">Calendário</span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="calChangeMonth(-1)" style="width:36px;height:36px;border-radius:12px;background:rgba(148,163,184,0.08);border:1px solid rgba(148,163,184,0.1);color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
       </button>
-      <h2 id="calMonthLabel" style="color:#e2e8f0;font-weight:800;font-size:18px;margin:0"></h2>
-      <button onclick="calChangeMonth(1)" style="width:40px;height:40px;border-radius:14px;background:rgba(148,163,184,0.1);border:1px solid rgba(148,163,184,0.12);color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center">
+      <span id="calMonthLabel" style="color:#e2e8f0;font-weight:800;font-size:15px;min-width:120px;text-align:center"></span>
+      <button onclick="calChangeMonth(1)" style="width:36px;height:36px;border-radius:12px;background:rgba(148,163,184,0.08);border:1px solid rgba(148,163,184,0.1);color:#94a3b8;cursor:pointer;display:flex;align-items:center;justify-content:center">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
       </button>
     </div>
-    <!-- Day headers (static HTML, no template literal) -->
-    <div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px">
-      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Dom</div>
-      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Seg</div>
-      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Ter</div>
-      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Qua</div>
-      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Qui</div>
-      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Sex</div>
-      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700;padding:4px 0">Sáb</div>
+  </div>
+
+  <!-- Conteúdo rolável -->
+  <div id="calScrollArea" style="flex:1;overflow-y:auto;padding:0 16px 32px;-webkit-overflow-scrolling:touch">
+
+    <!-- Cabeçalho dos dias da semana (fixo dentro do scroll, sticky) -->
+    <div style="display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:6px;position:sticky;top:0;background:#050a0f;padding:8px 0 4px;z-index:1">
+      <div style="text-align:center;color:#334155;font-size:11px;font-weight:700">Dom</div>
+      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700">Seg</div>
+      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700">Ter</div>
+      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700">Qua</div>
+      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700">Qui</div>
+      <div style="text-align:center;color:#475569;font-size:11px;font-weight:700">Sex</div>
+      <div style="text-align:center;color:#334155;font-size:11px;font-weight:700">Sáb</div>
     </div>
-    <!-- Day grid (populated by JS) -->
-    <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:16px"></div>
-    <!-- Legend -->
-    <div style="display:flex;align-items:center;gap:20px;padding:0 2px;margin-bottom:16px">
+
+    <!-- Grid dos dias -->
+    <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:20px"></div>
+
+    <!-- Legenda -->
+    <div style="display:flex;align-items:center;gap:20px;padding:0 2px;margin-bottom:20px">
       <div style="display:flex;align-items:center;gap:6px">
         <span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block;flex-shrink:0"></span>
-        <span style="color:#64748b;font-size:12px">Com lançamento</span>
+        <span style="color:#475569;font-size:12px">Com lançamento</span>
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <span style="width:20px;height:20px;border-radius:7px;background:#2563eb;display:inline-block;flex-shrink:0"></span>
-        <span style="color:#64748b;font-size:12px">Hoje</span>
+        <span style="color:#475569;font-size:12px">Hoje</span>
       </div>
     </div>
-    <!-- Day detail section -->
+
+    <!-- Detalhe do dia selecionado -->
     <div id="calDaySection" style="display:none">
       <div style="border-top:1px solid rgba(148,163,184,0.1);padding-top:14px;margin-bottom:12px">
         <p id="calDayHeader" style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:0"></p>
       </div>
       <div id="calDayList"></div>
     </div>
-    <button onclick="closeCalendario()" style="width:100%;margin-top:8px;padding:14px;border-radius:16px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.12);color:#64748b;cursor:pointer;font-weight:700;font-size:14px">Fechar</button>
+
+    <!-- Padding bottom para bottom nav -->
+    <div style="height:env(safe-area-inset-bottom,0px)"></div>
   </div>
 </div>
 
