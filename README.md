@@ -22,4 +22,4 @@ Aplicativo PWA de controle financeiro pessoal, feito para funcionar no celular c
 
 ## 🚀 Acesse
 
-👉 [Acesse meu controle financeiro](https://pages.dev)
+👉 [Acesse meu controle financeiro](meu-financeiro-7nb.pages.dev)
