@@ -54,7 +54,7 @@ function applyTheme(theme){
   }
 }
 window.selectTheme=function(t){
-  saveTheme(t);applyTheme(t);scheduleSync();
+  saveTheme(t);applyTheme(t);
   const db=document.getElementById('themeDarkBtn'),lb=document.getElementById('themeLightBtn');
   if(db)db.style.borderColor=t==='dark'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
   if(lb)lb.style.borderColor=t==='light'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
@@ -334,7 +334,8 @@ async function loadFromCloud(){
         }
         // Espelha cartões e alertados para o SW sempre
         await idbSet('fpro_cartoes',getCartoes());
-        await idbSet('fpro_alerted',JSON.parse(localStorage.getItem('fpro_alerted')||'{}'));
+        await idbSet('fpro_alerted',JSON.parse(localStorage.getItem('fpro_alerted')||'{}')); 
+        render();
       }
     }
   }catch(e){console.log('Cloud load error:',e);}
@@ -741,7 +742,9 @@ onAuthStateChanged(auth,user=>{
     loadFromCloud().catch(()=>{}).finally(()=>{
       processRecurring();
       render();
+      // Atualiza label se já houver sync anterior
       if(_lastSyncAt) updatePBSSyncLabel();
+      // Agenda checkDueAlerts e primeiro PBS se já passou o intervalo
       setTimeout(async()=>{
         checkDueAlerts();
         checkFaturaAlerts();
@@ -2214,7 +2217,6 @@ window.ignorarApelidoSugerido = function(i) {
 
 
 // Inicia tudo ao carregar
-
 window.addEventListener('load', ()=>{registerSWAndPBS();initPersonalization();});
 
 // ── FAB expandível ──
@@ -2754,7 +2756,7 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">E-mail ou usuário</label>
         <input class="auth-input" type="email" id="loginUser" placeholder="seu@email.com" autocapitalize="none" autocorrect="off"/></div>
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Senha</label>
-        <input class="auth-input" type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <input class="auth-input" type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
         <button onclick="doLogin()" class="auth-btn btn-primary" style="width:100%;padding:15px;border-radius:14px;font-size:16px;font-weight:700;margin-top:4px">Entrar</button>
         <p style="text-align:center;margin-top:8px"><button onclick="doForgotPassword()" style="background:none;border:none;color:#2563eb;cursor:pointer;font-size:13px;font-weight:500">Esqueci minha senha</button></p>
         <p style="text-align:center;color:#475569;font-size:13px;margin-top:2px">Não tem conta? <button onclick="showTab('register')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:13px;font-weight:600">Criar agora</button></p>
@@ -2767,9 +2769,9 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">E-mail</label>
         <input class="auth-input" type="email" id="regEmail" placeholder="seu@email.com" autocapitalize="none" autocorrect="off"/></div>
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Senha (mín. 6 caracteres)</label>
-        <<input class="auth-input" type="password" id="regPass" placeholder="••••••••"/>
+        <input class="auth-input" type="password" id="regPass" placeholder="••••••••"/></div>
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Confirmar senha</label>
-        <<input class="auth-input" type="password" id="regPass2" placeholder="••••••••" onkeydown="if(event.key==='Enter')doRegister()"/>
+        <input class="auth-input" type="password" id="regPass2" placeholder="••••••••" onkeydown="if(event.key==='Enter')doRegister()"/></div>
         <button onclick="doRegister()" class="auth-btn btn-primary" style="width:100%;padding:15px;border-radius:14px;font-size:16px;font-weight:700;margin-top:4px">Criar conta</button>
         <p style="text-align:center;color:#475569;font-size:13px;margin-top:4px">Já tem conta? <button onclick="showTab('login')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:13px;font-weight:600">Entrar</button></p>
       </div>
