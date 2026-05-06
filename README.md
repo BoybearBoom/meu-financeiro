@@ -22,4 +22,4 @@ Aplicativo PWA de controle financeiro pessoal, feito para funcionar no celular c
 
 ## 🚀 Acesse
 
-👉 [https://boybearboom.github.io/meu-financeiro/](https://boybearboom.github.io/meu-financeiro/)
+👉 [https://2310144e.meu-financeiro-7nb.pages.dev/]
