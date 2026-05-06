@@ -2258,18 +2258,23 @@ window.ignorarApelidoSugerido = function(i) {
 window.setDataPill = function(tipo) {
   const hoje = new Date();
   if (tipo === 'ontem') hoje.setDate(hoje.getDate() - 1);
-  const pills = ['pillHoje','pillOntem','pillOutro'];
-  const active = 'border:1.5px solid rgba(99,102,241,0.5);background:rgba(99,102,241,0.2);color:#818cf8';
-  const inactive = 'border:1.5px solid rgba(148,163,184,0.15);background:rgba(30,41,59,0.6);color:#64748b';
-  pills.forEach(id => {
+  // Atualizar visual das pills
+  ['pillHoje','pillOntem','pillOutro'].forEach(id => {
     const el = document.getElementById(id);
     if (!el) return;
     const isActive = id === 'pill' + tipo.charAt(0).toUpperCase() + tipo.slice(1);
-    el.style.cssText = el.style.cssText.replace(/border:[^;]+;background:[^;]+;color:[^;]+/, isActive ? active : inactive);
+    el.style.background = isActive ? 'rgba(99,102,241,0.2)' : 'rgba(30,41,59,0.6)';
+    el.style.borderColor = isActive ? 'rgba(99,102,241,0.5)' : 'rgba(148,163,184,0.15)';
+    el.style.color = isActive ? '#818cf8' : '#64748b';
   });
-  if (tipo !== 'outro') {
-    const inp = document.getElementById('inputData');
-    if (inp) inp.value = hoje.toISOString().split('T')[0];
+  const inp = document.getElementById('inputData');
+  if (!inp) return;
+  if (tipo === 'outro') {
+    inp.style.display = 'block';
+    inp.focus();
+  } else {
+    inp.style.display = 'none';
+    inp.value = hoje.toISOString().split('T')[0];
   }
 };
 
@@ -3176,7 +3181,7 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
             <button type="button" id="pillOntem" onclick="setDataPill('ontem')" style="flex:1;padding:5px 2px;border-radius:8px;font-size:11px;font-weight:600;text-align:center;cursor:pointer;border:1.5px solid rgba(148,163,184,0.15);background:rgba(30,41,59,0.6);color:#64748b">Ontem</button>
             <button type="button" id="pillOutro" onclick="setDataPill('outro')" style="flex:1;padding:5px 2px;border-radius:8px;font-size:11px;font-weight:600;text-align:center;cursor:pointer;border:1.5px solid rgba(148,163,184,0.15);background:rgba(30,41,59,0.6);color:#64748b">Outro</button>
           </div>
-          <input type="date" id="inputData" style="width:100%;font-size:12px;padding:6px 8px;border-radius:10px"/>
+          <input type="date" id="inputData" style="width:100%;font-size:12px;padding:6px 8px;border-radius:10px;display:none"/>
         </div>
       </div>
 
