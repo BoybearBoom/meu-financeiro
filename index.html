@@ -54,7 +54,7 @@ function applyTheme(theme){
   }
 }
 window.selectTheme=function(t){
-  saveTheme(t);applyTheme(t);
+  saveTheme(t);applyTheme(t);scheduleSync();
   const db=document.getElementById('themeDarkBtn'),lb=document.getElementById('themeLightBtn');
   if(db)db.style.borderColor=t==='dark'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
   if(lb)lb.style.borderColor=t==='light'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
@@ -312,7 +312,20 @@ function saveNotifEmail(e){localStorage.setItem('fpro_notif_email',e);}
 async function syncToCloud(){
   if(!currentUser)return;
   try{
-    await setDoc(doc(db,'users',currentUser.uid),{data:JSON.stringify(getData()),updatedAt:new Date().toISOString(),displayName:currentUser.displayName||'',notifEmail:getNotifEmail()});
+    await setDoc(doc(db,'users',currentUser.uid),{
+      data:JSON.stringify(getData()),
+      updatedAt:new Date().toISOString(),
+      displayName:currentUser.displayName||'',
+      notifEmail:getNotifEmail(),
+      prefs:{
+        theme:getTheme(),
+        navMode:getNavMode(),
+        appName:getAppName(),
+        notifs:localStorage.getItem('fpro_notifs')||'0',
+        faturaAviso:localStorage.getItem('fpro_fatura_aviso')||'3',
+        vencPadrao:localStorage.getItem('fpro_venc_padrao')||''
+      }
+    });
     setSyncDot('green');
   }catch{setSyncDot('red');}
 }
@@ -322,6 +335,16 @@ async function loadFromCloud(){
     const snap=await getDoc(doc(db,'users',currentUser.uid));
     if(snap.exists()){
       if(snap.data().notifEmail)saveNotifEmail(snap.data().notifEmail);
+      if(snap.data().prefs){
+        const p=snap.data().prefs;
+        if(p.theme){saveTheme(p.theme);applyTheme(p.theme);}
+        if(p.navMode){saveNavMode(p.navMode);applyNavMode(p.navMode);}
+        if(p.appName){saveAppName(p.appName);applyAppName(p.appName);}
+        if(p.notifs)localStorage.setItem('fpro_notifs',p.notifs);
+        if(p.faturaAviso)localStorage.setItem('fpro_fatura_aviso',p.faturaAviso);
+        if(p.vencPadrao)localStorage.setItem('fpro_venc_padrao',p.vencPadrao);
+        else localStorage.removeItem('fpro_venc_padrao');
+      }
       if(snap.data().data){
         const cd=JSON.parse(snap.data().data),ld=getData();
         if(cd.length>=ld.length){
@@ -668,6 +691,7 @@ window.savePersonalizacao=function(){
   saveNavMode(currentMode);
   window.closePersonalizacaoModal();
   showToast('Personalização salva ✓','#4ade80');
+  scheduleSync();
 }
 
 window.exportData=function(){
@@ -2217,6 +2241,16 @@ window.ignorarApelidoSugerido = function(i) {
 
 
 // Inicia tudo ao carregar
+
+function togglePassVis(id,btn){
+  const inp=document.getElementById(id);
+  const show=inp.type==='password';
+  inp.type=show?'text':'password';
+  btn.innerHTML=show
+    ?'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
+    :'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+}
+
 window.addEventListener('load', ()=>{registerSWAndPBS();initPersonalization();});
 
 // ── FAB expandível ──
@@ -2756,7 +2790,7 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">E-mail ou usuário</label>
         <input class="auth-input" type="email" id="loginUser" placeholder="seu@email.com" autocapitalize="none" autocorrect="off"/></div>
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Senha</label>
-        <input class="auth-input" type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+        <div style="position:relative"><input class="auth-input" type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:48px"/><button type="button" onclick="togglePassVis('loginPass',this)" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;padding:4px;display:flex;align-items:center"><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg></button></div>
         <button onclick="doLogin()" class="auth-btn btn-primary" style="width:100%;padding:15px;border-radius:14px;font-size:16px;font-weight:700;margin-top:4px">Entrar</button>
         <p style="text-align:center;margin-top:8px"><button onclick="doForgotPassword()" style="background:none;border:none;color:#2563eb;cursor:pointer;font-size:13px;font-weight:500">Esqueci minha senha</button></p>
         <p style="text-align:center;color:#475569;font-size:13px;margin-top:2px">Não tem conta? <button onclick="showTab('register')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:13px;font-weight:600">Criar agora</button></p>
@@ -2769,9 +2803,9 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">E-mail</label>
         <input class="auth-input" type="email" id="regEmail" placeholder="seu@email.com" autocapitalize="none" autocorrect="off"/></div>
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Senha (mín. 6 caracteres)</label>
-        <input class="auth-input" type="password" id="regPass" placeholder="••••••••"/></div>
+        <div style="position:relative"><input class="auth-input" type="password" id="regPass" placeholder="••••••••"  style="padding-right:48px"/><button type="button" onclick="togglePassVis('regPass',this)" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;padding:4px;display:flex;align-items:center"><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg></button></div>
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Confirmar senha</label>
-        <input class="auth-input" type="password" id="regPass2" placeholder="••••••••" onkeydown="if(event.key==='Enter')doRegister()"/></div>
+        <div style="position:relative"><input class="auth-input" type="password" id="regPass2" placeholder="••••••••" onkeydown="if(event.key==='Enter')doRegister()" style="padding-right:48px"/><button type="button" onclick="togglePassVis('regPass2',this)" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;padding:4px;display:flex;align-items:center"><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg></button></div>
         <button onclick="doRegister()" class="auth-btn btn-primary" style="width:100%;padding:15px;border-radius:14px;font-size:16px;font-weight:700;margin-top:4px">Criar conta</button>
         <p style="text-align:center;color:#475569;font-size:13px;margin-top:4px">Já tem conta? <button onclick="showTab('login')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:13px;font-weight:600">Entrar</button></p>
       </div>
