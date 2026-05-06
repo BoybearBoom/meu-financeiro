@@ -312,20 +312,7 @@ function saveNotifEmail(e){localStorage.setItem('fpro_notif_email',e);}
 async function syncToCloud(){
   if(!currentUser)return;
   try{
-    await setDoc(doc(db,'users',currentUser.uid),{
-      data:JSON.stringify(getData()),
-      updatedAt:new Date().toISOString(),
-      displayName:currentUser.displayName||'',
-      notifEmail:getNotifEmail(),
-      prefs:{
-        theme:getTheme(),
-        navMode:getNavMode(),
-        appName:getAppName(),
-        notifs:localStorage.getItem('fpro_notifs')||'0',
-        faturaAviso:localStorage.getItem('fpro_fatura_aviso')||'3',
-        vencPadrao:localStorage.getItem('fpro_venc_padrao')||''
-      }
-    });
+    await setDoc(doc(db,'users',currentUser.uid),{data:JSON.stringify(getData()),updatedAt:new Date().toISOString(),displayName:currentUser.displayName||'',notifEmail:getNotifEmail()});
     setSyncDot('green');
   }catch{setSyncDot('red');}
 }
@@ -335,16 +322,6 @@ async function loadFromCloud(){
     const snap=await getDoc(doc(db,'users',currentUser.uid));
     if(snap.exists()){
       if(snap.data().notifEmail)saveNotifEmail(snap.data().notifEmail);
-      if(snap.data().prefs){
-        const p=snap.data().prefs;
-        if(p.theme){saveTheme(p.theme);applyTheme(p.theme);}
-        if(p.navMode){saveNavMode(p.navMode);applyNavMode(p.navMode);}
-        if(p.appName){saveAppName(p.appName);applyAppName(p.appName);}
-        if(p.notifs)localStorage.setItem('fpro_notifs',p.notifs);
-        if(p.faturaAviso)localStorage.setItem('fpro_fatura_aviso',p.faturaAviso);
-        if(p.vencPadrao)localStorage.setItem('fpro_venc_padrao',p.vencPadrao);
-        else localStorage.removeItem('fpro_venc_padrao');
-      }
       if(snap.data().data){
         const cd=JSON.parse(snap.data().data),ld=getData();
         if(cd.length>=ld.length){
@@ -690,7 +667,6 @@ window.savePersonalizacao=function(){
   saveNavMode(currentMode);
   window.closePersonalizacaoModal();
   showToast('Personalização salva ✓','#4ade80');
-  scheduleSync();
 }
 
 window.exportData=function(){
