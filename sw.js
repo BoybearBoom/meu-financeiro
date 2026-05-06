@@ -1,5 +1,5 @@
-const CACHE='fpro-20260420120000';
-const FILES=['/meu-financeiro/','/meu-financeiro/index.html','/meu-financeiro/manifest.json'];
+const CACHE='fpro-20260506000000';
+const FILES=['/','/index.html','/manifest.json'];
 
 self.addEventListener('install',e=>{
   e.waitUntil(
@@ -28,7 +28,7 @@ self.addEventListener('fetch',e=>{
     return;
   }
   e.respondWith(
-    caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>caches.match('/meu-financeiro/index.html')))
+    caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>caches.match('/index.html')))
   );
 });
 
@@ -37,22 +37,17 @@ self.addEventListener('notificationclick',e=>{
   e.waitUntil(
     clients.matchAll({type:'window'}).then(cs=>{
       if(cs.length>0){cs[0].focus();return;}
-      clients.openWindow('/meu-financeiro/');
+      clients.openWindow('/');
     })
   );
 });
 
-// ── Periodic Background Sync ──
-// Disparado pelo browser (~12h) mesmo com o app completamente fechado.
-// Lê os dados do localStorage via IndexedDB (único storage acessível no SW),
-// verifica vencimentos e envia notificações sem abrir o app.
-
+// ── Periodic Background Sync ──────────────────────────────────
 const IDB_NAME  = 'fpro-idb';
 const IDB_STORE = 'kv';
 
-// Lê um valor do IndexedDB (substitui localStorage, inacessível no SW)
 function idbGet(key) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const req = indexedDB.open(IDB_NAME, 1);
     req.onupgradeneeded = e => e.target.result.createObjectStore(IDB_STORE);
     req.onerror = () => resolve(null);
@@ -66,7 +61,6 @@ function idbGet(key) {
   });
 }
 
-// Grava um valor no IndexedDB
 function idbSet(key, value) {
   return new Promise((resolve) => {
     const req = indexedDB.open(IDB_NAME, 1);
@@ -90,7 +84,6 @@ function fmt(v) {
 
 async function checarVencimentosENotificar() {
   try {
-    // Dados gravados pelo app via idbSet('fpro_v2', [...])
     const dados = await idbGet('fpro_v2');
     if (!dados || !Array.isArray(dados)) return;
 
@@ -104,10 +97,10 @@ async function checarVencimentosENotificar() {
       const venc = new Date(item.vencimento + 'T00:00:00');
       const diff = Math.round((venc - hoje) / 86400000);
 
-      if (diff > 3) continue; // só avisa até 3 dias antes
+      if (diff > 3) continue;
 
       const chave = `${item.id}-${hojeStr}`;
-      if (alertados[chave]) continue; // já notificou hoje
+      if (alertados[chave]) continue;
 
       let titulo, corpo;
       if (diff < 0) {
@@ -126,11 +119,11 @@ async function checarVencimentosENotificar() {
 
       await self.registration.showNotification(titulo, {
         body : corpo,
-        icon : '/meu-financeiro/icon-192.png',
-        badge: '/meu-financeiro/icon-192.png',
+        icon : '/icon-192.png',
+        badge: '/icon-192.png',
         tag  : chave,
         renotify: false,
-        data : { url: '/meu-financeiro/' }
+        data : { url: '/' }
       });
 
       alertados[chave] = true;
