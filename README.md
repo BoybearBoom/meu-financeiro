@@ -15,11 +15,13 @@ Aplicativo PWA de controle financeiro pessoal, feito para funcionar no celular c
 - **Exportar PDF** do mês com relatório completo
 - **Selecionar e excluir** múltiplos itens de uma vez
 - **Notificações push** de vencimentos (requer permissão)
-- **Sincronização em nuvem** via Firebase (dados salvos por usuário)
-- **Login e cadastro** com usuário e senha
+- **Sincronização em nuvem** via Firebase (dados e preferências salvos por usuário)
+- **Preferências sincronizadas** — tema, modo de navegação, nome do app e configurações salvas na nuvem
+- **Login e cadastro** com e-mail e senha
 - **Funciona offline** via Service Worker com cache automático
 - **Instalável** como PWA no Android e iOS
+- **Hospedado no Cloudflare Pages** com deploy automático via GitHub
 
 ## 🚀 Acesse
 
-👉 [Acesse meu controle financeiro](meu-financeiro-7nb.pages.dev)
+👉 [https://meu-financeiro-7nb.pages.dev](https://meu-financeiro-7nb.pages.dev)
