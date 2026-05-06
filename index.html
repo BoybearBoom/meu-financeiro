@@ -359,9 +359,13 @@ async function loadFromCloud(){
         await idbSet('fpro_cartoes',getCartoes());
         await idbSet('fpro_alerted',JSON.parse(localStorage.getItem('fpro_alerted')||'{}')); 
         render();
+      } else {
+        render();
       }
+    } else {
+      render();
     }
-  }catch(e){console.log('Cloud load error:',e);}
+  }catch(e){console.log('Cloud load error:',e);render();}
 }
 
 
@@ -425,7 +429,7 @@ function saveNotifSetting(v){notifsEnabled=v;localStorage.setItem('fpro_notifs',
 async function registerSW(){
   if(!('serviceWorker' in navigator))return null;
   try{
-    const reg=await navigator.serviceWorker.register('sw.js',{scope:'./'});
+    const reg=await navigator.serviceWorker.register('./sw.js',{scope:'/'});
     await navigator.serviceWorker.ready;
     return reg;
   }catch(e){console.log('SW register error:',e);return null;}
