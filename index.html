@@ -357,15 +357,10 @@ async function loadFromCloud(){
         }
         // Espelha cartões e alertados para o SW sempre
         await idbSet('fpro_cartoes',getCartoes());
-        await idbSet('fpro_alerted',JSON.parse(localStorage.getItem('fpro_alerted')||'{}')); 
-        render();
-      } else {
-        render();
+        await idbSet('fpro_alerted',JSON.parse(localStorage.getItem('fpro_alerted')||'{}'));
       }
-    } else {
-      render();
     }
-  }catch(e){console.log('Cloud load error:',e);render();}
+  }catch(e){console.log('Cloud load error:',e);}
 }
 
 
@@ -767,12 +762,10 @@ onAuthStateChanged(auth,user=>{
     document.getElementById('mainApp').style.display='block';
     document.getElementById('userDisplayName').textContent=user.displayName||user.email.split('@')[0];
     loadNotifSetting();
-    loadFromCloud().then(()=>{
+    loadFromCloud().catch(()=>{}).finally(()=>{
       processRecurring();
       render();
-      // Atualiza label se já houver sync anterior
       if(_lastSyncAt) updatePBSSyncLabel();
-      // Agenda checkDueAlerts e primeiro PBS se já passou o intervalo
       setTimeout(async()=>{
         checkDueAlerts();
         checkFaturaAlerts();
