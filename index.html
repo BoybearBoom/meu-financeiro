@@ -54,7 +54,7 @@ function applyTheme(theme){
   }
 }
 window.selectTheme=function(t){
-  saveTheme(t);applyTheme(t);scheduleSync();
+  saveTheme(t);applyTheme(t);savePrefsToCloud();
   const db=document.getElementById('themeDarkBtn'),lb=document.getElementById('themeLightBtn');
   if(db)db.style.borderColor=t==='dark'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
   if(lb)lb.style.borderColor=t==='light'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
@@ -312,22 +312,41 @@ function saveNotifEmail(e){localStorage.setItem('fpro_notif_email',e);}
 async function syncToCloud(){
   if(!currentUser)return;
   try{
-    await setDoc(doc(db,'users',currentUser.uid),{
-      data:JSON.stringify(getData()),
-      updatedAt:new Date().toISOString(),
-      displayName:currentUser.displayName||'',
-      notifEmail:getNotifEmail(),
-      prefs:{
-        theme:getTheme(),
-        navMode:getNavMode(),
-        appName:getAppName(),
-        notifs:localStorage.getItem('fpro_notifs')||'0',
-        faturaAviso:localStorage.getItem('fpro_fatura_aviso')||'3',
-        vencPadrao:localStorage.getItem('fpro_venc_padrao')||''
-      }
-    });
+    await setDoc(doc(db,'users',currentUser.uid),{data:JSON.stringify(getData()),updatedAt:new Date().toISOString(),displayName:currentUser.displayName||'',notifEmail:getNotifEmail()});
     setSyncDot('green');
   }catch{setSyncDot('red');}
+}
+
+// ── Preferências na nuvem (documento separado, não interfere nos dados) ──
+async function savePrefsToCloud(){
+  if(!currentUser)return;
+  try{
+    const{setDoc:sd,doc:dc}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await sd(dc(db,'prefs',currentUser.uid),{
+      theme:getTheme(),
+      navMode:getNavMode(),
+      appName:getAppName(),
+      notifs:localStorage.getItem('fpro_notifs')||'0',
+      faturaAviso:localStorage.getItem('fpro_fatura_aviso')||'3',
+      vencPadrao:localStorage.getItem('fpro_venc_padrao')||''
+    });
+  }catch(e){console.log('Prefs save error:',e);}
+}
+async function loadPrefsFromCloud(){
+  if(!currentUser)return;
+  try{
+    const{getDoc:gd,doc:dc}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const snap=await gd(dc(db,'prefs',currentUser.uid));
+    if(!snap.exists())return;
+    const p=snap.data();
+    if(p.theme){saveTheme(p.theme);applyTheme(p.theme);}
+    if(p.navMode){saveNavMode(p.navMode);applyNavMode(p.navMode);}
+    if(p.appName){saveAppName(p.appName);applyAppName(p.appName);}
+    if(p.notifs)localStorage.setItem('fpro_notifs',p.notifs);
+    if(p.faturaAviso)localStorage.setItem('fpro_fatura_aviso',p.faturaAviso);
+    if(p.vencPadrao)localStorage.setItem('fpro_venc_padrao',p.vencPadrao);
+    else localStorage.removeItem('fpro_venc_padrao');
+  }catch(e){console.log('Prefs load error:',e);}
 }
 async function loadFromCloud(){
   if(!currentUser)return;
@@ -335,16 +354,6 @@ async function loadFromCloud(){
     const snap=await getDoc(doc(db,'users',currentUser.uid));
     if(snap.exists()){
       if(snap.data().notifEmail)saveNotifEmail(snap.data().notifEmail);
-      if(snap.data().prefs){
-        const p=snap.data().prefs;
-        if(p.theme){saveTheme(p.theme);applyTheme(p.theme);}
-        if(p.navMode){saveNavMode(p.navMode);applyNavMode(p.navMode);}
-        if(p.appName){saveAppName(p.appName);applyAppName(p.appName);}
-        if(p.notifs)localStorage.setItem('fpro_notifs',p.notifs);
-        if(p.faturaAviso)localStorage.setItem('fpro_fatura_aviso',p.faturaAviso);
-        if(p.vencPadrao)localStorage.setItem('fpro_venc_padrao',p.vencPadrao);
-        else localStorage.removeItem('fpro_venc_padrao');
-      }
       if(snap.data().data){
         const cd=JSON.parse(snap.data().data),ld=getData();
         if(cd.length>=ld.length){
@@ -425,7 +434,7 @@ function saveNotifSetting(v){notifsEnabled=v;localStorage.setItem('fpro_notifs',
 async function registerSW(){
   if(!('serviceWorker' in navigator))return null;
   try{
-    const reg=await navigator.serviceWorker.register('sw.js',{scope:'./'});
+    const reg=await navigator.serviceWorker.register('./sw.js',{scope:'/'});
     await navigator.serviceWorker.ready;
     return reg;
   }catch(e){console.log('SW register error:',e);return null;}
@@ -691,7 +700,7 @@ window.savePersonalizacao=function(){
   saveNavMode(currentMode);
   window.closePersonalizacaoModal();
   showToast('Personalização salva ✓','#4ade80');
-  scheduleSync();
+  savePrefsToCloud();
 }
 
 window.exportData=function(){
@@ -763,7 +772,8 @@ onAuthStateChanged(auth,user=>{
     document.getElementById('mainApp').style.display='block';
     document.getElementById('userDisplayName').textContent=user.displayName||user.email.split('@')[0];
     loadNotifSetting();
-    loadFromCloud().then(()=>{
+    loadPrefsFromCloud().catch(()=>{});
+    loadFromCloud().catch(()=>{}).finally(()=>{
       processRecurring();
       render();
       // Atualiza label se já houver sync anterior
@@ -1204,6 +1214,7 @@ window.openModal=function(editId){
   document.getElementById('editId').value=isEdit?id:'';
   document.getElementById('inputNome').value=isEdit?nomeBase(item.nome):'';
   document.getElementById('inputValor').value=isEdit?item.valor:'';
+  if(!isEdit){setDataPill('hoje');}
   document.getElementById('inputData').value=isEdit?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
   document.getElementById('inputVencimento').value=isEdit&&item.vencimento?item.vencimento:(()=>{
     if(isEdit) return '';
@@ -1256,6 +1267,7 @@ window.openModal=function(editId){
   if(recBox){recBox.style.background=isRec?'#2563eb':'transparent';recBox.style.borderColor=isRec?'#2563eb':'rgba(148,163,184,0.35)';}
   if(recIcon)recIcon.style.display=isRec?'block':'none';
   document.getElementById('modalOverlay').style.display='flex';
+  setTimeout(()=>{const v=document.getElementById('inputValor');if(v)v.focus();},100);
   lockBody();
   // Sem auto-focus para não abrir teclado automaticamente
 }
@@ -2242,14 +2254,74 @@ window.ignorarApelidoSugerido = function(i) {
 
 // Inicia tudo ao carregar
 
-function togglePassVis(id,btn){
-  const inp=document.getElementById(id);
-  const show=inp.type==='password';
-  inp.type=show?'text':'password';
-  btn.innerHTML=show
-    ?'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
-    :'<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
-}
+// ── Pills de data ──
+window.setDataPill = function(tipo) {
+  const hoje = new Date();
+  if (tipo === 'ontem') hoje.setDate(hoje.getDate() - 1);
+  // Atualizar visual das pills
+  ['pillHoje','pillOntem','pillOutro'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const isActive = id === 'pill' + tipo.charAt(0).toUpperCase() + tipo.slice(1);
+    el.style.background = isActive ? 'rgba(99,102,241,0.2)' : 'rgba(30,41,59,0.6)';
+    el.style.borderColor = isActive ? 'rgba(99,102,241,0.5)' : 'rgba(148,163,184,0.15)';
+    el.style.color = isActive ? '#818cf8' : '#64748b';
+  });
+  const inp = document.getElementById('inputData');
+  if (!inp) return;
+  if (tipo === 'outro') {
+    inp.style.display = 'block';
+    inp.focus();
+  } else {
+    inp.style.display = 'none';
+    inp.value = hoje.toISOString().split('T')[0];
+  }
+};
+
+// ── Simulador de parcelas ──
+let _simMode = 'total';
+window.setSimTab = function(mode) {
+  _simMode = mode;
+  const tabTotal = document.getElementById('simTabTotal');
+  const tabParcela = document.getElementById('simTabParcela');
+  if (tabTotal) { tabTotal.style.color = mode==='total'?'#10b981':'#64748b'; tabTotal.style.background = mode==='total'?'rgba(16,185,129,0.2)':'transparent'; }
+  if (tabParcela) { tabParcela.style.color = mode==='parcela'?'#10b981':'#64748b'; tabParcela.style.background = mode==='parcela'?'rgba(16,185,129,0.2)':'transparent'; }
+  const label = document.getElementById('simLabelText');
+  if (label) label.textContent = mode==='total' ? 'Valor por parcela' : 'Valor total';
+  calcularSim();
+};
+window.calcularSim = function() {
+  const v = parseFloat(document.getElementById('simValorInput')?.value) || 0;
+  const n = parseInt(document.getElementById('simParcelasInput')?.value) || 0;
+  const res = document.getElementById('simResultText');
+  if (!res) return;
+  if (!v || !n) { res.textContent = '—'; return; }
+  const resultado = _simMode === 'total' ? v / n : v * n;
+  res.textContent = 'R$ ' + resultado.toLocaleString('pt-BR', {minimumFractionDigits:2,maximumFractionDigits:2});
+};
+window.aplicarSim = function() {
+  const v = parseFloat(document.getElementById('simValorInput')?.value) || 0;
+  const n = parseInt(document.getElementById('simParcelasInput')?.value) || 0;
+  if (!v || !n) return;
+  const resultado = _simMode === 'total' ? v : v * n;
+  const inp = document.getElementById('inputValor');
+  if (inp) inp.value = resultado.toFixed(2);
+};
+
+// Mostrar/ocultar simulador ao mudar parcelas
+(function patchParcelas() {
+  const orig = window.saveItem;
+  document.addEventListener('change', function(e) {
+    if (e.target && e.target.id === 'inputParcelas') {
+      const box = document.getElementById('simuladorParcelasBox');
+      if (!box) return;
+      const v = parseInt(e.target.value) || 1;
+      box.style.display = v > 1 ? 'block' : 'none';
+      const simP = document.getElementById('simParcelasInput');
+      if (simP) simP.value = v > 1 ? v : '';
+    }
+  });
+})();
 
 window.addEventListener('load', ()=>{registerSWAndPBS();initPersonalization();});
 
@@ -2790,7 +2862,7 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">E-mail ou usuário</label>
         <input class="auth-input" type="email" id="loginUser" placeholder="seu@email.com" autocapitalize="none" autocorrect="off"/></div>
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Senha</label>
-        <div style="position:relative"><input class="auth-input" type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()" style="padding-right:48px"/><button type="button" onclick="togglePassVis('loginPass',this)" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;padding:4px;display:flex;align-items:center"><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg></button></div>
+        <input class="auth-input" type="password" id="loginPass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
         <button onclick="doLogin()" class="auth-btn btn-primary" style="width:100%;padding:15px;border-radius:14px;font-size:16px;font-weight:700;margin-top:4px">Entrar</button>
         <p style="text-align:center;margin-top:8px"><button onclick="doForgotPassword()" style="background:none;border:none;color:#2563eb;cursor:pointer;font-size:13px;font-weight:500">Esqueci minha senha</button></p>
         <p style="text-align:center;color:#475569;font-size:13px;margin-top:2px">Não tem conta? <button onclick="showTab('register')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:13px;font-weight:600">Criar agora</button></p>
@@ -2803,9 +2875,9 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">E-mail</label>
         <input class="auth-input" type="email" id="regEmail" placeholder="seu@email.com" autocapitalize="none" autocorrect="off"/></div>
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Senha (mín. 6 caracteres)</label>
-        <div style="position:relative"><input class="auth-input" type="password" id="regPass" placeholder="••••••••"  style="padding-right:48px"/><button type="button" onclick="togglePassVis('regPass',this)" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;padding:4px;display:flex;align-items:center"><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg></button></div>
+        <input class="auth-input" type="password" id="regPass" placeholder="••••••••"/></div>
         <div><label style="color:#94a3b8;font-size:12px;display:block;margin-bottom:5px;margin-left:3px">Confirmar senha</label>
-        <div style="position:relative"><input class="auth-input" type="password" id="regPass2" placeholder="••••••••" onkeydown="if(event.key==='Enter')doRegister()" style="padding-right:48px"/><button type="button" onclick="togglePassVis('regPass2',this)" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:#64748b;padding:4px;display:flex;align-items:center"><svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg></button></div>
+        <input class="auth-input" type="password" id="regPass2" placeholder="••••••••" onkeydown="if(event.key==='Enter')doRegister()"/></div>
         <button onclick="doRegister()" class="auth-btn btn-primary" style="width:100%;padding:15px;border-radius:14px;font-size:16px;font-weight:700;margin-top:4px">Criar conta</button>
         <p style="text-align:center;color:#475569;font-size:13px;margin-top:4px">Já tem conta? <button onclick="showTab('login')" style="background:none;border:none;color:#818cf8;cursor:pointer;font-size:13px;font-weight:600">Entrar</button></p>
       </div>
@@ -3093,29 +3165,37 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
     <div id="modalParcelaInfo" style="display:none;background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.2);border-radius:10px;padding:9px 13px;font-size:12px;color:#fbbf24;margin-bottom:4px"></div>
     <div id="modalRecInfo" style="display:none;background:rgba(37,99,235,0.07);border:1px solid rgba(37,99,235,0.18);border-radius:10px;padding:9px 13px;font-size:12px;color:#93c5fd;margin-bottom:4px">↻ Recorrente — salvar vai atualizar todos os meses seguintes em cascata</div>
     <div class="space-y-3">
+      <!-- Valor grande + Data de adição com pills -->
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        <div style="flex:1">
+          <label style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:6px">Valor (R$) *</label>
+          <div style="display:flex;align-items:center;background:rgba(30,41,59,0.8);border:1.5px solid rgba(99,102,241,0.4);border-radius:16px;padding:10px 14px;gap:6px">
+            <span style="font-size:16px;font-weight:700;color:#6366f1">R$</span>
+            <input type="number" id="inputValor" placeholder="0,00" step="0.01" min="0" inputmode="decimal" style="font-size:26px;font-weight:800;color:#f1f5f9;background:none;border:none;outline:none;width:100%;padding:0"/>
+          </div>
+        </div>
+        <div style="min-width:120px">
+          <label style="color:#64748b;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;display:block;margin-bottom:6px">Data de adição</label>
+          <div style="display:flex;gap:4px;margin-bottom:5px">
+            <button type="button" id="pillHoje" onclick="setDataPill('hoje')" style="flex:1;padding:5px 2px;border-radius:8px;font-size:11px;font-weight:600;text-align:center;cursor:pointer;border:1.5px solid rgba(99,102,241,0.5);background:rgba(99,102,241,0.2);color:#818cf8">Hoje</button>
+            <button type="button" id="pillOntem" onclick="setDataPill('ontem')" style="flex:1;padding:5px 2px;border-radius:8px;font-size:11px;font-weight:600;text-align:center;cursor:pointer;border:1.5px solid rgba(148,163,184,0.15);background:rgba(30,41,59,0.6);color:#64748b">Ontem</button>
+            <button type="button" id="pillOutro" onclick="setDataPill('outro')" style="flex:1;padding:5px 2px;border-radius:8px;font-size:11px;font-weight:600;text-align:center;cursor:pointer;border:1.5px solid rgba(148,163,184,0.15);background:rgba(30,41,59,0.6);color:#64748b">Outro</button>
+          </div>
+          <input type="date" id="inputData" style="width:100%;font-size:12px;padding:6px 8px;border-radius:10px;display:none"/>
+        </div>
+      </div>
+
       <!-- Descrição -->
       <div>
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">Descrição *</label>
         <input type="text" id="inputNome" placeholder="Ex: Netflix, Aluguel, Mercado..."/>
       </div>
 
-      <!-- Valor + Data numa linha -->
-      <div class="grid grid-cols-2 gap-3">
-        <div>
-          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Valor (R$) *</label>
-          <input type="number" id="inputValor" placeholder="0,00" step="0.01" min="0"/>
-        </div>
-        <div>
-          <label class="text-slate-400 text-xs block mb-1.5 ml-1">Data de adição</label>
-          <input type="date" id="inputData"/>
-        </div>
-      </div>
-
-      <!-- Vencimento — campo de destaque -->
-      <div style="background:rgba(234,179,8,0.06);border:1px solid rgba(234,179,8,0.2);border-radius:14px;padding:12px 14px">
-        <label style="color:#fbbf24;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">📅 Data de vencimento <span style="color:#92400e;font-weight:500;font-size:10px">(para alertas)</span></label>
-        <input type="date" id="inputVencimento" style="background:rgba(0,0,0,0.2)!important"/>
-        <p style="color:#78350f;font-size:11px;margin:6px 0 0">Você receberá notificações até 3 dias antes do vencimento</p>
+      <!-- Vencimento compacto -->
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(245,158,11,0.05);border:1px solid rgba(245,158,11,0.2);border-radius:12px;padding:9px 12px">
+        <span style="font-size:13px">📅</span>
+        <span style="font-size:11px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap">Vencimento</span>
+        <input type="date" id="inputVencimento" style="flex:1;background:transparent;border:none;border-left:1px solid rgba(245,158,11,0.2);padding:2px 10px;font-size:13px;font-weight:600;outline:none"/>
       </div>
 
       <!-- Categoria + Parcelas numa linha -->
@@ -3141,6 +3221,28 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
         </div>
       </div>
 
+      <!-- Simulador de parcelas -->
+      <div id="simuladorParcelasBox" style="display:none;background:rgba(16,185,129,0.07);border:1.5px solid rgba(16,185,129,0.2);border-radius:16px;padding:12px 14px">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+          <span>🧮</span>
+          <span style="font-size:11px;font-weight:700;color:#10b981;text-transform:uppercase;letter-spacing:.8px">Simulador de Parcelas</span>
+        </div>
+        <div style="display:flex;background:rgba(15,23,42,0.6);border-radius:10px;padding:3px;gap:3px;margin-bottom:10px">
+          <button type="button" id="simTabTotal" onclick="setSimTab('total')" style="flex:1;padding:7px 8px;border-radius:8px;font-size:11px;font-weight:600;text-align:center;color:#10b981;background:rgba(16,185,129,0.2);border:none;cursor:pointer">Total ÷ parcelas</button>
+          <button type="button" id="simTabParcela" onclick="setSimTab('parcela')" style="flex:1;padding:7px 8px;border-radius:8px;font-size:11px;font-weight:600;text-align:center;color:#64748b;background:transparent;border:none;cursor:pointer">Valor da parcela</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+          <input type="number" id="simValorInput" inputmode="decimal" placeholder="R$ 0,00" oninput="calcularSim()" style="flex:1;background:rgba(15,23,42,0.6);border:1.5px solid rgba(16,185,129,0.2);border-radius:10px;padding:9px 12px;font-size:14px;color:#f1f5f9;font-weight:600;text-align:center;outline:none"/>
+          <span style="color:#64748b;font-weight:700;font-size:16px">×</span>
+          <input type="number" id="simParcelasInput" inputmode="numeric" placeholder="Nº" oninput="calcularSim()" style="max-width:70px;background:rgba(15,23,42,0.6);border:1.5px solid rgba(16,185,129,0.2);border-radius:10px;padding:9px 12px;font-size:14px;color:#f1f5f9;font-weight:600;text-align:center;outline:none"/>
+        </div>
+        <div style="background:rgba(16,185,129,0.1);border-radius:10px;padding:9px 14px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <span id="simLabelText" style="font-size:12px;color:#64748b">Valor por parcela</span>
+          <span id="simResultText" style="font-size:16px;font-weight:800;color:#10b981">—</span>
+        </div>
+        <button type="button" onclick="aplicarSim()" style="width:100%;padding:9px;background:rgba(16,185,129,0.15);border:1.5px solid rgba(16,185,129,0.3);border-radius:10px;color:#10b981;font-size:13px;font-weight:700;cursor:pointer">↑ Aplicar ao campo valor</button>
+      </div>
+
       <!-- Cartão select -->
       <div id="cartaoSelectGrp" style="display:none">
         <label class="text-slate-400 text-xs block mb-1.5 ml-1">💳 Qual cartão?</label>
@@ -3154,11 +3256,11 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
         <textarea id="inputObs" placeholder="Anote detalhes, o que foi feito, informações extras..." rows="2" style="resize:none;padding-bottom:8px"></textarea>
       </div>
 
-      <!-- Mês de Competência -->
-      <div style="background:rgba(37,99,235,0.07);border:1px solid rgba(37,99,235,0.2);border-radius:14px;padding:12px 14px">
-        <label style="color:#93c5fd;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">📆 Mês de competência</label>
-        <select id="inputCompetencia" style="width:100%"></select>
-        <p style="color:#475569;font-size:11px;margin:6px 0 0">Conta debitada no próximo mês? Selecione "próximo".</p>
+      <!-- Mês de Competência compacto -->
+      <div style="display:flex;align-items:center;gap:8px;background:rgba(30,41,59,0.4);border:1px solid rgba(148,163,184,0.1);border-radius:12px;padding:9px 12px">
+        <span style="font-size:13px">📆</span>
+        <span style="font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.6px;white-space:nowrap;flex-shrink:0">Competência</span>
+        <select id="inputCompetencia" style="flex:1;background:rgba(255,255,255,0.07);border:1.5px solid rgba(255,255,255,0.25);border-radius:10px;padding:5px 10px;font-size:13px;font-weight:600;color:#f1f5f9;outline:none"></select>
       </div>
 
       <!-- Checkbox Gasto Recorrente -->
