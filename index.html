@@ -54,7 +54,7 @@ function applyTheme(theme){
   }
 }
 window.selectTheme=function(t){
-  saveTheme(t);applyTheme(t);
+  saveTheme(t);applyTheme(t);savePrefsToCloud();
   const db=document.getElementById('themeDarkBtn'),lb=document.getElementById('themeLightBtn');
   if(db)db.style.borderColor=t==='dark'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
   if(lb)lb.style.borderColor=t==='light'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
@@ -315,6 +315,38 @@ async function syncToCloud(){
     await setDoc(doc(db,'users',currentUser.uid),{data:JSON.stringify(getData()),updatedAt:new Date().toISOString(),displayName:currentUser.displayName||'',notifEmail:getNotifEmail()});
     setSyncDot('green');
   }catch{setSyncDot('red');}
+}
+
+// ── Preferências na nuvem (documento separado, não interfere nos dados) ──
+async function savePrefsToCloud(){
+  if(!currentUser)return;
+  try{
+    const{setDoc:sd,doc:dc}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    await sd(dc(db,'prefs',currentUser.uid),{
+      theme:getTheme(),
+      navMode:getNavMode(),
+      appName:getAppName(),
+      notifs:localStorage.getItem('fpro_notifs')||'0',
+      faturaAviso:localStorage.getItem('fpro_fatura_aviso')||'3',
+      vencPadrao:localStorage.getItem('fpro_venc_padrao')||''
+    });
+  }catch(e){console.log('Prefs save error:',e);}
+}
+async function loadPrefsFromCloud(){
+  if(!currentUser)return;
+  try{
+    const{getDoc:gd,doc:dc}=await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+    const snap=await gd(dc(db,'prefs',currentUser.uid));
+    if(!snap.exists())return;
+    const p=snap.data();
+    if(p.theme){saveTheme(p.theme);applyTheme(p.theme);}
+    if(p.navMode){saveNavMode(p.navMode);applyNavMode(p.navMode);}
+    if(p.appName){saveAppName(p.appName);applyAppName(p.appName);}
+    if(p.notifs)localStorage.setItem('fpro_notifs',p.notifs);
+    if(p.faturaAviso)localStorage.setItem('fpro_fatura_aviso',p.faturaAviso);
+    if(p.vencPadrao)localStorage.setItem('fpro_venc_padrao',p.vencPadrao);
+    else localStorage.removeItem('fpro_venc_padrao');
+  }catch(e){console.log('Prefs load error:',e);}
 }
 async function loadFromCloud(){
   if(!currentUser)return;
@@ -668,6 +700,7 @@ window.savePersonalizacao=function(){
   saveNavMode(currentMode);
   window.closePersonalizacaoModal();
   showToast('Personalização salva ✓','#4ade80');
+  savePrefsToCloud();
 }
 
 window.exportData=function(){
@@ -739,6 +772,7 @@ onAuthStateChanged(auth,user=>{
     document.getElementById('mainApp').style.display='block';
     document.getElementById('userDisplayName').textContent=user.displayName||user.email.split('@')[0];
     loadNotifSetting();
+    loadPrefsFromCloud().catch(()=>{});
     loadFromCloud().catch(()=>{}).finally(()=>{
       processRecurring();
       render();
