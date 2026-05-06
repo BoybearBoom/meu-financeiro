@@ -1220,10 +1220,16 @@ window.openModal=function(editId){
     if(isEdit) return '';
     const dia=parseInt(localStorage.getItem('fpro_venc_padrao')||'0');
     if(!dia) return '';
-    // build date for this day in current month, clamped to actual days in month
-    const daysInMonth=new Date(curYear,curMonth+1,0).getDate();
+    // Se o dia de vencimento já passou no mês atual, vai para o próximo mês
+    const hoje=new Date();
+    let ano=curYear, mes=curMonth;
+    if(dia < hoje.getDate()) {
+      mes++;
+      if(mes > 11) { mes=0; ano++; }
+    }
+    const daysInMonth=new Date(ano,mes+1,0).getDate();
     const d=Math.min(dia,daysInMonth);
-    return `${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    return `${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   })();
   document.getElementById('inputCategoria').value=isEdit?item.categoria:'Moradia';
   updateCartaoSelect(isEdit?item.categoria:'Moradia', isEdit?item.cartaoNome:'');
