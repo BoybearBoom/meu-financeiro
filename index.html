@@ -1942,7 +1942,7 @@ async function registerSWAndPBS() {
   if (!('serviceWorker' in navigator)) return;
   let reg;
   try {
-    reg = await navigator.serviceWorker.register('./sw.js', { scope: '/meu-financeiro/' });
+    reg = await navigator.serviceWorker.register('./sw.js', { scope: '/' });
     if (reg.active) reg.update();
   } catch {
     startPBSFallback();
@@ -2303,8 +2303,8 @@ window.closeCalendario=function(){
     el.style.transform='';el.style.transition='';el.style.opacity='';
     const topbar=document.getElementById('calTopbar');
     if(topbar){topbar.style.transform='';topbar.style.opacity='';}
+    unlockBody();
   },190);
-  unlockBody();
 }
 window.closeCalendarioOutside=function(e){if(e.target===document.getElementById('calendarioOverlay'))window.closeCalendario();}
 window.calChangeMonth=function(dir){
