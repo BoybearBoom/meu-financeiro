@@ -31,7 +31,7 @@ const CATS={Moradia:'🏠',Mercado:'🛒',Transporte:'🚗',Lazer:'🍕',Cartão
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 let curDate=new Date(),curYear=curDate.getFullYear(),curMonth=curDate.getMonth();
 let selectMode=false,selected=new Set(),currentUser=null,syncTimer=null;
-let activeFilter='all',searchQuery='',notifsEnabled=false;
+let activeFilter='all',activeBankFilter='all',searchQuery='',notifsEnabled=false;
 
 // ── Nome customizado ──
 function getAppName(){return localStorage.getItem('fpro_appname')||'FinancesPro';}
@@ -93,6 +93,10 @@ function getFilteredItems(){
   let items=getMonthItems();
   if(activeFilter==='pending'){items=items.filter(i=>!i.pago);}
   else if(activeFilter!=='all'){items=items.filter(i=>i.categoria===activeFilter);}
+  // Filtro de banco (só quando categoria Cartão está ativa)
+  if(activeFilter==='Cartão'&&activeBankFilter!=='all'){
+    items=items.filter(i=>(i.cartaoNome||'').toLowerCase().includes(activeBankFilter.toLowerCase()));
+  }
   if(searchQuery)items=items.filter(i=>i.nome.toLowerCase().includes(searchQuery.toLowerCase())||i.categoria.toLowerCase().includes(searchQuery.toLowerCase()));
   return items;
 }
@@ -873,7 +877,37 @@ window.showTab=function(tab){
 // ── Filter & Search ──
 window.setFilter=function(cat){
   activeFilter=cat;
+  activeBankFilter='all';
   document.querySelectorAll('.filter-btn').forEach(b=>b.classList.toggle('filter-active',b.dataset.cat===cat));
+  // Mostrar/ocultar linha de bancos
+  const bankRow=document.getElementById('bankFilterRow');
+  if(bankRow){
+    if(cat==='Cartão'){
+      // Gerar chips de bancos a partir dos dados reais
+      const allItems=getMonthItems();
+      const bancos=[...new Set(allItems.filter(i=>i.categoria==='Cartão').map(i=>{
+        const n=i.cartaoNome||i.nome||'';
+        // Extrai nome do banco da descrição (primeiras palavras)
+        return n.split(/[\s\/\(]/)[0];
+      }).filter(b=>b.length>1))];
+      let html='<button class="filter-btn filter-bank filter-active" data-bank="all">Todos os cartões</button>';
+      bancos.forEach(b=>{
+        html+=`<button class="filter-btn filter-bank" data-bank="${b}">${b}</button>`;
+      });
+      bankRow.innerHTML=html;
+      bankRow.querySelectorAll('.filter-bank').forEach(btn=>{
+        btn.addEventListener('click',()=>window.setBankFilter(btn.dataset.bank));
+      });
+      bankRow.style.display='flex';
+    } else {
+      bankRow.style.display='none';
+    }
+  }
+  render();
+}
+window.setBankFilter=function(bank){
+  activeBankFilter=bank;
+  document.querySelectorAll('.filter-bank').forEach(b=>b.classList.toggle('filter-active',b.dataset.bank===bank));
   render();
 }
 window.onSearch=function(v){searchQuery=v;render();}
@@ -1847,16 +1881,15 @@ window.exportPDF=function(){
   };
 
   // Posições fixas das colunas — alinhadas entre header e dados
-  const C={data:19,desc:41,cat:84,obs:107,venc:143,valor:160,status:179};
+  const C={data:19,desc:42,cat:92,obs:118,valor:162,status:181};
 
   const drawTableHeader=(yy)=>{
     doc.setFillColor(...BLUE_LIGHT);doc.rect(18,yy,174,8,'F');
     doc.setFontSize(7);doc.setFont('helvetica','bold');doc.setTextColor(...BLUE_DARK);
     doc.text('DATA',C.data,yy+5.5);
     doc.text('DESCRIÇÃO',C.desc,yy+5.5);
-    doc.text('CAT.',C.cat,yy+5.5);
-    doc.text('OBS.',C.obs,yy+5.5);
-    doc.text('VENC.',C.venc,yy+5.5);
+    doc.text('CATEGORIA',C.cat,yy+5.5);
+    doc.text('OBSERVAÇÃO',C.obs,yy+5.5);
     doc.text('VALOR',C.valor,yy+5.5);
     doc.text('STATUS',C.status,yy+5.5);
   };
@@ -1897,37 +1930,29 @@ window.exportPDF=function(){
     doc.setFont('helvetica','normal');doc.setFontSize(6.5);doc.setTextColor(50,65,85);
     doc.text(fmtDate(item.data),C.data,mid);
 
-    // Descrição — max 16 chars
+    // Descrição — max 22 chars (mais espaço sem VENC)
     doc.setFont('helvetica','bold');doc.setFontSize(7.5);doc.setTextColor(15,23,42);
-    const nomeStr=item.nome.length>16?item.nome.substring(0,14)+'…':item.nome;
+    const nomeStr=item.nome.length>22?item.nome.substring(0,20)+'…':item.nome;
     doc.text(nomeStr,C.desc,mid);
 
-    // Categoria — max 8 chars
+    // Categoria — se Cartão, mostra banco em linha extra
     doc.setFont('helvetica','normal');doc.setFontSize(7);doc.setTextColor(71,85,105);
-    doc.text(item.categoria.substring(0,8),C.cat,mid);
-
-    // Observação — max 28 chars por linha
-    const obsMaxW=C.venc-C.obs-2;
-    if(obs.length>0){
-      doc.setFontSize(6.5);doc.setTextColor(100,116,139);
-      const obsY=obs.length>1?mid-((obs.length-1)*2.2):mid;
-      doc.text(obs,C.obs,obsY);
-    }else{
-      doc.setFontSize(7);doc.setTextColor(203,213,225);doc.text('—',C.obs,mid);
+    const catStr=item.categoria.substring(0,11);
+    doc.text(catStr,C.cat,mid);
+    if(item.categoria==='Cartão'&&item.cartaoNome){
+      doc.setFontSize(6);doc.setTextColor(99,102,241);
+      doc.text(item.cartaoNome.substring(0,12),C.cat,mid+3.5);
     }
 
-    // Vencimento
-    doc.setFontSize(7);
-    if(item.vencimento){
-      const vd=new Date(item.vencimento+'T12:00:00');
-      const hoje=new Date();hoje.setHours(0,0,0,0);
-      const diff=Math.round((vd-hoje)/86400000);
-      doc.setTextColor(!item.pago&&diff<0?220:!item.pago&&diff<=3?234:71,
-                       !item.pago&&diff<0?38:!item.pago&&diff<=3?88:85,
-                       !item.pago&&diff<0?38:!item.pago&&diff<=3?12:105);
-      doc.text(fmtDate(item.vencimento),C.venc,mid);
+    // Observação — max 35 chars por linha (mais espaço)
+    const obsMaxW=C.valor-C.obs-4;
+    const obsFull=item.obs?doc.splitTextToSize(item.obs,obsMaxW):[];
+    if(obsFull.length>0){
+      doc.setFontSize(6.5);doc.setTextColor(100,116,139);
+      const obsY=obsFull.length>1?mid-((obsFull.length-1)*2.2):mid;
+      doc.text(obsFull,C.obs,obsY);
     }else{
-      doc.setTextColor(203,213,225);doc.text('—',C.venc,mid);
+      doc.setFontSize(7);doc.setTextColor(203,213,225);doc.text('—',C.obs,mid);
     }
 
     // Valor — alinhado à direita da coluna
@@ -2987,6 +3012,8 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
     <button class="filter-btn" data-cat="Assinaturas" onclick="setFilter('Assinaturas')">🛡️ Assinaturas</button>
     <button class="filter-btn" data-cat="Investimentos" onclick="setFilter('Investimentos')">💰 Investimentos</button>
   </div>
+  <!-- Linha de bancos — aparece só ao filtrar Cartão -->
+  <div id="bankFilterRow" style="display:none;overflow-x:auto;white-space:nowrap;padding:4px 12px 8px;gap:6px;scrollbar-width:none;-webkit-overflow-scrolling:touch"></div>
 
   <!-- Pending header -->
   <div id="pendingHeader" style="display:none;margin:0 12px 8px">
