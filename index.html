@@ -882,10 +882,12 @@ window.onSearch=function(v){searchQuery=v;render();}
 function render(){
   const allItems=getMonthItems();
   const items=getFilteredItems();
-  const total=allItems.reduce((s,i)=>s+parseFloat(i.valor),0);
-  const paidTotal=allItems.filter(i=>i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
-  const pendingTotal=allItems.filter(i=>!i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
-  const cartaoPending=allItems.filter(i=>!i.pago&&i.categoria==='Cartão').reduce((s,i)=>s+parseFloat(i.valor),0);
+  // Cards refletem o filtro ativo (exceto "pendentes" que é estado, não categoria)
+  const cardItems=(activeFilter==='all'||activeFilter==='pending')?allItems:items;
+  const total=cardItems.reduce((s,i)=>s+parseFloat(i.valor),0);
+  const paidTotal=cardItems.filter(i=>i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
+  const pendingTotal=cardItems.filter(i=>!i.pago).reduce((s,i)=>s+parseFloat(i.valor),0);
+  const cartaoPending=cardItems.filter(i=>!i.pago&&i.categoria==='Cartão').reduce((s,i)=>s+parseFloat(i.valor),0);
   const pct=allItems.length?Math.round(allItems.filter(i=>i.pago).length/allItems.length*100):0;
 
   document.getElementById('progressFill').style.width=pct+'%';
@@ -1215,15 +1217,34 @@ window.openModal=function(editId){
   document.getElementById('inputNome').value=isEdit?nomeBase(item.nome):'';
   document.getElementById('inputValor').value=isEdit?item.valor:'';
   if(!isEdit){setDataPill('hoje');}
+  // Mostrar/ocultar simulador conforme parcelas ao abrir modal
+  setTimeout(()=>{
+    const pSel = document.getElementById('inputParcelas');
+    const simBox = document.getElementById('simuladorParcelasBox');
+    if(pSel && simBox){
+      const v = parseInt(pSel.value)||1;
+      simBox.style.display = v > 1 ? 'block' : 'none';
+      if(v > 1){
+        const simP = document.getElementById('simParcelasInput');
+        if(simP) simP.value = v;
+      }
+    }
+  },50);
   document.getElementById('inputData').value=isEdit?item.data:new Date(curYear,curMonth,new Date().getDate()).toISOString().split('T')[0];
   document.getElementById('inputVencimento').value=isEdit&&item.vencimento?item.vencimento:(()=>{
     if(isEdit) return '';
     const dia=parseInt(localStorage.getItem('fpro_venc_padrao')||'0');
     if(!dia) return '';
-    // build date for this day in current month, clamped to actual days in month
-    const daysInMonth=new Date(curYear,curMonth+1,0).getDate();
+    // Se o dia de vencimento já passou no mês atual, vai para o próximo mês
+    const hoje=new Date();
+    let ano=curYear, mes=curMonth;
+    if(dia < hoje.getDate()) {
+      mes++;
+      if(mes > 11) { mes=0; ano++; }
+    }
+    const daysInMonth=new Date(ano,mes+1,0).getDate();
     const d=Math.min(dia,daysInMonth);
-    return `${curYear}-${String(curMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    return `${ano}-${String(mes+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
   })();
   document.getElementById('inputCategoria').value=isEdit?item.categoria:'Moradia';
   updateCartaoSelect(isEdit?item.categoria:'Moradia', isEdit?item.cartaoNome:'');
@@ -2309,19 +2330,19 @@ window.aplicarSim = function() {
 };
 
 // Mostrar/ocultar simulador ao mudar parcelas
-(function patchParcelas() {
-  const orig = window.saveItem;
-  document.addEventListener('change', function(e) {
-    if (e.target && e.target.id === 'inputParcelas') {
-      const box = document.getElementById('simuladorParcelasBox');
-      if (!box) return;
-      const v = parseInt(e.target.value) || 1;
-      box.style.display = v > 1 ? 'block' : 'none';
+document.addEventListener('change', function(e) {
+  if (e.target && e.target.id === 'inputParcelas') {
+    const box = document.getElementById('simuladorParcelasBox');
+    if (!box) return;
+    const v = parseInt(e.target.value) || 1;
+    box.style.display = v > 1 ? 'block' : 'none';
+    if (v > 1) {
       const simP = document.getElementById('simParcelasInput');
-      if (simP) simP.value = v > 1 ? v : '';
+      if (simP) simP.value = v;
+      calcularSim();
     }
-  });
-})();
+  }
+});
 
 window.addEventListener('load', ()=>{registerSWAndPBS();initPersonalization();});
 
