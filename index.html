@@ -1944,9 +1944,8 @@ window.exportPDF=function(){
       doc.text(item.cartaoNome.substring(0,14),C.desc,mid+3);
     }
 
-    // Categoria com emoji mapeado
-    const catEmoji={'Moradia':'🏠','Mercado':'🛒','Transporte':'🚗','Lazer':'🍕','Cartão':'💳','Saúde':'❤️','Assinaturas':'📺','Investimentos':'📈'};
-    const catLabel=(catEmoji[item.categoria]||'')+' '+(item.categoria.length>8?item.categoria.substring(0,8)+'..':item.categoria);
+    // Categoria sem emoji (jsPDF não suporta)
+    const catLabel=item.categoria.length>10?item.categoria.substring(0,9)+'..':item.categoria;
     doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(71,85,105);
     doc.text(catLabel,C.cat,mid);
 
