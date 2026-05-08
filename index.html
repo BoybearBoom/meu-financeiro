@@ -1910,7 +1910,7 @@ window.exportPDF=function(){
     const obsMaxW=C.valor-C.obs-4;
     const obsFull=item.obs?doc.splitTextToSize(item.obs,obsMaxW):[];
     // Altura: base 10, +4 se tem banco, +4 se tem data pagamento, +3 por linha extra de obs
-    const rowH=Math.max(10,(hasBank?14:10),(hasDP?14:10),(obsFull.length>1?obsFull.length*4+4:10));
+    const rowH=Math.max(13,(hasBank?17:13),(hasDP?17:13),(obsFull.length>1?obsFull.length*4+6:13));
 
     if(y+rowH>275){
       drawFooter();
@@ -1944,9 +1944,11 @@ window.exportPDF=function(){
       doc.text(item.cartaoNome.substring(0,14),C.desc,mid+3);
     }
 
-    // Categoria
+    // Categoria com emoji mapeado
+    const catEmoji={'Moradia':'🏠','Mercado':'🛒','Transporte':'🚗','Lazer':'🍕','Cartão':'💳','Saúde':'❤️','Assinaturas':'📺','Investimentos':'📈'};
+    const catLabel=(catEmoji[item.categoria]||'')+' '+(item.categoria.length>8?item.categoria.substring(0,8)+'..':item.categoria);
     doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(71,85,105);
-    doc.text(item.categoria.substring(0,11),C.cat,mid);
+    doc.text(catLabel,C.cat,mid);
 
     // Observação
     if(obsFull.length>0){
@@ -1964,18 +1966,18 @@ window.exportPDF=function(){
     // Status como badge colorido
     doc.setFont('helvetica','bold');doc.setFontSize(9);
     if(item.pago){
-      // Badge verde
-      doc.setFillColor(220,252,231);doc.roundedRect(C.status-1,mid-4.5,16,6,1,1,'F');
+      // Badge verde com fundo
+      doc.setFillColor(220,252,231);doc.roundedRect(C.status-2,mid-5,18,7,1.5,1.5,'F');
       doc.setTextColor(21,128,61);doc.text('Pago',C.status,mid);
       if(hasDP){
         const dp=new Date(item.dataPagamento);
-        doc.setFontSize(7.5);doc.setTextColor(21,128,61);
-        doc.text(dp.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dp.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),C.status,mid+4);
+        doc.setFontSize(7.5);doc.setFont('helvetica','normal');doc.setTextColor(21,128,61);
+        doc.text(dp.toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit'})+' '+dp.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}),C.status-2,mid+4.5);
       }
     }else{
-      // Badge amarelo
-      doc.setFillColor(254,243,199);doc.roundedRect(C.status-1,mid-4.5,22,6,1,1,'F');
-      doc.setTextColor(146,64,14);doc.text('Pendente',C.status,mid);
+      // Badge amarelo com fundo
+      doc.setFillColor(254,243,199);doc.roundedRect(C.status-2,mid-5,24,7,1.5,1.5,'F');
+      doc.setTextColor(146,64,14);doc.text('Pendente',C.status-1,mid);
     }
 
     // Linha divisória
