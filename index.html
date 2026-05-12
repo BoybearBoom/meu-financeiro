@@ -275,9 +275,20 @@ window.previewCardMode=function(mode){
     btn.style.borderColor=isActive?'rgba(37,99,235,0.7)':'rgba(148,163,184,0.15)';
     btn.style.background=isActive?'rgba(37,99,235,0.1)':'rgba(241,245,249,0.04)';
   });
-  // persist temporarily so renderUI fills in values correctly
-  localStorage.setItem('fpro_card_mode',mode);
-  renderUI();
+  // Calcula os valores reais direto, sem depender do render()
+  try{
+    const allItems=getData().filter(i=>{
+      const d=new Date(i.data+'T12:00:00');
+      return d.getFullYear()===curYear&&d.getMonth()===curMonth;
+    });
+    const total=allItems.reduce((s,i)=>s+parseFloat(i.valor||0),0);
+    const paidTotal=allItems.filter(i=>i.pago).reduce((s,i)=>s+parseFloat(i.valor||0),0);
+    const pendingTotal=allItems.filter(i=>!i.pago).reduce((s,i)=>s+parseFloat(i.valor||0),0);
+    const cartaoPending=allItems.filter(i=>!i.pago&&i.categoria==='Cartão').reduce((s,i)=>s+parseFloat(i.valor||0),0);
+    const paidCount=allItems.filter(i=>i.pago).length;
+    const totalCount=allItems.length;
+    updateAllCardModes(paidTotal,total,pendingTotal,cartaoPending,paidCount,totalCount);
+  }catch(e){console.log('previewCardMode data error:',e);}
 };
 
 // Called by renderUI to fill all card variants
@@ -583,7 +594,13 @@ function saveNotifEmail(e){localStorage.setItem('fpro_notif_email',e);}
 async function syncToCloud(){
   if(!currentUser)return;
   try{
-    await setDoc(doc(db,'users',currentUser.uid),{data:JSON.stringify(getData()),updatedAt:new Date().toISOString(),displayName:currentUser.displayName||'',notifEmail:getNotifEmail()});
+    await setDoc(doc(db,'users',currentUser.uid),{
+      data:JSON.stringify(getData()),
+      cartoes:JSON.stringify(getCartoes()),
+      updatedAt:new Date().toISOString(),
+      displayName:currentUser.displayName||'',
+      notifEmail:getNotifEmail()
+    });
     setSyncDot('green');
   }catch{setSyncDot('red');}
 }
@@ -597,6 +614,8 @@ async function savePrefsToCloud(){
       theme:getTheme(),
       navMode:getNavMode(),
       appName:getAppName(),
+      font:getFont(),
+      cardMode:getCardMode(),
       notifs:localStorage.getItem('fpro_notifs')||'0',
       faturaAviso:localStorage.getItem('fpro_fatura_aviso')||'3',
       vencPadrao:localStorage.getItem('fpro_venc_padrao')||''
@@ -613,6 +632,8 @@ async function loadPrefsFromCloud(){
     if(p.theme){saveTheme(p.theme);applyTheme(p.theme);}
     if(p.navMode){saveNavMode(p.navMode);applyNavMode(p.navMode);}
     if(p.appName){saveAppName(p.appName);applyAppName(p.appName);}
+    if(p.font){saveFont(p.font);applyFont(p.font);}
+    if(p.cardMode){saveCardMode(p.cardMode);applyCardMode(p.cardMode);}
     if(p.notifs)localStorage.setItem('fpro_notifs',p.notifs);
     if(p.faturaAviso)localStorage.setItem('fpro_fatura_aviso',p.faturaAviso);
     if(p.vencPadrao)localStorage.setItem('fpro_venc_padrao',p.vencPadrao);
@@ -625,6 +646,16 @@ async function loadFromCloud(){
     const snap=await getDoc(doc(db,'users',currentUser.uid));
     if(snap.exists()){
       if(snap.data().notifEmail)saveNotifEmail(snap.data().notifEmail);
+      // ── Restaura cartões da nuvem ──
+      if(snap.data().cartoes){
+        try{
+          const cloudCartoes=JSON.parse(snap.data().cartoes);
+          if(Array.isArray(cloudCartoes)&&cloudCartoes.length>=getCartoes().length){
+            localStorage.setItem('fpro_cartoes',JSON.stringify(cloudCartoes));
+            await idbSet('fpro_cartoes',cloudCartoes);
+          }
+        }catch(e){console.log('Cartoes parse error:',e);}
+      }
       if(snap.data().data){
         const cd=JSON.parse(snap.data().data),ld=getData();
         if(cd.length>=ld.length){
@@ -637,7 +668,7 @@ async function loadFromCloud(){
         }
         // Espelha cartões e alertados para o SW sempre
         await idbSet('fpro_cartoes',getCartoes());
-        await idbSet('fpro_alerted',JSON.parse(localStorage.getItem('fpro_alerted')||'{}')); 
+        await idbSet('fpro_alerted',JSON.parse(localStorage.getItem('fpro_alerted')||'{}'));
         render();
       }
     }
