@@ -233,7 +233,7 @@ function s(id,prop,val){const el=document.getElementById(id);if(el)el.style[prop
 // Legacy selectTheme kept for backward compat (not called from new UI)
 window.selectTheme=function(t){saveTheme(t);applyTheme(t);savePrefsToCloud();}
 
-function initPersonalization(){applyAppName(getAppName());applyTheme(getTheme());applyFont(getFont());}
+function initPersonalization(){applyAppName(getAppName());applyTheme(getTheme());applyFont(getFont());applyCardMode(getCardMode());}
 
 // ── FONT SYSTEM ──
 function getFont(){return localStorage.getItem('fpro_font')||'default';}
@@ -253,7 +253,82 @@ window.previewFont=function(font){
 };
 
 
-// ── Cartões ──
+// ── CARD MODE SYSTEM ──
+function getCardMode(){return localStorage.getItem('fpro_card_mode')||'default';}
+function saveCardMode(m){localStorage.setItem('fpro_card_mode',m);}
+
+const CARD_MODES=['default','hero','scroll','bento'];
+function applyCardMode(mode){
+  CARD_MODES.forEach(m=>{
+    const el=document.getElementById('cards'+m.charAt(0).toUpperCase()+m.slice(1));
+    if(el) el.style.display=(m===mode)?'':'none';
+  });
+  // show/hide main progress bar — hide it when hero/bento/scroll have their own
+  const mainProg=document.getElementById('totalBarWrap');
+  if(mainProg) mainProg.style.display=(mode==='default')?'':'none';
+}
+
+window.previewCardMode=function(mode){
+  applyCardMode(mode);
+  document.querySelectorAll('.cardmode-btn').forEach(btn=>{
+    const isActive=btn.dataset.mode===mode;
+    btn.style.borderColor=isActive?'rgba(37,99,235,0.7)':'rgba(148,163,184,0.15)';
+    btn.style.background=isActive?'rgba(37,99,235,0.1)':'rgba(241,245,249,0.04)';
+  });
+  // persist temporarily so renderUI fills in values correctly
+  localStorage.setItem('fpro_card_mode',mode);
+  renderUI();
+};
+
+// Called by renderUI to fill all card variants
+function updateAllCardModes(paidTotal, total, pendingTotal, cartaoPending, paidCount, totalCount){
+  const pct=totalCount>0?Math.round(paidCount/totalCount*100):0;
+  const fmt2=v=>'R$ '+v.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
+  const sub=`${paidCount} de ${totalCount} pagas`;
+
+  // ── HERO ──
+  const t=THEMES[getTheme()]||THEMES.dark;
+  const hero=document.getElementById('heroMainCard');
+  if(hero){
+    hero.style.background=t.heroBg;
+    hero.style.border='1px solid '+(t.heroBorder||'transparent');
+    hero.style.color=t.heroAmt;
+  }
+  const heroLbl=document.getElementById('heroLabel');
+  if(heroLbl) heroLbl.style.color=t.heroLabel;
+  const heroAmt=document.getElementById('heroAmount');
+  if(heroAmt){heroAmt.textContent=fmt2(total);heroAmt.style.color=t.heroAmt;}
+  const heroSub2=document.getElementById('heroSub');
+  if(heroSub2){heroSub2.textContent=sub;heroSub2.style.color=t.heroSub;}
+  const hpBg=document.getElementById('heroProgressBg');
+  if(hpBg) hpBg.style.background=t.progressBg;
+  const hpBar=document.getElementById('heroProgressBar');
+  if(hpBar){hpBar.style.width=pct+'%';hpBar.style.background=t.progressFill;}
+  const hPct=document.getElementById('heroPct');
+  if(hPct){hPct.textContent=pct+'%';hPct.style.color=t.pct;}
+  const hS=document.getElementById('cardSaldoH'); if(hS) hS.textContent=fmt2(paidTotal);
+  const hP=document.getElementById('cardPendingH'); if(hP) hP.textContent=fmt2(pendingTotal);
+
+  // ── SCROLL ──
+  const sc1=document.getElementById('scrollCard1');
+  if(sc1){sc1.style.background=t.heroBg;sc1.style.color=t.heroAmt;sc1.style.border='1px solid '+(t.heroBorder||'transparent');}
+  const scG=document.getElementById('cardGastosS'); if(scG){scG.textContent=fmt2(total);scG.style.color=t.heroAmt;}
+  const scProg=document.getElementById('scrollProgress'); if(scProg){scProg.style.width=pct+'%';}
+  const scSub=document.getElementById('scrollSub'); if(scSub){scSub.textContent=`${paidCount} / ${totalCount} pagas`;scSub.style.color=t.heroSub;}
+  const scS=document.getElementById('cardSaldoS'); if(scS) scS.textContent=fmt2(paidTotal);
+  const scP=document.getElementById('cardPendingS'); if(scP) scP.textContent=fmt2(pendingTotal);
+  const scC=document.getElementById('cardCartaoS'); if(scC) scC.textContent=fmt2(cartaoPending);
+
+  // ── BENTO ──
+  const bMain=document.getElementById('bentoMainCard');
+  if(bMain){bMain.style.background=t.heroBg;bMain.style.border='1px solid '+(t.heroBorder||'transparent');bMain.style.color=t.heroAmt;}
+  const bG=document.getElementById('cardGastosB'); if(bG){bG.textContent=fmt2(total);bG.style.color=t.heroAmt;}
+  const bSub=document.getElementById('bentoSub'); if(bSub){bSub.textContent=`${paidCount}/${totalCount} pagas`;bSub.style.color=t.heroSub;}
+  const bPct=document.getElementById('bentoPct'); if(bPct){bPct.textContent=pct+'%';bPct.style.color=t.pct;}
+  const bBar=document.getElementById('bentoProgressBar'); if(bBar){bBar.style.width=pct+'%';bBar.style.background=t.progressFill;}
+  const bS=document.getElementById('cardSaldoB'); if(bS) bS.textContent=fmt2(paidTotal);
+  const bP=document.getElementById('cardPendingB'); if(bP) bP.textContent=fmt2(pendingTotal);
+}
 function getCartoes(){try{return JSON.parse(localStorage.getItem('fpro_cartoes')||'[]')}catch{return[]}}
 function saveCartoes(c){localStorage.setItem('fpro_cartoes',JSON.stringify(c));idbSet('fpro_cartoes',c);scheduleSync();}
 // Retorna o dia de fechamento de um cartão pelo nome, ou null
@@ -884,6 +959,13 @@ window.openPersonalizacaoModal=function(){
       btn.style.borderColor=isActive?'rgba(37,99,235,0.7)':'rgba(148,163,184,0.15)';
       btn.style.background=isActive?'rgba(37,99,235,0.1)':'rgba(241,245,249,0.04)';
     });
+    // Init card mode buttons
+    const savedCardMode=getCardMode();
+    document.querySelectorAll('.cardmode-btn').forEach(btn=>{
+      const isActive=btn.dataset.mode===savedCardMode;
+      btn.style.borderColor=isActive?'rgba(37,99,235,0.7)':'rgba(148,163,184,0.15)';
+      btn.style.background=isActive?'rgba(37,99,235,0.1)':'rgba(241,245,249,0.04)';
+    });
   },50);
   document.getElementById('personalizacaoOverlay').style.display='flex';lockBody();
 }
@@ -906,6 +988,10 @@ window.savePersonalizacao=function(){
   const activeFontBtn=[...document.querySelectorAll('.font-opt-btn')].find(b=>b.style.borderColor.includes('37,99,235,0.7')||b.style.borderColor.includes('37,99,235,0.5'));
   const fontToSave=activeFontBtn?activeFontBtn.dataset.font:getFont();
   saveFont(fontToSave);applyFont(fontToSave);
+  // Salva modo de card
+  const activeCardBtn=[...document.querySelectorAll('.cardmode-btn')].find(b=>b.style.borderColor.includes('37,99,235,0.7')||b.style.borderColor.includes('37,99,235,0.5'));
+  const cardModeToSave=activeCardBtn?activeCardBtn.dataset.mode:getCardMode();
+  saveCardMode(cardModeToSave);applyCardMode(cardModeToSave);
   // Salva modo de navegação (já aplicado em tempo real pelo previewNavMode)
   const currentMode=document.body.classList.contains('nav-mode-bar')?'bar':'fab';
   saveNavMode(currentMode);
@@ -1159,6 +1245,10 @@ function render(){
   document.getElementById('cardCartao').textContent=fmt(cartaoPending);
   document.getElementById('monthLabel').textContent=MONTHS[curMonth]+' de '+curYear;
   document.getElementById('headerDate').textContent=MONTHS[curMonth]+' '+curYear;
+  // update all card mode variants
+  const _paidCount=allItems.filter(i=>i.pago).length;
+  const _totalCount=allItems.length;
+  updateAllCardModes(paidTotal,total,pendingTotal,cartaoPending,_paidCount,_totalCount);
 
   const el=document.getElementById('itemsList');
   // Pending header box
@@ -3437,16 +3527,110 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
     <button onclick="changeMonth(1)" class="nav-btn"><svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
   </div>
 
-  <!-- Cards -->
-  <div class="grid grid-cols-2 gap-2 px-3 mb-3">
-    <div class="card-green p-3"><p class="text-green-400 text-xs font-semibold mb-0.5">✓ Pagas</p><p class="text-green-300 font-bold text-lg leading-tight" id="cardSaldo">R$ 0,00</p></div>
-    <div class="card-red p-3"><p class="text-red-400 text-xs font-semibold mb-0.5">💸 Total</p><p class="text-red-300 font-bold text-lg leading-tight" id="cardGastos">R$ 0,00</p></div>
-    <div class="card-yellow p-3"><p class="text-yellow-400 text-xs font-semibold mb-0.5">⏳ Pendentes</p><p class="text-yellow-300 font-bold text-lg leading-tight" id="cardPending">R$ 0,00</p></div>
-    <div class="card-blue p-3"><p class="text-blue-400 text-xs font-semibold mb-0.5">💳 Cartão Pend.</p><p class="text-blue-300 font-bold text-lg leading-tight" id="cardCartao">R$ 0,00</p></div>
+  <!-- Cards — wrapper dinâmico (modo controlado por JS) -->
+  <div id="cardsWrapper" class="mb-3">
+    <!-- MODO PADRÃO: grade 2x2 (default) -->
+    <div id="cardsDefault" class="grid grid-cols-2 gap-2 px-3">
+      <div class="card-green p-3"><p class="text-green-400 text-xs font-semibold mb-0.5">✓ Pagas</p><p class="text-green-300 font-bold text-lg leading-tight" id="cardSaldo">R$ 0,00</p></div>
+      <div class="card-red p-3"><p class="text-red-400 text-xs font-semibold mb-0.5">💸 Total</p><p class="text-red-300 font-bold text-lg leading-tight" id="cardGastos">R$ 0,00</p></div>
+      <div class="card-yellow p-3"><p class="text-yellow-400 text-xs font-semibold mb-0.5">⏳ Pendentes</p><p class="text-yellow-300 font-bold text-lg leading-tight" id="cardPending">R$ 0,00</p></div>
+      <div class="card-blue p-3"><p class="text-blue-400 text-xs font-semibold mb-0.5">💳 Cartão Pend.</p><p class="text-blue-300 font-bold text-lg leading-tight" id="cardCartao">R$ 0,00</p></div>
+    </div>
+
+    <!-- MODO HERO: card grande + 2 mini -->
+    <div id="cardsHero" style="display:none;padding:0 12px">
+      <div style="border-radius:22px;padding:18px 20px 14px;margin-bottom:10px;position:relative;overflow:hidden" id="heroMainCard">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;opacity:.6;margin-bottom:3px" id="heroLabel">TOTAL DO MÊS</div>
+        <div style="font-size:28px;font-weight:800;line-height:1;margin-bottom:3px" id="heroAmount">R$ 0,00</div>
+        <div style="font-size:12px;opacity:.45;margin-bottom:10px" id="heroSub">0 de 0 contas pagas</div>
+        <div style="height:4px;border-radius:4px;overflow:hidden;margin-bottom:4px;background:rgba(255,255,255,0.12)" id="heroProgressBg">
+          <div id="heroProgressBar" style="height:100%;border-radius:4px;width:0%;transition:width .65s cubic-bezier(.34,1.2,.64,1)"></div>
+        </div>
+        <div style="font-size:10px;font-weight:700;text-align:right;opacity:.7" id="heroPct">0%</div>
+        <!-- gatinho dentro do hero -->
+        <div id="catPetHero" style="position:absolute;right:16px;top:16px;font-size:22px;opacity:.35">🐱</div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="card-green p-3" style="border-radius:16px"><p class="text-green-400 text-xs font-semibold mb-0.5">✓ Pagas</p><p class="text-green-300 font-bold text-lg leading-tight" id="cardSaldoH">R$ 0,00</p></div>
+        <div class="card-yellow p-3" style="border-radius:16px"><p class="text-yellow-400 text-xs font-semibold mb-0.5">⏳ Pendentes</p><p class="text-yellow-300 font-bold text-lg leading-tight" id="cardPendingH">R$ 0,00</p></div>
+      </div>
+    </div>
+
+    <!-- MODO SCROLL: cards horizontais deslizantes -->
+    <div id="cardsScroll" style="display:none">
+      <div style="display:flex;gap:10px;padding:0 12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch">
+        <div style="flex-shrink:0;width:200px;border-radius:20px;padding:16px 18px;scroll-snap-align:start;position:relative;overflow:hidden" id="scrollCard1">
+          <div style="position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.08)"></div>
+          <div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.6;margin-bottom:3px">Total do Mês</div>
+          <div style="font-size:22px;font-weight:800;line-height:1.1;margin-bottom:6px" id="cardGastosS">R$ 0,00</div>
+          <div style="height:3px;border-radius:3px;background:rgba(255,255,255,0.15);overflow:hidden;margin-bottom:4px">
+            <div id="scrollProgress" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.7);width:0%;transition:width .6s"></div>
+          </div>
+          <div style="font-size:10px;opacity:.5" id="scrollSub">0 / 0 pagas</div>
+        </div>
+        <div class="card-green" style="flex-shrink:0;width:160px;border-radius:20px;padding:16px 18px;scroll-snap-align:start">
+          <div style="font-size:20px;margin-bottom:6px">✅</div>
+          <div style="font-size:10px;font-weight:700;opacity:.6;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Pagas</div>
+          <div class="text-green-300 font-bold" style="font-size:18px" id="cardSaldoS">R$ 0,00</div>
+        </div>
+        <div class="card-yellow" style="flex-shrink:0;width:160px;border-radius:20px;padding:16px 18px;scroll-snap-align:start">
+          <div style="font-size:20px;margin-bottom:6px">⏳</div>
+          <div style="font-size:10px;font-weight:700;opacity:.6;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Pendentes</div>
+          <div class="text-yellow-300 font-bold" style="font-size:18px" id="cardPendingS">R$ 0,00</div>
+        </div>
+        <div class="card-blue" style="flex-shrink:0;width:160px;border-radius:20px;padding:16px 18px;scroll-snap-align:start;margin-right:12px">
+          <div style="font-size:20px;margin-bottom:6px">💳</div>
+          <div style="font-size:10px;font-weight:700;opacity:.6;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Cartão</div>
+          <div class="text-blue-300 font-bold" style="font-size:18px" id="cardCartaoS">R$ 0,00</div>
+        </div>
+      </div>
+      <!-- dots -->
+      <div style="display:flex;justify-content:center;gap:5px;margin-top:8px">
+        <div style="width:16px;height:4px;border-radius:2px;background:rgba(255,255,255,0.5)"></div>
+        <div style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.2)"></div>
+        <div style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.2)"></div>
+        <div style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.2)"></div>
+      </div>
+    </div>
+
+    <!-- MODO BENTO: grid assimétrico -->
+    <div id="cardsBento" style="display:none;padding:0 12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:8px">
+        <!-- Wide: Total -->
+        <div style="grid-column:1/3;border-radius:20px;padding:16px 18px;position:relative;overflow:hidden" id="bentoMainCard">
+          <div style="position:absolute;right:-10px;top:-10px;font-size:48px;opacity:.06;user-select:none;line-height:1">R$</div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between">
+            <div>
+              <div style="font-size:9px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;opacity:.5;margin-bottom:3px">Total do mês</div>
+              <div style="font-size:24px;font-weight:800;line-height:1" id="cardGastosB">R$ 0,00</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:9px;opacity:.5;margin-bottom:2px" id="bentoSub">0/0 pagas</div>
+              <div style="font-size:18px;font-weight:800;opacity:.8" id="bentoPct">0%</div>
+            </div>
+          </div>
+          <div style="margin-top:10px;height:4px;border-radius:4px;background:rgba(255,255,255,0.1);overflow:hidden">
+            <div id="bentoProgressBar" style="height:100%;border-radius:4px;background:rgba(255,255,255,0.5);width:0%;transition:width .65s"></div>
+          </div>
+        </div>
+        <!-- Small: Pagas -->
+        <div class="card-green" style="border-radius:16px;padding:13px 14px">
+          <div style="font-size:16px;margin-bottom:4px">✅</div>
+          <div style="font-size:9px;font-weight:700;opacity:.6;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Pagas</div>
+          <div class="text-green-300 font-bold" style="font-size:15px" id="cardSaldoB">R$ 0,00</div>
+        </div>
+        <!-- Small: Pendentes -->
+        <div class="card-yellow" style="border-radius:16px;padding:13px 14px">
+          <div style="font-size:16px;margin-bottom:4px">⏳</div>
+          <div style="font-size:9px;font-weight:700;opacity:.6;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Pendentes</div>
+          <div class="text-yellow-300 font-bold" style="font-size:15px" id="cardPendingB">R$ 0,00</div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <!-- Progress com gatinho -->
-  <div class="mx-3 mb-3 total-bar rounded-2xl px-4 py-3">
+  <div class="mx-3 mb-3 total-bar rounded-2xl px-4 py-3" id="totalBarWrap">
     <div class="flex items-center justify-between mb-2">
       <span class="text-slate-300 text-sm" id="progressLabel">0 de 0 pagas</span>
       <span class="text-blue-400 text-sm font-bold" id="progressPct">0%</span>
@@ -4102,6 +4286,64 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
         <div style="font-family:'Anybody',sans-serif;font-size:16px;font-weight:900;color:#e2e8f0;margin-bottom:3px">Aa</div>
         <div style="font-size:10px;color:#64748b;font-weight:600">Anybody</div>
         <div style="font-size:9px;color:#475569">Display · Bold</div>
+      </button>
+    </div>
+
+    <!-- ══ MODO DE EXIBIÇÃO DOS CARDS ══ -->
+    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🃏 Layout dos cards</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px">
+
+      <!-- Padrão: grade 2x2 -->
+      <button class="cardmode-btn" data-mode="default" onclick="previewCardMode('default')"
+        style="padding:12px 10px;border-radius:14px;border:2px solid rgba(37,99,235,0.5);background:rgba(37,99,235,0.08);cursor:pointer;text-align:left">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:6px">
+          <div style="height:14px;border-radius:4px;background:rgba(52,211,153,0.4)"></div>
+          <div style="height:14px;border-radius:4px;background:rgba(248,113,113,0.4)"></div>
+          <div style="height:14px;border-radius:4px;background:rgba(251,191,36,0.4)"></div>
+          <div style="height:14px;border-radius:4px;background:rgba(96,165,250,0.4)"></div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:#e2e8f0">Grade 2×2</div>
+        <div style="font-size:9px;color:#64748b;margin-top:1px">Padrão atual</div>
+      </button>
+
+      <!-- Hero: card grande + 2 mini -->
+      <button class="cardmode-btn" data-mode="hero" onclick="previewCardMode('hero')"
+        style="padding:12px 10px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.04);cursor:pointer;text-align:left">
+        <div style="margin-bottom:6px">
+          <div style="height:24px;border-radius:6px;background:linear-gradient(135deg,rgba(37,99,235,0.5),rgba(139,92,246,0.4));margin-bottom:3px"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px">
+            <div style="height:12px;border-radius:4px;background:rgba(52,211,153,0.35)"></div>
+            <div style="height:12px;border-radius:4px;background:rgba(251,191,36,0.35)"></div>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:#e2e8f0">Card Hero</div>
+        <div style="font-size:9px;color:#64748b;margin-top:1px">Total em destaque</div>
+      </button>
+
+      <!-- Scroll horizontal -->
+      <button class="cardmode-btn" data-mode="scroll" onclick="previewCardMode('scroll')"
+        style="padding:12px 10px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.04);cursor:pointer;text-align:left">
+        <div style="display:flex;gap:3px;margin-bottom:6px;overflow:hidden">
+          <div style="flex-shrink:0;width:52px;height:30px;border-radius:6px;background:linear-gradient(135deg,rgba(37,99,235,0.5),rgba(139,92,246,0.4))"></div>
+          <div style="flex-shrink:0;width:36px;height:30px;border-radius:6px;background:rgba(52,211,153,0.3)"></div>
+          <div style="flex-shrink:0;width:36px;height:30px;border-radius:6px;background:rgba(251,191,36,0.3)"></div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:#e2e8f0">Scroll</div>
+        <div style="font-size:9px;color:#64748b;margin-top:1px">Deslize ← →</div>
+      </button>
+
+      <!-- Bento grid -->
+      <button class="cardmode-btn" data-mode="bento" onclick="previewCardMode('bento')"
+        style="padding:12px 10px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.04);cursor:pointer;text-align:left">
+        <div style="margin-bottom:6px">
+          <div style="height:18px;border-radius:6px;background:linear-gradient(135deg,rgba(37,99,235,0.5),rgba(139,92,246,0.4));margin-bottom:3px"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px">
+            <div style="height:12px;border-radius:4px;background:rgba(52,211,153,0.35)"></div>
+            <div style="height:12px;border-radius:4px;background:rgba(251,191,36,0.35)"></div>
+          </div>
+        </div>
+        <div style="font-size:11px;font-weight:700;color:#e2e8f0">Bento</div>
+        <div style="font-size:9px;color:#64748b;margin-top:1px">Grid assimétrico</div>
       </button>
     </div>
 
