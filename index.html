@@ -11,6 +11,9 @@
 <link rel="manifest" href="manifest.json"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>FinancesPro</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Bricolage+Grotesque:wght@400;500;600;700;800&family=Anybody:wght@400;700;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script type="module">
@@ -230,7 +233,24 @@ function s(id,prop,val){const el=document.getElementById(id);if(el)el.style[prop
 // Legacy selectTheme kept for backward compat (not called from new UI)
 window.selectTheme=function(t){saveTheme(t);applyTheme(t);savePrefsToCloud();}
 
-function initPersonalization(){applyAppName(getAppName());applyTheme(getTheme());}
+function initPersonalization(){applyAppName(getAppName());applyTheme(getTheme());applyFont(getFont());}
+
+// ── FONT SYSTEM ──
+function getFont(){return localStorage.getItem('fpro_font')||'default';}
+function saveFont(f){localStorage.setItem('fpro_font',f);}
+const FONT_CLASSES=['font-cormorant','font-bricolage','font-anybody'];
+function applyFont(font){
+  FONT_CLASSES.forEach(c=>document.body.classList.remove(c));
+  if(font&&font!=='default') document.body.classList.add('font-'+font);
+}
+window.previewFont=function(font){
+  applyFont(font);
+  document.querySelectorAll('.font-opt-btn').forEach(btn=>{
+    const isActive=btn.dataset.font===font;
+    btn.style.borderColor=isActive?'rgba(37,99,235,0.7)':'rgba(148,163,184,0.15)';
+    btn.style.background=isActive?'rgba(37,99,235,0.1)':'rgba(241,245,249,0.04)';
+  });
+};
 
 
 // ── Cartões ──
@@ -857,6 +877,13 @@ window.openPersonalizacaoModal=function(){
     const fabBtn=document.getElementById('navModeFabBtn');
     if(barBtn)barBtn.style.borderColor=nm==='bar'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
     if(fabBtn)fabBtn.style.borderColor=nm==='fab'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
+    // Init font buttons
+    const savedFont=getFont();
+    document.querySelectorAll('.font-opt-btn').forEach(btn=>{
+      const isActive=btn.dataset.font===savedFont;
+      btn.style.borderColor=isActive?'rgba(37,99,235,0.7)':'rgba(148,163,184,0.15)';
+      btn.style.background=isActive?'rgba(37,99,235,0.1)':'rgba(241,245,249,0.04)';
+    });
   },50);
   document.getElementById('personalizacaoOverlay').style.display='flex';lockBody();
 }
@@ -873,6 +900,12 @@ window.savePersonalizacao=function(){
   else localStorage.removeItem('fpro_venc_padrao');
   // Salva tema selecionado no preview
   if(_previewTheme){saveTheme(_previewTheme);applyTheme(_previewTheme);}
+  // Salva fonte selecionada
+  const selectedFontBtn=document.querySelector('.font-opt-btn[style*="rgba(37,99,235,0.1)"]')||document.querySelector('.font-opt-btn[style*="rgba(37,99,235,0.08)"]');
+  const selectedFont=selectedFontBtn?selectedFontBtn.dataset.font:(document.querySelector('.font-opt-btn[data-font]')?.dataset.font||'default');
+  const activeFontBtn=[...document.querySelectorAll('.font-opt-btn')].find(b=>b.style.borderColor.includes('37,99,235,0.7')||b.style.borderColor.includes('37,99,235,0.5'));
+  const fontToSave=activeFontBtn?activeFontBtn.dataset.font:getFont();
+  saveFont(fontToSave);applyFont(fontToSave);
   // Salva modo de navegação (já aplicado em tempo real pelo previewNavMode)
   const currentMode=document.body.classList.contains('nav-mode-bar')?'bar':'fab';
   saveNavMode(currentMode);
@@ -2972,6 +3005,31 @@ body.theme-light [style*="color:#94a3b8"],[style*="color:#64748b"],body.theme-li
 body.theme-light [style*="color:#e2e8f0"],body.theme-light [style*="color:#cbd5e1"],body.theme-light [style*="color:#f1f5f9"]{color:#1e293b!important}
 body.theme-light [style*="background:rgba(15,23,42"],body.theme-light [style*="background:rgba(8,14,28"],body.theme-light [style*="background:rgba(30,41,59"]{background:rgba(255,255,255,0.96)!important;color:#1e293b!important}
 body.theme-light .empty-state{color:#64748b!important}
+/* light bottomnav active */
+body.theme-light #bottomNav{background:rgba(255,255,255,0.98)!important;border-top-color:rgba(0,0,0,0.08)!important}
+body.theme-light .bnav-btn{color:#94a3b8!important}
+body.theme-light .bnav-btn.active{color:#1d4ed8!important}
+body.theme-light .bnav-btn.active::before{background:linear-gradient(90deg,#2563eb,#1d4ed8)!important}
+/* light modal — all text readable */
+body.theme-light .glass-modal [style*="color:#e2e8f0"],
+body.theme-light .glass-modal [style*="color:#cbd5e1"],
+body.theme-light .glass-modal [style*="color:#f1f5f9"],
+body.theme-light .glass-modal [style*="color:#94a3b8"] { color:#334155!important }
+body.theme-light .glass-modal [style*="color:#64748b"],
+body.theme-light .glass-modal [style*="color:#475569"] { color:#64748b!important }
+/* sand/plum/arctic/caramel modal same fixes */
+body.theme-sand .glass-modal [style*="color:#e2e8f0"],body.theme-sand .glass-modal [style*="color:#cbd5e1"],body.theme-sand .glass-modal [style*="color:#f1f5f9"]{color:#1e293b!important}
+body.theme-sand .glass-modal [style*="color:#94a3b8"],body.theme-sand .glass-modal [style*="color:#64748b"],body.theme-sand .glass-modal [style*="color:#475569"]{color:#64748b!important}
+body.theme-sand .glass-modal [style*="background:rgba(30,41,59"],body.theme-sand .glass-modal [style*="background:rgba(15,23,42"]{background:rgba(0,0,0,0.04)!important}
+body.theme-plum .glass-modal [style*="color:#e2e8f0"],body.theme-plum .glass-modal [style*="color:#cbd5e1"],body.theme-plum .glass-modal [style*="color:#f1f5f9"]{color:#1a0628!important}
+body.theme-plum .glass-modal [style*="color:#94a3b8"],body.theme-plum .glass-modal [style*="color:#64748b"],body.theme-plum .glass-modal [style*="color:#475569"]{color:#7a50a0!important}
+body.theme-arctic .glass-modal [style*="color:#e2e8f0"],body.theme-arctic .glass-modal [style*="color:#cbd5e1"],body.theme-arctic .glass-modal [style*="color:#f1f5f9"]{color:#111!important}
+body.theme-arctic .glass-modal [style*="color:#94a3b8"],body.theme-arctic .glass-modal [style*="color:#64748b"],body.theme-arctic .glass-modal [style*="color:#475569"]{color:#555!important}
+body.theme-arctic .glass-modal [style*="background:rgba(30,41,59"],body.theme-arctic .glass-modal [style*="background:rgba(15,23,42"]{background:rgba(0,0,0,0.04)!important}
+body.theme-caramel .glass-modal [style*="color:#e2e8f0"],body.theme-caramel .glass-modal [style*="color:#cbd5e1"],body.theme-caramel .glass-modal [style*="color:#f1f5f9"]{color:#2a1800!important}
+body.theme-caramel .glass-modal [style*="color:#94a3b8"],body.theme-caramel .glass-modal [style*="color:#64748b"],body.theme-caramel .glass-modal [style*="color:#475569"]{color:#8a5a30!important}
+body.theme-caramel .glass-modal [style*="background:rgba(30,41,59"],body.theme-caramel .glass-modal [style*="background:rgba(15,23,42"]{background:rgba(0,0,0,0.04)!important}
+/* forest modal (dark bg = white text, already fine) */
 /* ── THEME SWATCHES ── */
 .theme-swatch{transition:transform .18s cubic-bezier(.34,1.56,.64,1),border-color .18s}
 .theme-swatch:active{transform:scale(0.9)}
@@ -3201,6 +3259,19 @@ body.theme-chalk #calendarioOverlay,body.theme-chalk #calTopbar,body.theme-chalk
 
 /* ── Body scroll lock quando modal/menu aberto ── */
 body.modal-open{overflow:hidden;position:fixed;width:100%;left:0;right:0;}
+
+/* ── FONT SYSTEM ── */
+body.font-cormorant { font-family: 'Cormorant Garamond', Georgia, serif !important; }
+body.font-cormorant .item-row p:first-child,
+body.font-cormorant #pvAmount,
+body.font-cormorant .text-slate-100,
+body.font-cormorant h2 { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 105%; }
+
+body.font-bricolage { font-family: 'Bricolage Grotesque', system-ui, sans-serif !important; }
+body.font-bricolage * { font-family: 'Bricolage Grotesque', system-ui, sans-serif; }
+
+body.font-anybody { font-family: 'Anybody', system-ui, sans-serif !important; }
+body.font-anybody * { font-family: 'Anybody', system-ui, sans-serif; }
 
 /* ── Calendário fullscreen ── */
 #calendarioOverlay{background:#050a0f;}
@@ -4009,6 +4080,31 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
       <div style="aspect-ratio:1"></div>
     </div>
     <p style="font-size:10px;color:#475569;text-align:center;margin-bottom:20px">Toque para visualizar · salve para confirmar</p>
+
+    <!-- ══ FONTE DO APP ══ -->
+    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🔤 Fonte do app</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px" id="fontSelectorGrid">
+      <button class="font-opt-btn" data-font="default" onclick="previewFont('default')" style="padding:12px 10px;border-radius:14px;border:2px solid rgba(37,99,235,0.5);background:rgba(37,99,235,0.08);cursor:pointer;text-align:center">
+        <div style="font-size:16px;font-weight:700;color:#e2e8f0;margin-bottom:3px">Aa</div>
+        <div style="font-size:10px;color:#64748b;font-weight:600">Padrão</div>
+      </button>
+      <button class="font-opt-btn" data-font="cormorant" onclick="previewFont('cormorant')" style="padding:12px 10px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.04);cursor:pointer;text-align:center">
+        <div style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:#e2e8f0;margin-bottom:3px;font-style:italic">Aa</div>
+        <div style="font-size:10px;color:#64748b;font-weight:600">Cormorant</div>
+        <div style="font-size:9px;color:#475569">Elegante · Serifada</div>
+      </button>
+      <button class="font-opt-btn" data-font="bricolage" onclick="previewFont('bricolage')" style="padding:12px 10px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.04);cursor:pointer;text-align:center">
+        <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:800;color:#e2e8f0;margin-bottom:3px">Aa</div>
+        <div style="font-size:10px;color:#64748b;font-weight:600">Bricolage</div>
+        <div style="font-size:9px;color:#475569">Moderna · Arredondada</div>
+      </button>
+      <button class="font-opt-btn" data-font="anybody" onclick="previewFont('anybody')" style="padding:12px 10px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.04);cursor:pointer;text-align:center">
+        <div style="font-family:'Anybody',sans-serif;font-size:16px;font-weight:900;color:#e2e8f0;margin-bottom:3px">Aa</div>
+        <div style="font-size:10px;color:#64748b;font-weight:600">Anybody</div>
+        <div style="font-size:9px;color:#475569">Display · Bold</div>
+      </button>
+    </div>
+
     <!-- Nome do app -->
     <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Nome do app</p>
     <div style="margin-bottom:20px">
