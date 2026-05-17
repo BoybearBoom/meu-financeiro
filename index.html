@@ -769,9 +769,16 @@ window.menuAction=function(action){
 }
 
 // ── Auth ──
+function dismissSplash(){
+  const s=document.getElementById('splashScreen');
+  if(!s)return;
+  s.classList.add('fade-out');
+  setTimeout(()=>{if(s.parentNode)s.parentNode.removeChild(s);},420);
+}
 onAuthStateChanged(auth,user=>{
   currentUser=user;
   if(user){
+    dismissSplash();
     document.getElementById('authScreen').style.display='none';
     document.getElementById('mainApp').style.display='block';
     document.getElementById('userDisplayName').textContent=user.displayName||user.email.split('@')[0];
@@ -793,6 +800,7 @@ onAuthStateChanged(auth,user=>{
       },1500);
     });
   }else{
+    dismissSplash();
     document.getElementById('authScreen').style.display='flex';
     document.getElementById('mainApp').style.display='none';
   }
@@ -2804,6 +2812,73 @@ body.theme-light .empty-state{color:#64748b!important}
 /* ── Body scroll lock quando modal/menu aberto ── */
 body.modal-open{overflow:hidden;position:fixed;width:100%;left:0;right:0;}
 
+/* ── Splash Screen ── */
+#splashScreen{
+  position:fixed;inset:0;z-index:9999;
+  background:#0a0f1e;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow:hidden;
+  transition:opacity .4s ease;
+}
+#splashScreen.fade-out{opacity:0;pointer-events:none;}
+#splashScreen::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 60% 50% at 30% 20%,rgba(79,142,255,0.18) 0%,transparent 60%),
+    radial-gradient(ellipse 50% 60% at 75% 80%,rgba(124,92,252,0.15) 0%,transparent 60%),
+    radial-gradient(ellipse 40% 40% at 80% 20%,rgba(34,211,160,0.08) 0%,transparent 55%);
+  animation:splashBgPulse 4s ease-in-out infinite alternate;
+}
+#splashScreen::after{
+  content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(79,142,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(79,142,255,0.04) 1px,transparent 1px);
+  background-size:32px 32px;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black,transparent);
+  -webkit-mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black,transparent);
+}
+@keyframes splashBgPulse{from{opacity:.7}to{opacity:1}}
+.splash-logo-wrap{
+  position:relative;z-index:10;
+  display:flex;flex-direction:column;align-items:center;gap:20px;
+  animation:splashFadeUp .7s cubic-bezier(.22,1,.36,1) both;
+  animation-delay:.15s;
+}
+@keyframes splashFadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.splash-ring{
+  width:80px;height:80px;border-radius:24px;
+  background:linear-gradient(135deg,#1a2a4a 0%,#0f1d35 100%);
+  border:1px solid rgba(79,142,255,0.25);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 8px rgba(79,142,255,0.06),0 0 0 16px rgba(79,142,255,0.03),0 16px 40px rgba(0,0,0,0.5);
+  animation:splashRingPulse 2.5s ease-in-out infinite;
+}
+@keyframes splashRingPulse{
+  0%,100%{box-shadow:0 0 0 8px rgba(79,142,255,0.06),0 0 0 16px rgba(79,142,255,0.03),0 16px 40px rgba(0,0,0,0.5)}
+  50%{box-shadow:0 0 0 10px rgba(79,142,255,0.10),0 0 0 20px rgba(79,142,255,0.05),0 16px 40px rgba(0,0,0,0.5)}
+}
+.splash-name{font-size:22px;font-weight:700;color:#f0f4ff;letter-spacing:-.5px;line-height:1;text-align:center;}
+.splash-sub{font-size:11px;color:#8892a4;letter-spacing:2px;text-transform:uppercase;font-weight:400;margin-top:4px;display:block;text-align:center;}
+.splash-progress-wrap{
+  position:absolute;bottom:72px;left:48px;right:48px;z-index:10;
+  animation:splashFadeUp .5s cubic-bezier(.22,1,.36,1) both;
+  animation-delay:.5s;
+}
+.splash-track{height:3px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;}
+.splash-bar{
+  height:100%;
+  background:linear-gradient(90deg,#4f8eff,#7c5cfc);
+  border-radius:99px;
+  box-shadow:0 0 12px rgba(79,142,255,0.7);
+  animation:splashLoadBar 2.2s cubic-bezier(.4,0,.2,1) infinite;
+}
+@keyframes splashLoadBar{
+  0%{width:0%;margin-left:0%}
+  50%{width:70%;margin-left:10%}
+  100%{width:0%;margin-left:100%}
+}
+.splash-label{margin-top:10px;font-size:10px;color:#8892a4;text-align:center;letter-spacing:.5px;animation:splashBlink 1.8s ease-in-out infinite;}
+@keyframes splashBlink{0%,100%{opacity:.5}50%{opacity:1}}
+
 /* ── Calendário fullscreen ── */
 #calendarioOverlay{background:#050a0f;}
 #calTopbar{will-change:transform,opacity;}
@@ -2892,6 +2967,23 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
 </style>
 </head>
 <body>
+
+<!-- ══ SPLASH SCREEN ══ -->
+<div id="splashScreen">
+  <div class="splash-logo-wrap">
+    <div class="splash-ring">
+      <img src="icon-192.png" style="width:56px;height:56px;border-radius:16px;display:block;"/>
+    </div>
+    <div>
+      <div class="splash-name app-name">FinancesPro</div>
+      <span class="splash-sub">Meus Gastos</span>
+    </div>
+  </div>
+  <div class="splash-progress-wrap">
+    <div class="splash-track"><div class="splash-bar"></div></div>
+    <div class="splash-label">Carregando sua conta…</div>
+  </div>
+</div>
 
 <!-- ══ LOGIN ══ -->
 <div id="authScreen" style="display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px;background:radial-gradient(ellipse at 50% 0%,#1a1040 0%,#0f172a 55%)">
