@@ -11,9 +11,6 @@
 <link rel="manifest" href="manifest.json"/>
 <link rel="apple-touch-icon" href="icon-192.png"/>
 <title>FinancesPro</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Bricolage+Grotesque:wght@400;500;600;700;800&family=Anybody:wght@400;700;900&display=swap" rel="stylesheet"/>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script type="module">
@@ -43,303 +40,28 @@ function applyAppName(name){
   document.title=name;
   document.querySelectorAll('.app-name').forEach(el=>el.textContent=name);
 }
-// ── THEME SYSTEM ──
-const THEMES={
-  dark:{name:'Neon Glass Dark',bg:'#000000',metaColor:'#050a0f',
-    heroBg:'linear-gradient(135deg,rgba(15,30,60,0.85),rgba(30,20,60,0.75))',heroBorder:'rgba(37,99,235,0.2)',
-    heroLabel:'rgba(147,197,253,0.6)',heroAmt:'#ffffff',heroSub:'rgba(255,255,255,0.3)',
-    progressBg:'rgba(37,99,235,0.12)',progressFill:'linear-gradient(90deg,#3b82f6,#8b5cf6)',pct:'rgba(147,197,253,0.7)',
-    mini1Bg:'rgba(37,99,235,0.08)',mini1Border:'rgba(37,99,235,0.12)',mini1Val:'#60a5fa',
-    mini2Bg:'rgba(37,99,235,0.08)',mini2Border:'rgba(37,99,235,0.12)',mini2Val:'#fbbf24',
-    itemBg:'rgba(30,41,59,0.6)',itemBorder:'rgba(148,163,184,0.09)',itemName:'rgba(255,255,255,0.85)',itemCat:'rgba(255,255,255,0.2)',itemAmt:'#ffffff',
-    iconBg:'rgba(37,99,235,0.15)',badgeBg:'rgba(251,191,36,0.15)',badgeColor:'#fbbf24',
-    cardBg:'rgba(8,14,28,0.97)'},
-  light:{name:'Clean & Minimal',bg:'#f5f5f0',metaColor:'#f0f4f8',
-    heroBg:'linear-gradient(135deg,#111111,#1a1a1a)',heroBorder:'transparent',
-    heroLabel:'rgba(255,255,255,0.4)',heroAmt:'#ffffff',heroSub:'rgba(255,255,255,0.3)',
-    progressBg:'rgba(255,255,255,0.1)',progressFill:'linear-gradient(90deg,#d4af37,#f0c866)',pct:'rgba(212,175,55,0.8)',
-    mini1Bg:'#ffffff',mini1Border:'rgba(0,0,0,0.07)',mini1Val:'#166534',
-    mini2Bg:'#ffffff',mini2Border:'rgba(0,0,0,0.07)',mini2Val:'#92400e',
-    itemBg:'#ffffff',itemBorder:'rgba(0,0,0,0.07)',itemName:'#1e293b',itemCat:'#94a3b8',itemAmt:'#1e293b',
-    iconBg:'#f4f4f0',badgeBg:'#fef3c7',badgeColor:'#92400e',
-    cardBg:'#f5f5f0'},
-  ocean:{name:'Ocean Night',bg:'#050f18',metaColor:'#050f18',
-    heroBg:'linear-gradient(135deg,#063a52,#041e2b)',heroBorder:'rgba(0,180,200,0.15)',
-    heroLabel:'rgba(0,200,220,0.5)',heroAmt:'#ffffff',heroSub:'rgba(255,255,255,0.3)',
-    progressBg:'rgba(0,180,200,0.12)',progressFill:'linear-gradient(90deg,#00b4cc,#00e5ff)',pct:'rgba(0,200,220,0.7)',
-    mini1Bg:'rgba(0,180,200,0.06)',mini1Border:'rgba(0,180,200,0.1)',mini1Val:'#00d4e8',
-    mini2Bg:'rgba(0,180,200,0.06)',mini2Border:'rgba(0,180,200,0.1)',mini2Val:'#ffc14d',
-    itemBg:'rgba(255,255,255,0.025)',itemBorder:'rgba(0,180,200,0.07)',itemName:'rgba(255,255,255,0.85)',itemCat:'rgba(255,255,255,0.2)',itemAmt:'#ffffff',
-    iconBg:'rgba(0,180,200,0.15)',badgeBg:'rgba(255,180,50,0.15)',badgeColor:'#ffc14d',
-    cardBg:'rgba(4,12,20,0.97)'},
-  rose:{name:'Rose Dusk',bg:'#130a0e',metaColor:'#130a0e',
-    heroBg:'linear-gradient(135deg,#3d0f1f,#1a060d)',heroBorder:'rgba(220,80,120,0.15)',
-    heroLabel:'rgba(220,80,120,0.5)',heroAmt:'#ffffff',heroSub:'rgba(255,255,255,0.3)',
-    progressBg:'rgba(220,80,120,0.1)',progressFill:'linear-gradient(90deg,#e05580,#ff80a0)',pct:'rgba(220,80,120,0.7)',
-    mini1Bg:'rgba(220,80,120,0.05)',mini1Border:'rgba(220,80,120,0.1)',mini1Val:'#e05580',
-    mini2Bg:'rgba(220,80,120,0.05)',mini2Border:'rgba(220,80,120,0.1)',mini2Val:'#ffaa44',
-    itemBg:'rgba(255,255,255,0.02)',itemBorder:'rgba(220,80,120,0.07)',itemName:'rgba(255,255,255,0.85)',itemCat:'rgba(255,255,255,0.2)',itemAmt:'#ffffff',
-    iconBg:'rgba(220,80,120,0.15)',badgeBg:'rgba(255,160,50,0.15)',badgeColor:'#ffaa44',
-    cardBg:'rgba(10,4,7,0.97)'},
-  forest:{name:'Forest Stone',bg:'#060c08',metaColor:'#060c08',
-    heroBg:'linear-gradient(135deg,#1e3d28,#0d1f14)',heroBorder:'rgba(60,160,90,0.15)',
-    heroLabel:'rgba(100,200,120,0.5)',heroAmt:'#ffffff',heroSub:'rgba(255,255,255,0.3)',
-    progressBg:'rgba(60,160,90,0.12)',progressFill:'linear-gradient(90deg,#3cb85a,#7de89a)',pct:'rgba(80,200,100,0.7)',
-    mini1Bg:'#ffffff',mini1Border:'rgba(0,0,0,0.07)',mini1Val:'#2a7a3a',
-    mini2Bg:'#ffffff',mini2Border:'rgba(0,0,0,0.07)',mini2Val:'#c97a10',
-    itemBg:'rgba(255,255,255,0.03)',itemBorder:'rgba(60,160,90,0.08)',itemName:'rgba(255,255,255,0.85)',itemCat:'rgba(255,255,255,0.2)',itemAmt:'#ffffff',
-    iconBg:'rgba(60,160,90,0.15)',badgeBg:'rgba(240,150,40,0.15)',badgeColor:'#f0a040',
-    cardBg:'rgba(5,10,7,0.97)'},
-  sand:{name:'Sand & Sky',bg:'#f0ece4',metaColor:'#f0ece4',
-    heroBg:'linear-gradient(135deg,#1a6bb5,#0c3d80)',heroBorder:'transparent',
-    heroLabel:'rgba(180,210,255,0.6)',heroAmt:'#ffffff',heroSub:'rgba(255,255,255,0.35)',
-    progressBg:'rgba(255,255,255,0.12)',progressFill:'linear-gradient(90deg,#80c8ff,#c0e4ff)',pct:'rgba(180,210,255,0.8)',
-    mini1Bg:'#ffffff',mini1Border:'rgba(0,0,0,0.07)',mini1Val:'#1a6bb5',
-    mini2Bg:'#ffffff',mini2Border:'rgba(0,0,0,0.07)',mini2Val:'#c97a10',
-    itemBg:'#ffffff',itemBorder:'rgba(0,0,0,0.07)',itemName:'#1a1a2e',itemCat:'#bbb',itemAmt:'#333',
-    iconBg:'rgba(26,107,181,0.13)',badgeBg:'#fef3c7',badgeColor:'#92400e',
-    cardBg:'#f0ece4'},
-  ember:{name:'Graphite Ember',bg:'#0c0c0c',metaColor:'#0c0c0c',
-    heroBg:'linear-gradient(135deg,#ff6a30,#b82800)',heroBorder:'transparent',
-    heroLabel:'rgba(255,255,255,0.5)',heroAmt:'#ffffff',heroSub:'rgba(255,255,255,0.4)',
-    progressBg:'rgba(255,255,255,0.15)',progressFill:'rgba(255,255,255,0.6)',pct:'rgba(255,255,255,0.7)',
-    mini1Bg:'rgba(255,255,255,0.04)',mini1Border:'rgba(255,255,255,0.07)',mini1Val:'#ff8050',
-    mini2Bg:'rgba(255,255,255,0.04)',mini2Border:'rgba(255,255,255,0.07)',mini2Val:'#ffc040',
-    itemBg:'rgba(255,255,255,0.025)',itemBorder:'rgba(255,255,255,0.05)',itemName:'rgba(255,255,255,0.8)',itemCat:'rgba(255,255,255,0.2)',itemAmt:'#ffffff',
-    iconBg:'rgba(255,90,30,0.13)',badgeBg:'rgba(255,180,40,0.12)',badgeColor:'#ffc040',
-    cardBg:'rgba(8,8,8,0.98)'},
-  plum:{name:'Ivory & Plum',bg:'#f8f4f0',metaColor:'#f8f4f0',
-    heroBg:'linear-gradient(135deg,#3d1054,#1a0628)',heroBorder:'transparent',
-    heroLabel:'rgba(200,150,240,0.5)',heroAmt:'#ffffff',heroSub:'rgba(255,255,255,0.3)',
-    progressBg:'rgba(180,100,220,0.12)',progressFill:'linear-gradient(90deg,#c060e0,#e090ff)',pct:'rgba(200,140,240,0.7)',
-    mini1Bg:'#ffffff',mini1Border:'rgba(0,0,0,0.07)',mini1Val:'#7a30a0',
-    mini2Bg:'#ffffff',mini2Border:'rgba(0,0,0,0.07)',mini2Val:'#a06010',
-    itemBg:'#ffffff',itemBorder:'rgba(0,0,0,0.07)',itemName:'#1a0a28',itemCat:'#ccc',itemAmt:'#333',
-    iconBg:'rgba(120,40,160,0.1)',badgeBg:'#fef3c7',badgeColor:'#92400e',
-    cardBg:'#f8f4f0'},
-  arctic:{name:'Arctic White',bg:'#ffffff',metaColor:'#ffffff',
-    heroBg:'#000000',heroBorder:'transparent',
-    heroLabel:'rgba(255,255,255,0.3)',heroAmt:'#ffffff',heroSub:'rgba(255,255,255,0.3)',
-    progressBg:'rgba(255,255,255,0.08)',progressFill:'linear-gradient(90deg,#60d0ff,#a0eaff)',pct:'rgba(100,200,255,0.7)',
-    mini1Bg:'#f7f7f7',mini1Border:'#eee',mini1Val:'#000',
-    mini2Bg:'#f7f7f7',mini2Border:'#eee',mini2Val:'#c08000',
-    itemBg:'#f9f9f9',itemBorder:'#f0f0f0',itemName:'#111',itemCat:'#ccc',itemAmt:'#000',
-    iconBg:'#f0f0f0',badgeBg:'#f0f0f0',badgeColor:'#888',
-    cardBg:'#ffffff'},
-  space:{name:'Deep Space',bg:'#080810',metaColor:'#080810',
-    heroBg:'linear-gradient(135deg,#3b0f8a,#1e0650)',heroBorder:'rgba(120,60,240,0.2)',
-    heroLabel:'rgba(160,130,255,0.5)',heroAmt:'#ffffff',heroSub:'rgba(255,255,255,0.25)',
-    progressBg:'rgba(140,80,255,0.12)',progressFill:'linear-gradient(90deg,#7c3aed,#c084fc)',pct:'rgba(160,130,255,0.7)',
-    mini1Bg:'rgba(120,60,220,0.07)',mini1Border:'rgba(120,60,220,0.12)',mini1Val:'#a78bfa',
-    mini2Bg:'rgba(120,60,220,0.07)',mini2Border:'rgba(120,60,220,0.12)',mini2Val:'#fbbf24',
-    itemBg:'rgba(255,255,255,0.025)',itemBorder:'rgba(120,60,220,0.08)',itemName:'rgba(255,255,255,0.85)',itemCat:'rgba(255,255,255,0.2)',itemAmt:'#ffffff',
-    iconBg:'rgba(120,60,220,0.14)',badgeBg:'rgba(251,191,36,0.13)',badgeColor:'#fbbf24',
-    cardBg:'rgba(5,5,12,0.98)'},
-  mint:{name:'Mint & Coal',bg:'#0a0f0c',metaColor:'#0a0f0c',
-    heroBg:'linear-gradient(135deg,#00c87a,#006640)',heroBorder:'transparent',
-    heroLabel:'rgba(0,0,0,0.4)',heroAmt:'#000000',heroSub:'rgba(0,0,0,0.35)',
-    progressBg:'rgba(0,0,0,0.1)',progressFill:'rgba(0,0,0,0.3)',pct:'rgba(0,0,0,0.45)',
-    mini1Bg:'rgba(0,200,120,0.06)',mini1Border:'rgba(0,200,120,0.1)',mini1Val:'#00c87a',
-    mini2Bg:'rgba(0,200,120,0.06)',mini2Border:'rgba(0,200,120,0.1)',mini2Val:'#fbbf24',
-    itemBg:'rgba(255,255,255,0.025)',itemBorder:'rgba(0,200,120,0.07)',itemName:'rgba(255,255,255,0.85)',itemCat:'rgba(255,255,255,0.2)',itemAmt:'#ffffff',
-    iconBg:'rgba(0,200,120,0.12)',badgeBg:'rgba(251,191,36,0.13)',badgeColor:'#fbbf24',
-    cardBg:'rgba(5,10,7,0.98)'},
-  caramel:{name:'Caramel Latte',bg:'#f2e8d8',metaColor:'#f2e8d8',
-    heroBg:'linear-gradient(135deg,#6b3a1a,#321808)',heroBorder:'transparent',
-    heroLabel:'rgba(220,170,80,0.5)',heroAmt:'#ffffff',heroSub:'rgba(255,255,255,0.3)',
-    progressBg:'rgba(220,170,80,0.12)',progressFill:'linear-gradient(90deg,#d4a040,#f0c870)',pct:'rgba(220,170,80,0.7)',
-    mini1Bg:'#ffffff',mini1Border:'rgba(0,0,0,0.06)',mini1Val:'#6b3a1a',
-    mini2Bg:'#ffffff',mini2Border:'rgba(0,0,0,0.06)',mini2Val:'#b06000',
-    itemBg:'#ffffff',itemBorder:'rgba(0,0,0,0.06)',itemName:'#2a1800',itemCat:'#ccc',itemAmt:'#333',
-    iconBg:'#f5ead8',badgeBg:'#fef3c7',badgeColor:'#92400e',
-    cardBg:'#f2e8d8'},
-  steel:{name:'Steel Night',bg:'#0c0e10',metaColor:'#0c0e10',
-    heroBg:'linear-gradient(135deg,#1c2028,#0e1218)',heroBorder:'rgba(0,180,255,0.1)',
-    heroLabel:'rgba(0,180,255,0.4)',heroAmt:'#ffffff',heroSub:'rgba(255,255,255,0.25)',
-    progressBg:'rgba(0,180,255,0.08)',progressFill:'linear-gradient(90deg,#00b4ff,#60d8ff)',pct:'rgba(0,180,255,0.6)',
-    mini1Bg:'rgba(255,255,255,0.03)',mini1Border:'rgba(255,255,255,0.06)',mini1Val:'#00b4ff',
-    mini2Bg:'rgba(255,255,255,0.03)',mini2Border:'rgba(255,255,255,0.06)',mini2Val:'#fbbf24',
-    itemBg:'rgba(255,255,255,0.02)',itemBorder:'rgba(255,255,255,0.05)',itemName:'rgba(255,255,255,0.75)',itemCat:'rgba(255,255,255,0.18)',itemAmt:'#ffffff',
-    iconBg:'rgba(0,180,255,0.08)',badgeBg:'rgba(251,191,36,0.12)',badgeColor:'#fbbf24',
-    cardBg:'rgba(8,10,12,0.98)'},
-  chalk:{name:'Chalk & Charcoal',bg:'#1c1c1e',metaColor:'#1c1c1e',
-    heroBg:'#f5f5f5',heroBorder:'transparent',
-    heroLabel:'rgba(0,0,0,0.35)',heroAmt:'#000000',heroSub:'rgba(0,0,0,0.35)',
-    progressBg:'rgba(0,0,0,0.08)',progressFill:'linear-gradient(90deg,#333,#666)',pct:'rgba(0,0,0,0.45)',
-    mini1Bg:'rgba(255,255,255,0.05)',mini1Border:'rgba(255,255,255,0.08)',mini1Val:'#ffffff',
-    mini2Bg:'rgba(255,255,255,0.05)',mini2Border:'rgba(255,255,255,0.08)',mini2Val:'#fbbf24',
-    itemBg:'rgba(255,255,255,0.04)',itemBorder:'rgba(255,255,255,0.07)',itemName:'rgba(255,255,255,0.8)',itemCat:'rgba(255,255,255,0.2)',itemAmt:'#ffffff',
-    iconBg:'rgba(255,255,255,0.08)',badgeBg:'rgba(251,191,36,0.12)',badgeColor:'#fbbf24',
-    cardBg:'rgba(14,14,16,0.98)'},
-};
-
-const ALL_THEME_CLASSES=['theme-light','theme-ocean','theme-rose','theme-forest','theme-sand','theme-ember','theme-plum','theme-arctic','theme-space','theme-mint','theme-caramel','theme-steel','theme-chalk'];
-
 function getTheme(){return localStorage.getItem('fpro_theme')||'dark';}
 function saveTheme(t){localStorage.setItem('fpro_theme',t);}
-
 function applyTheme(theme){
-  // remove all theme classes
-  ALL_THEME_CLASSES.forEach(c=>document.body.classList.remove(c));
-  const t=THEMES[theme]||THEMES.dark;
   if(theme==='light'){
     document.body.classList.add('theme-light');
-  }else if(theme!=='dark'){
-    document.body.classList.add('theme-'+theme);
+    const m=document.querySelector('meta[name="theme-color"]');
+    if(m)m.setAttribute('content','#f0f4f8');
+  }else{
+    document.body.classList.remove('theme-light');
+    const m=document.querySelector('meta[name="theme-color"]');
+    if(m)m.setAttribute('content','#050a0f');
   }
-  document.body.style.background=t.bg;
-  const m=document.querySelector('meta[name="theme-color"]');
-  if(m)m.setAttribute('content',t.metaColor);
 }
-
-// Preview in-modal without committing
-let _previewTheme=null;
-window.previewTheme=function(t){
-  _previewTheme=t;
-  const cfg=THEMES[t]||THEMES.dark;
-  // card wrap bg
-  const wrap=document.getElementById('themePreviewCard');
-  if(wrap)wrap.style.background=cfg.cardBg;
-  // hero
-  const hero=document.getElementById('pvHero');
-  if(hero){hero.style.background=cfg.heroBg;hero.style.border='1px solid '+(cfg.heroBorder||'transparent');}
-  s('pvLabel','color',cfg.heroLabel);s('pvAmount','color',cfg.heroAmt);s('pvSub','color',cfg.heroSub);
-  s('pvProgressBg','background',cfg.progressBg);s('pvProgressBar','background',cfg.progressFill);s('pvPct','color',cfg.pct);
-  // minis
-  const m1=document.getElementById('pvMini1'),m2=document.getElementById('pvMini2');
-  if(m1){m1.style.background=cfg.mini1Bg;m1.style.border='1px solid '+cfg.mini1Border;}
-  if(m2){m2.style.background=cfg.mini2Bg;m2.style.border='1px solid '+cfg.mini2Border;}
-  s('pvMini1Val','color',cfg.mini1Val);s('pvMini2Val','color',cfg.mini2Val);
-  // item
-  const item=document.getElementById('pvItem');
-  if(item){item.style.background=cfg.itemBg;item.style.border='1px solid '+cfg.itemBorder;}
-  s('pvItemName','color',cfg.itemName);s('pvItemCat','color',cfg.itemCat);s('pvItemAmt','color',cfg.itemAmt);
-  const icon=document.getElementById('pvItemIcon');if(icon)icon.style.background=cfg.iconBg;
-  const badge=document.getElementById('pvBadge');
-  if(badge){badge.style.background=cfg.badgeBg;badge.style.color=cfg.badgeColor;}
-  // name tag
-  const nm=document.getElementById('pvThemeName');if(nm)nm.textContent=cfg.name;
-  // highlight active swatch
-  document.querySelectorAll('.theme-swatch').forEach(el=>{
-    el.style.borderColor=el.dataset.theme===t?'rgba(37,99,235,0.85)':'transparent';
-    el.style.boxShadow=el.dataset.theme===t?'0 0 0 3px rgba(37,99,235,0.25)':'none';
-  });
-  // border of preview wrap
-  const pw=document.getElementById('themePreviewWrap');
-  if(pw)pw.style.borderColor='rgba(37,99,235,0.4)';
+window.selectTheme=function(t){
+  saveTheme(t);applyTheme(t);savePrefsToCloud();
+  const db=document.getElementById('themeDarkBtn'),lb=document.getElementById('themeLightBtn');
+  if(db)db.style.borderColor=t==='dark'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
+  if(lb)lb.style.borderColor=t==='light'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
 }
-function s(id,prop,val){const el=document.getElementById(id);if(el)el.style[prop]=val;}
+function initPersonalization(){applyAppName(getAppName());applyTheme(getTheme());}
 
-// Legacy selectTheme kept for backward compat (not called from new UI)
-window.selectTheme=function(t){saveTheme(t);applyTheme(t);savePrefsToCloud();}
-
-function initPersonalization(){applyAppName(getAppName());applyTheme(getTheme());applyFont(getFont());applyCardMode(getCardMode());}
-
-// ── FONT SYSTEM ──
-function getFont(){return localStorage.getItem('fpro_font')||'default';}
-function saveFont(f){localStorage.setItem('fpro_font',f);}
-const FONT_CLASSES=['font-cormorant','font-bricolage','font-anybody'];
-function applyFont(font){
-  FONT_CLASSES.forEach(c=>document.body.classList.remove(c));
-  if(font&&font!=='default') document.body.classList.add('font-'+font);
-}
-window.previewFont=function(font){
-  applyFont(font);
-  document.querySelectorAll('.font-opt-btn').forEach(btn=>{
-    const isActive=btn.dataset.font===font;
-    btn.style.borderColor=isActive?'rgba(37,99,235,0.7)':'rgba(148,163,184,0.15)';
-    btn.style.background=isActive?'rgba(37,99,235,0.1)':'rgba(241,245,249,0.04)';
-  });
-};
-
-
-// ── CARD MODE SYSTEM ──
-function getCardMode(){return localStorage.getItem('fpro_card_mode')||'default';}
-function saveCardMode(m){localStorage.setItem('fpro_card_mode',m);}
-
-const CARD_MODES=['default','hero','scroll','bento'];
-function applyCardMode(mode){
-  CARD_MODES.forEach(m=>{
-    const el=document.getElementById('cards'+m.charAt(0).toUpperCase()+m.slice(1));
-    if(el) el.style.display=(m===mode)?'':'none';
-  });
-  // show/hide main progress bar — hide it when hero/bento/scroll have their own
-  const mainProg=document.getElementById('totalBarWrap');
-  if(mainProg) mainProg.style.display=(mode==='default')?'':'none';
-}
-
-window.previewCardMode=function(mode){
-  applyCardMode(mode);
-  document.querySelectorAll('.cardmode-btn').forEach(btn=>{
-    const isActive=btn.dataset.mode===mode;
-    btn.style.borderColor=isActive?'rgba(37,99,235,0.7)':'rgba(148,163,184,0.15)';
-    btn.style.background=isActive?'rgba(37,99,235,0.1)':'rgba(241,245,249,0.04)';
-  });
-  // Calcula os valores reais direto, sem depender do render()
-  try{
-    const allItems=getData().filter(i=>{
-      const d=new Date(i.data+'T12:00:00');
-      return d.getFullYear()===curYear&&d.getMonth()===curMonth;
-    });
-    const total=allItems.reduce((s,i)=>s+parseFloat(i.valor||0),0);
-    const paidTotal=allItems.filter(i=>i.pago).reduce((s,i)=>s+parseFloat(i.valor||0),0);
-    const pendingTotal=allItems.filter(i=>!i.pago).reduce((s,i)=>s+parseFloat(i.valor||0),0);
-    const cartaoPending=allItems.filter(i=>!i.pago&&i.categoria==='Cartão').reduce((s,i)=>s+parseFloat(i.valor||0),0);
-    const paidCount=allItems.filter(i=>i.pago).length;
-    const totalCount=allItems.length;
-    updateAllCardModes(paidTotal,total,pendingTotal,cartaoPending,paidCount,totalCount);
-  }catch(e){console.log('previewCardMode data error:',e);}
-};
-
-// Called by renderUI to fill all card variants
-function updateAllCardModes(paidTotal, total, pendingTotal, cartaoPending, paidCount, totalCount){
-  const pct=totalCount>0?Math.round(paidCount/totalCount*100):0;
-  const fmt2=v=>'R$ '+v.toFixed(2).replace('.',',').replace(/\B(?=(\d{3})+(?!\d))/g,'.');
-  const sub=`${paidCount} de ${totalCount} pagas`;
-
-  // ── HERO ──
-  const t=THEMES[getTheme()]||THEMES.dark;
-  const hero=document.getElementById('heroMainCard');
-  if(hero){
-    hero.style.background=t.heroBg;
-    hero.style.border='1px solid '+(t.heroBorder||'transparent');
-    hero.style.color=t.heroAmt;
-  }
-  const heroLbl=document.getElementById('heroLabel');
-  if(heroLbl) heroLbl.style.color=t.heroLabel;
-  const heroAmt=document.getElementById('heroAmount');
-  if(heroAmt){heroAmt.textContent=fmt2(total);heroAmt.style.color=t.heroAmt;}
-  const heroSub2=document.getElementById('heroSub');
-  if(heroSub2){heroSub2.textContent=sub;heroSub2.style.color=t.heroSub;}
-  const hpBg=document.getElementById('heroProgressBg');
-  if(hpBg) hpBg.style.background=t.progressBg;
-  const hpBar=document.getElementById('heroProgressBar');
-  if(hpBar){hpBar.style.width=pct+'%';hpBar.style.background=t.progressFill;}
-  const hPct=document.getElementById('heroPct');
-  if(hPct){hPct.textContent=pct+'%';hPct.style.color=t.pct;}
-  const hS=document.getElementById('cardSaldoH'); if(hS) hS.textContent=fmt2(paidTotal);
-  const hP=document.getElementById('cardPendingH'); if(hP) hP.textContent=fmt2(pendingTotal);
-
-  // ── SCROLL ──
-  const sc1=document.getElementById('scrollCard1');
-  if(sc1){sc1.style.background=t.heroBg;sc1.style.color=t.heroAmt;sc1.style.border='1px solid '+(t.heroBorder||'transparent');}
-  const scG=document.getElementById('cardGastosS'); if(scG){scG.textContent=fmt2(total);scG.style.color=t.heroAmt;}
-  const scProg=document.getElementById('scrollProgress'); if(scProg){scProg.style.width=pct+'%';}
-  const scSub=document.getElementById('scrollSub'); if(scSub){scSub.textContent=`${paidCount} / ${totalCount} pagas`;scSub.style.color=t.heroSub;}
-  const scS=document.getElementById('cardSaldoS'); if(scS) scS.textContent=fmt2(paidTotal);
-  const scP=document.getElementById('cardPendingS'); if(scP) scP.textContent=fmt2(pendingTotal);
-  const scC=document.getElementById('cardCartaoS'); if(scC) scC.textContent=fmt2(cartaoPending);
-
-  // ── BENTO ──
-  const bMain=document.getElementById('bentoMainCard');
-  if(bMain){bMain.style.background=t.heroBg;bMain.style.border='1px solid '+(t.heroBorder||'transparent');bMain.style.color=t.heroAmt;}
-  const bG=document.getElementById('cardGastosB'); if(bG){bG.textContent=fmt2(total);bG.style.color=t.heroAmt;}
-  const bSub=document.getElementById('bentoSub'); if(bSub){bSub.textContent=`${paidCount}/${totalCount} pagas`;bSub.style.color=t.heroSub;}
-  const bPct=document.getElementById('bentoPct'); if(bPct){bPct.textContent=pct+'%';bPct.style.color=t.pct;}
-  const bBar=document.getElementById('bentoProgressBar'); if(bBar){bBar.style.width=pct+'%';bBar.style.background=t.progressFill;}
-  const bS=document.getElementById('cardSaldoB'); if(bS) bS.textContent=fmt2(paidTotal);
-  const bP=document.getElementById('cardPendingB'); if(bP) bP.textContent=fmt2(pendingTotal);
-}
+// ── Cartões ──
 function getCartoes(){try{return JSON.parse(localStorage.getItem('fpro_cartoes')||'[]')}catch{return[]}}
 function saveCartoes(c){localStorage.setItem('fpro_cartoes',JSON.stringify(c));idbSet('fpro_cartoes',c);scheduleSync();}
 // Retorna o dia de fechamento de um cartão pelo nome, ou null
@@ -594,13 +316,7 @@ function saveNotifEmail(e){localStorage.setItem('fpro_notif_email',e);}
 async function syncToCloud(){
   if(!currentUser)return;
   try{
-    await setDoc(doc(db,'users',currentUser.uid),{
-      data:JSON.stringify(getData()),
-      cartoes:JSON.stringify(getCartoes()),
-      updatedAt:new Date().toISOString(),
-      displayName:currentUser.displayName||'',
-      notifEmail:getNotifEmail()
-    });
+    await setDoc(doc(db,'users',currentUser.uid),{data:JSON.stringify(getData()),updatedAt:new Date().toISOString(),displayName:currentUser.displayName||'',notifEmail:getNotifEmail()});
     setSyncDot('green');
   }catch{setSyncDot('red');}
 }
@@ -614,8 +330,6 @@ async function savePrefsToCloud(){
       theme:getTheme(),
       navMode:getNavMode(),
       appName:getAppName(),
-      font:getFont(),
-      cardMode:getCardMode(),
       notifs:localStorage.getItem('fpro_notifs')||'0',
       faturaAviso:localStorage.getItem('fpro_fatura_aviso')||'3',
       vencPadrao:localStorage.getItem('fpro_venc_padrao')||''
@@ -632,8 +346,6 @@ async function loadPrefsFromCloud(){
     if(p.theme){saveTheme(p.theme);applyTheme(p.theme);}
     if(p.navMode){saveNavMode(p.navMode);applyNavMode(p.navMode);}
     if(p.appName){saveAppName(p.appName);applyAppName(p.appName);}
-    if(p.font){saveFont(p.font);applyFont(p.font);}
-    if(p.cardMode){saveCardMode(p.cardMode);applyCardMode(p.cardMode);}
     if(p.notifs)localStorage.setItem('fpro_notifs',p.notifs);
     if(p.faturaAviso)localStorage.setItem('fpro_fatura_aviso',p.faturaAviso);
     if(p.vencPadrao)localStorage.setItem('fpro_venc_padrao',p.vencPadrao);
@@ -646,16 +358,6 @@ async function loadFromCloud(){
     const snap=await getDoc(doc(db,'users',currentUser.uid));
     if(snap.exists()){
       if(snap.data().notifEmail)saveNotifEmail(snap.data().notifEmail);
-      // ── Restaura cartões da nuvem ──
-      if(snap.data().cartoes){
-        try{
-          const cloudCartoes=JSON.parse(snap.data().cartoes);
-          if(Array.isArray(cloudCartoes)&&cloudCartoes.length>=getCartoes().length){
-            localStorage.setItem('fpro_cartoes',JSON.stringify(cloudCartoes));
-            await idbSet('fpro_cartoes',cloudCartoes);
-          }
-        }catch(e){console.log('Cartoes parse error:',e);}
-      }
       if(snap.data().data){
         const cd=JSON.parse(snap.data().data),ld=getData();
         if(cd.length>=ld.length){
@@ -668,7 +370,7 @@ async function loadFromCloud(){
         }
         // Espelha cartões e alertados para o SW sempre
         await idbSet('fpro_cartoes',getCartoes());
-        await idbSet('fpro_alerted',JSON.parse(localStorage.getItem('fpro_alerted')||'{}'));
+        await idbSet('fpro_alerted',JSON.parse(localStorage.getItem('fpro_alerted')||'{}')); 
         render();
       }
     }
@@ -974,29 +676,15 @@ window.openPersonalizacaoModal=function(){
   document.getElementById('inputVencPadrao').value=localStorage.getItem('fpro_venc_padrao')||'';
   const t=getTheme();
   const nm=getNavMode();
-  _previewTheme=t; // reset preview to saved theme
   setTimeout(()=>{
-    // Init preview card with current theme
-    previewTheme(t);
+    const db=document.getElementById('themeDarkBtn'),lb=document.getElementById('themeLightBtn');
+    if(db)db.style.borderColor=t==='dark'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
+    if(lb)lb.style.borderColor=t==='light'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
     // Inicializa botões de modo de navegação
     const barBtn=document.getElementById('navModeBarBtn');
     const fabBtn=document.getElementById('navModeFabBtn');
     if(barBtn)barBtn.style.borderColor=nm==='bar'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
     if(fabBtn)fabBtn.style.borderColor=nm==='fab'?'rgba(37,99,235,0.8)':'rgba(148,163,184,0.15)';
-    // Init font buttons
-    const savedFont=getFont();
-    document.querySelectorAll('.font-opt-btn').forEach(btn=>{
-      const isActive=btn.dataset.font===savedFont;
-      btn.style.borderColor=isActive?'rgba(37,99,235,0.7)':'rgba(148,163,184,0.15)';
-      btn.style.background=isActive?'rgba(37,99,235,0.1)':'rgba(241,245,249,0.04)';
-    });
-    // Init card mode buttons
-    const savedCardMode=getCardMode();
-    document.querySelectorAll('.cardmode-btn').forEach(btn=>{
-      const isActive=btn.dataset.mode===savedCardMode;
-      btn.style.borderColor=isActive?'rgba(37,99,235,0.7)':'rgba(148,163,184,0.15)';
-      btn.style.background=isActive?'rgba(37,99,235,0.1)':'rgba(241,245,249,0.04)';
-    });
   },50);
   document.getElementById('personalizacaoOverlay').style.display='flex';lockBody();
 }
@@ -1011,18 +699,6 @@ window.savePersonalizacao=function(){
   localStorage.setItem('fpro_fatura_aviso',Math.min(Math.max(dias,1),7));
   if(vencDia>=1&&vencDia<=31) localStorage.setItem('fpro_venc_padrao',vencDia);
   else localStorage.removeItem('fpro_venc_padrao');
-  // Salva tema selecionado no preview
-  if(_previewTheme){saveTheme(_previewTheme);applyTheme(_previewTheme);}
-  // Salva fonte selecionada
-  const selectedFontBtn=document.querySelector('.font-opt-btn[style*="rgba(37,99,235,0.1)"]')||document.querySelector('.font-opt-btn[style*="rgba(37,99,235,0.08)"]');
-  const selectedFont=selectedFontBtn?selectedFontBtn.dataset.font:(document.querySelector('.font-opt-btn[data-font]')?.dataset.font||'default');
-  const activeFontBtn=[...document.querySelectorAll('.font-opt-btn')].find(b=>b.style.borderColor.includes('37,99,235,0.7')||b.style.borderColor.includes('37,99,235,0.5'));
-  const fontToSave=activeFontBtn?activeFontBtn.dataset.font:getFont();
-  saveFont(fontToSave);applyFont(fontToSave);
-  // Salva modo de card
-  const activeCardBtn=[...document.querySelectorAll('.cardmode-btn')].find(b=>b.style.borderColor.includes('37,99,235,0.7')||b.style.borderColor.includes('37,99,235,0.5'));
-  const cardModeToSave=activeCardBtn?activeCardBtn.dataset.mode:getCardMode();
-  saveCardMode(cardModeToSave);applyCardMode(cardModeToSave);
   // Salva modo de navegação (já aplicado em tempo real pelo previewNavMode)
   const currentMode=document.body.classList.contains('nav-mode-bar')?'bar':'fab';
   saveNavMode(currentMode);
@@ -1093,9 +769,16 @@ window.menuAction=function(action){
 }
 
 // ── Auth ──
+function dismissSplash(){
+  const s=document.getElementById('splashScreen');
+  if(!s)return;
+  s.classList.add('fade-out');
+  setTimeout(()=>{if(s.parentNode)s.parentNode.removeChild(s);},420);
+}
 onAuthStateChanged(auth,user=>{
   currentUser=user;
   if(user){
+    dismissSplash();
     document.getElementById('authScreen').style.display='none';
     document.getElementById('mainApp').style.display='block';
     document.getElementById('userDisplayName').textContent=user.displayName||user.email.split('@')[0];
@@ -1117,6 +800,7 @@ onAuthStateChanged(auth,user=>{
       },1500);
     });
   }else{
+    dismissSplash();
     document.getElementById('authScreen').style.display='flex';
     document.getElementById('mainApp').style.display='none';
   }
@@ -1276,10 +960,6 @@ function render(){
   document.getElementById('cardCartao').textContent=fmt(cartaoPending);
   document.getElementById('monthLabel').textContent=MONTHS[curMonth]+' de '+curYear;
   document.getElementById('headerDate').textContent=MONTHS[curMonth]+' '+curYear;
-  // update all card mode variants
-  const _paidCount=allItems.filter(i=>i.pago).length;
-  const _totalCount=allItems.length;
-  updateAllCardModes(paidTotal,total,pendingTotal,cartaoPending,_paidCount,_totalCount);
 
   const el=document.getElementById('itemsList');
   // Pending header box
@@ -3126,273 +2806,78 @@ body.theme-light [style*="color:#94a3b8"],[style*="color:#64748b"],body.theme-li
 body.theme-light [style*="color:#e2e8f0"],body.theme-light [style*="color:#cbd5e1"],body.theme-light [style*="color:#f1f5f9"]{color:#1e293b!important}
 body.theme-light [style*="background:rgba(15,23,42"],body.theme-light [style*="background:rgba(8,14,28"],body.theme-light [style*="background:rgba(30,41,59"]{background:rgba(255,255,255,0.96)!important;color:#1e293b!important}
 body.theme-light .empty-state{color:#64748b!important}
-/* light bottomnav active */
-body.theme-light #bottomNav{background:rgba(255,255,255,0.98)!important;border-top-color:rgba(0,0,0,0.08)!important}
-body.theme-light .bnav-btn{color:#94a3b8!important}
-body.theme-light .bnav-btn.active{color:#1d4ed8!important}
-body.theme-light .bnav-btn.active::before{background:linear-gradient(90deg,#2563eb,#1d4ed8)!important}
-/* light modal — all text readable */
-body.theme-light .glass-modal [style*="color:#e2e8f0"],
-body.theme-light .glass-modal [style*="color:#cbd5e1"],
-body.theme-light .glass-modal [style*="color:#f1f5f9"],
-body.theme-light .glass-modal [style*="color:#94a3b8"] { color:#334155!important }
-body.theme-light .glass-modal [style*="color:#64748b"],
-body.theme-light .glass-modal [style*="color:#475569"] { color:#64748b!important }
-/* sand/plum/arctic/caramel modal same fixes */
-body.theme-sand .glass-modal [style*="color:#e2e8f0"],body.theme-sand .glass-modal [style*="color:#cbd5e1"],body.theme-sand .glass-modal [style*="color:#f1f5f9"]{color:#1e293b!important}
-body.theme-sand .glass-modal [style*="color:#94a3b8"],body.theme-sand .glass-modal [style*="color:#64748b"],body.theme-sand .glass-modal [style*="color:#475569"]{color:#64748b!important}
-body.theme-sand .glass-modal [style*="background:rgba(30,41,59"],body.theme-sand .glass-modal [style*="background:rgba(15,23,42"]{background:rgba(0,0,0,0.04)!important}
-body.theme-plum .glass-modal [style*="color:#e2e8f0"],body.theme-plum .glass-modal [style*="color:#cbd5e1"],body.theme-plum .glass-modal [style*="color:#f1f5f9"]{color:#1a0628!important}
-body.theme-plum .glass-modal [style*="color:#94a3b8"],body.theme-plum .glass-modal [style*="color:#64748b"],body.theme-plum .glass-modal [style*="color:#475569"]{color:#7a50a0!important}
-body.theme-arctic .glass-modal [style*="color:#e2e8f0"],body.theme-arctic .glass-modal [style*="color:#cbd5e1"],body.theme-arctic .glass-modal [style*="color:#f1f5f9"]{color:#111!important}
-body.theme-arctic .glass-modal [style*="color:#94a3b8"],body.theme-arctic .glass-modal [style*="color:#64748b"],body.theme-arctic .glass-modal [style*="color:#475569"]{color:#555!important}
-body.theme-arctic .glass-modal [style*="background:rgba(30,41,59"],body.theme-arctic .glass-modal [style*="background:rgba(15,23,42"]{background:rgba(0,0,0,0.04)!important}
-body.theme-caramel .glass-modal [style*="color:#e2e8f0"],body.theme-caramel .glass-modal [style*="color:#cbd5e1"],body.theme-caramel .glass-modal [style*="color:#f1f5f9"]{color:#2a1800!important}
-body.theme-caramel .glass-modal [style*="color:#94a3b8"],body.theme-caramel .glass-modal [style*="color:#64748b"],body.theme-caramel .glass-modal [style*="color:#475569"]{color:#8a5a30!important}
-body.theme-caramel .glass-modal [style*="background:rgba(30,41,59"],body.theme-caramel .glass-modal [style*="background:rgba(15,23,42"]{background:rgba(0,0,0,0.04)!important}
-/* forest modal (dark bg = white text, already fine) */
-/* ── THEME SWATCHES ── */
-.theme-swatch{transition:transform .18s cubic-bezier(.34,1.56,.64,1),border-color .18s}
-.theme-swatch:active{transform:scale(0.9)}
-.theme-swatch.active-theme{border-color:rgba(37,99,235,0.85)!important;box-shadow:0 0 0 3px rgba(37,99,235,0.25)}
-
-/* ── OCEAN NIGHT ── */
-body.theme-ocean{background:#050f18!important;color:#e2e8f0!important}
-body.theme-ocean .glass{background:rgba(6,30,50,0.8)!important;border-color:rgba(0,180,200,0.1)!important}
-body.theme-ocean .glass-modal{background:rgba(4,14,24,0.98)!important;border-color:rgba(0,180,200,0.1)!important}
-body.theme-ocean .item-row{background:rgba(6,30,50,0.6)!important;border-color:rgba(0,180,200,0.08)!important}
-body.theme-ocean .total-bar{background:linear-gradient(135deg,rgba(0,180,200,0.08),rgba(0,100,130,0.06))!important;border-color:rgba(0,180,200,0.15)!important}
-body.theme-ocean .btn-primary{background:linear-gradient(135deg,#00b4cc,#0088aa)!important}
-body.theme-ocean .fab,.theme-ocean .bnav-fab{background:linear-gradient(135deg,#00b4cc,#0088aa)!important;box-shadow:0 8px 28px rgba(0,180,200,0.45)!important}
-body.theme-ocean .progress-fill{background:linear-gradient(90deg,#00b4cc,#00e5ff,#00b4cc)!important}
-body.theme-ocean .filter-btn.filter-active{background:rgba(0,180,200,0.18)!important;border-color:rgba(0,180,200,0.45)!important;color:#00d4e8!important}
-body.theme-ocean #bottomNav{background:rgba(4,12,20,0.97)!important;border-top-color:rgba(0,180,200,0.08)!important}
-body.theme-ocean .bnav-btn.active{color:#00d4e8!important}
-body.theme-ocean .bnav-btn.active::before{background:linear-gradient(90deg,#00b4cc,#00e5ff)!important}
-body.theme-ocean #calendarioOverlay,body.theme-ocean #calTopbar,body.theme-ocean #calScrollArea>div:first-child{background:#050f18!important}
-body.theme-ocean meta[name="theme-color"]{content:#050f18}
-
-/* ── ROSE DUSK ── */
-body.theme-rose{background:#130a0e!important;color:#e2e8f0!important}
-body.theme-rose .glass{background:rgba(30,8,16,0.8)!important;border-color:rgba(220,80,120,0.1)!important}
-body.theme-rose .glass-modal{background:rgba(10,4,7,0.98)!important;border-color:rgba(220,80,120,0.1)!important}
-body.theme-rose .item-row{background:rgba(30,8,16,0.6)!important;border-color:rgba(220,80,120,0.08)!important}
-body.theme-rose .total-bar{background:linear-gradient(135deg,rgba(220,80,120,0.08),rgba(130,20,50,0.06))!important;border-color:rgba(220,80,120,0.15)!important}
-body.theme-rose .btn-primary{background:linear-gradient(135deg,#e05580,#b02050)!important}
-body.theme-rose .fab,.theme-rose .bnav-fab{background:linear-gradient(135deg,#e05580,#b02050)!important;box-shadow:0 8px 28px rgba(220,80,120,0.45)!important}
-body.theme-rose .progress-fill{background:linear-gradient(90deg,#e05580,#ff80a0,#e05580)!important}
-body.theme-rose .filter-btn.filter-active{background:rgba(220,80,120,0.18)!important;border-color:rgba(220,80,120,0.45)!important;color:#e05580!important}
-body.theme-rose #bottomNav{background:rgba(10,4,7,0.97)!important;border-top-color:rgba(220,80,120,0.08)!important}
-body.theme-rose .bnav-btn.active{color:#e05580!important}
-body.theme-rose .bnav-btn.active::before{background:linear-gradient(90deg,#e05580,#ff80a0)!important}
-body.theme-rose #calendarioOverlay,body.theme-rose #calTopbar,body.theme-rose #calScrollArea>div:first-child{background:#130a0e!important}
-
-/* ── FOREST STONE ── */
-body.theme-forest{background:#060c08!important;color:#e2e8f0!important}
-body.theme-forest .glass{background:rgba(238,234,222,0.95)!important;border-color:rgba(60,160,90,0.15)!important;color:#1a2018!important}
-body.theme-forest .glass *{color:#1a2018!important}
-body.theme-forest .glass-modal{background:rgba(4,10,6,0.98)!important;border-color:rgba(60,160,90,0.1)!important}
-body.theme-forest .glass-modal *{color:#e2e8f0!important}
-body.theme-forest .item-row{background:rgba(255,255,255,0.03)!important;border-color:rgba(60,160,90,0.08)!important}
-body.theme-forest .total-bar{background:linear-gradient(135deg,rgba(60,160,90,0.1),rgba(20,80,40,0.07))!important;border-color:rgba(60,160,90,0.18)!important}
-body.theme-forest .btn-primary{background:linear-gradient(135deg,#3cb85a,#267a3a)!important}
-body.theme-forest .fab,.theme-forest .bnav-fab{background:linear-gradient(135deg,#3cb85a,#267a3a)!important;box-shadow:0 8px 28px rgba(60,160,90,0.4)!important}
-body.theme-forest .progress-fill{background:linear-gradient(90deg,#3cb85a,#7de89a,#3cb85a)!important}
-body.theme-forest .filter-btn.filter-active{background:rgba(60,160,90,0.18)!important;border-color:rgba(60,160,90,0.45)!important;color:#5dcc78!important}
-body.theme-forest #bottomNav{background:rgba(5,10,7,0.97)!important;border-top-color:rgba(60,160,90,0.07)!important}
-body.theme-forest .bnav-btn.active{color:#5dcc78!important}
-body.theme-forest .bnav-btn.active::before{background:linear-gradient(90deg,#3cb85a,#7de89a)!important}
-body.theme-forest #calendarioOverlay,body.theme-forest #calTopbar,body.theme-forest #calScrollArea>div:first-child{background:#060c08!important}
-
-/* ── SAND & SKY ── */
-body.theme-sand{background:#f0ece4!important;color:#1a1a2e!important}
-body.theme-sand .glass{background:rgba(255,255,255,0.96)!important;border-color:rgba(0,0,0,0.08)!important}
-body.theme-sand .glass *{color:#1e293b!important}
-body.theme-sand .glass-modal{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important}
-body.theme-sand .glass-modal *{color:#1e293b!important}
-body.theme-sand .item-row{background:#ffffff!important;border-color:rgba(0,0,0,0.07)!important;box-shadow:0 1px 4px rgba(0,0,0,0.06)!important}
-body.theme-sand .item-row *{color:#1e293b!important}
-body.theme-sand .total-bar{background:linear-gradient(135deg,rgba(26,107,181,0.08),rgba(12,61,128,0.06))!important;border-color:rgba(26,107,181,0.18)!important}
-body.theme-sand .total-bar *{color:#1a4480!important}
-body.theme-sand .btn-primary{background:linear-gradient(135deg,#1a6bb5,#0c3d80)!important}
-body.theme-sand .fab,.theme-sand .bnav-fab{background:linear-gradient(135deg,#1a6bb5,#0c3d80)!important;box-shadow:0 8px 28px rgba(20,80,180,0.3)!important}
-body.theme-sand .progress-fill{background:linear-gradient(90deg,#1a6bb5,#60b0ff,#1a6bb5)!important}
-body.theme-sand .filter-btn{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important;color:#334155!important}
-body.theme-sand .filter-btn.filter-active{background:rgba(26,107,181,0.1)!important;border-color:rgba(26,107,181,0.4)!important;color:#1a6bb5!important}
-body.theme-sand .nav-btn{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important;color:#334155!important}
-body.theme-sand #bottomNav{background:rgba(255,255,255,0.97)!important;border-top-color:rgba(0,0,0,0.07)!important}
-body.theme-sand .bnav-btn{color:#94a3b8!important}
-body.theme-sand .bnav-btn.active{color:#1a6bb5!important}
-body.theme-sand .bnav-btn.active::before{background:linear-gradient(90deg,#1a6bb5,#60b0ff)!important}
-body.theme-sand #calendarioOverlay,body.theme-sand #calTopbar,body.theme-sand #calScrollArea>div:first-child{background:#f0ece4!important}
-body.theme-sand .btn-secondary{background:#f1f5f9!important;border-color:rgba(0,0,0,0.1)!important;color:#334155!important}
-body.theme-sand input:not([type=checkbox]),body.theme-sand select,body.theme-sand textarea{background:#ffffff!important;border-color:rgba(0,0,0,0.12)!important;color:#0f172a!important}
-
-/* ── GRAPHITE EMBER ── */
-body.theme-ember{background:#0c0c0c!important;color:#e2e8f0!important}
-body.theme-ember .glass{background:rgba(18,18,18,0.85)!important;border-color:rgba(255,90,30,0.1)!important}
-body.theme-ember .glass-modal{background:rgba(8,8,8,0.98)!important;border-color:rgba(255,90,30,0.1)!important}
-body.theme-ember .item-row{background:rgba(255,255,255,0.025)!important;border-color:rgba(255,255,255,0.05)!important}
-body.theme-ember .total-bar{background:linear-gradient(135deg,rgba(255,90,30,0.08),rgba(180,40,0,0.06))!important;border-color:rgba(255,90,30,0.15)!important}
-body.theme-ember .btn-primary{background:linear-gradient(135deg,#ff6a30,#b82800)!important}
-body.theme-ember .fab,.theme-ember .bnav-fab{background:linear-gradient(135deg,#ff6a30,#b82800)!important;box-shadow:0 8px 28px rgba(255,80,20,0.4)!important}
-body.theme-ember .progress-fill{background:linear-gradient(90deg,#ff6a30,#ffaa60,#ff6a30)!important}
-body.theme-ember .filter-btn.filter-active{background:rgba(255,90,30,0.18)!important;border-color:rgba(255,90,30,0.45)!important;color:#ff8050!important}
-body.theme-ember #bottomNav{background:rgba(8,8,8,0.98)!important;border-top-color:rgba(255,255,255,0.05)!important}
-body.theme-ember .bnav-btn.active{color:#ff6a30!important}
-body.theme-ember .bnav-btn.active::before{background:linear-gradient(90deg,#ff6a30,#ffaa60)!important}
-body.theme-ember #calendarioOverlay,body.theme-ember #calTopbar,body.theme-ember #calScrollArea>div:first-child{background:#0c0c0c!important}
-
-/* ── IVORY & PLUM ── */
-body.theme-plum{background:#f8f4f0!important;color:#1a0a28!important}
-body.theme-plum .glass{background:rgba(255,255,255,0.96)!important;border-color:rgba(0,0,0,0.07)!important}
-body.theme-plum .glass *{color:#1e293b!important}
-body.theme-plum .glass-modal{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important}
-body.theme-plum .glass-modal *{color:#1e293b!important}
-body.theme-plum .item-row{background:#ffffff!important;border-color:rgba(0,0,0,0.07)!important;box-shadow:0 1px 4px rgba(0,0,0,0.06)!important}
-body.theme-plum .item-row *{color:#1e293b!important}
-body.theme-plum .total-bar{background:linear-gradient(135deg,rgba(120,40,160,0.08),rgba(60,10,80,0.06))!important;border-color:rgba(120,40,160,0.18)!important}
-body.theme-plum .total-bar *{color:#6a1a90!important}
-body.theme-plum .btn-primary{background:linear-gradient(135deg,#8a40b0,#3d1054)!important}
-body.theme-plum .fab,.theme-plum .bnav-fab{background:linear-gradient(135deg,#8a40b0,#3d1054)!important;box-shadow:0 8px 28px rgba(80,20,100,0.35)!important}
-body.theme-plum .progress-fill{background:linear-gradient(90deg,#8a40b0,#c060e0,#8a40b0)!important}
-body.theme-plum .filter-btn{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important;color:#334155!important}
-body.theme-plum .filter-btn.filter-active{background:rgba(120,40,160,0.1)!important;border-color:rgba(120,40,160,0.4)!important;color:#7a30a0!important}
-body.theme-plum .nav-btn{background:#ffffff!important;border-color:rgba(0,0,0,0.1)!important;color:#334155!important}
-body.theme-plum #bottomNav{background:rgba(255,255,255,0.97)!important;border-top-color:rgba(0,0,0,0.07)!important}
-body.theme-plum .bnav-btn{color:#94a3b8!important}
-body.theme-plum .bnav-btn.active{color:#7a30a0!important}
-body.theme-plum .bnav-btn.active::before{background:linear-gradient(90deg,#8a40b0,#c060e0)!important}
-body.theme-plum #calendarioOverlay,body.theme-plum #calTopbar,body.theme-plum #calScrollArea>div:first-child{background:#f8f4f0!important}
-body.theme-plum .btn-secondary{background:#f1f5f9!important;border-color:rgba(0,0,0,0.1)!important;color:#334155!important}
-body.theme-plum input:not([type=checkbox]),body.theme-plum select,body.theme-plum textarea{background:#ffffff!important;border-color:rgba(0,0,0,0.12)!important;color:#0f172a!important}
-
-/* ── ARCTIC WHITE ── */
-body.theme-arctic{background:#ffffff!important;color:#000!important}
-body.theme-arctic .glass{background:rgba(255,255,255,0.98)!important;border-color:rgba(0,0,0,0.07)!important}
-body.theme-arctic .glass *{color:#111!important}
-body.theme-arctic .glass-modal{background:#ffffff!important;border-color:rgba(0,0,0,0.09)!important}
-body.theme-arctic .glass-modal *{color:#111!important}
-body.theme-arctic .item-row{background:#f9f9f9!important;border-color:#f0f0f0!important}
-body.theme-arctic .item-row *{color:#111!important}
-body.theme-arctic .total-bar{background:linear-gradient(135deg,rgba(0,0,0,0.04),rgba(0,0,0,0.02))!important;border-color:rgba(0,0,0,0.1)!important}
-body.theme-arctic .total-bar *{color:#111!important}
-body.theme-arctic .btn-primary{background:#000!important}
-body.theme-arctic .fab,.theme-arctic .bnav-fab{background:#000!important;box-shadow:0 8px 28px rgba(0,0,0,0.25)!important}
-body.theme-arctic .progress-fill{background:linear-gradient(90deg,#60d0ff,#a0eaff,#60d0ff)!important}
-body.theme-arctic .filter-btn{background:#f4f4f4!important;border-color:rgba(0,0,0,0.1)!important;color:#333!important}
-body.theme-arctic .filter-btn.filter-active{background:rgba(0,0,0,0.08)!important;border-color:rgba(0,0,0,0.3)!important;color:#000!important}
-body.theme-arctic .nav-btn{background:#f4f4f4!important;border-color:rgba(0,0,0,0.1)!important;color:#555!important}
-body.theme-arctic #bottomNav{background:rgba(255,255,255,0.98)!important;border-top-color:#f0f0f0!important}
-body.theme-arctic .bnav-btn{color:#ccc!important}
-body.theme-arctic .bnav-btn.active{color:#000!important}
-body.theme-arctic .bnav-btn.active::before{background:#000!important}
-body.theme-arctic #calendarioOverlay,body.theme-arctic #calTopbar,body.theme-arctic #calScrollArea>div:first-child{background:#fff!important}
-body.theme-arctic .btn-secondary{background:#f4f4f4!important;border-color:rgba(0,0,0,0.1)!important;color:#333!important}
-body.theme-arctic input:not([type=checkbox]),body.theme-arctic select,body.theme-arctic textarea{background:#fff!important;border-color:rgba(0,0,0,0.12)!important;color:#000!important}
-
-/* ── DEEP SPACE ── */
-body.theme-space{background:#080810!important;color:#e2e8f0!important}
-body.theme-space .glass{background:rgba(10,8,22,0.88)!important;border-color:rgba(120,60,220,0.1)!important}
-body.theme-space .glass-modal{background:rgba(5,5,12,0.98)!important;border-color:rgba(120,60,220,0.1)!important}
-body.theme-space .item-row{background:rgba(255,255,255,0.025)!important;border-color:rgba(120,60,220,0.08)!important}
-body.theme-space .total-bar{background:linear-gradient(135deg,rgba(120,60,220,0.08),rgba(60,20,120,0.06))!important;border-color:rgba(120,60,220,0.16)!important}
-body.theme-space .btn-primary{background:linear-gradient(135deg,#7c3aed,#4f46e5)!important}
-body.theme-space .fab,.theme-space .bnav-fab{background:linear-gradient(135deg,#7c3aed,#4f46e5)!important;box-shadow:0 8px 28px rgba(120,60,240,0.45)!important}
-body.theme-space .progress-fill{background:linear-gradient(90deg,#7c3aed,#c084fc,#7c3aed)!important}
-body.theme-space .filter-btn.filter-active{background:rgba(120,60,220,0.18)!important;border-color:rgba(120,60,220,0.45)!important;color:#a78bfa!important}
-body.theme-space #bottomNav{background:rgba(5,5,12,0.98)!important;border-top-color:rgba(120,60,220,0.07)!important}
-body.theme-space .bnav-btn.active{color:#a78bfa!important}
-body.theme-space .bnav-btn.active::before{background:linear-gradient(90deg,#7c3aed,#c084fc)!important}
-body.theme-space #calendarioOverlay,body.theme-space #calTopbar,body.theme-space #calScrollArea>div:first-child{background:#080810!important}
-
-/* ── MINT & COAL ── */
-body.theme-mint{background:#0a0f0c!important;color:#e2e8f0!important}
-body.theme-mint .glass{background:rgba(10,15,12,0.88)!important;border-color:rgba(0,200,120,0.1)!important}
-body.theme-mint .glass-modal{background:rgba(5,10,7,0.98)!important;border-color:rgba(0,200,120,0.1)!important}
-body.theme-mint .item-row{background:rgba(255,255,255,0.025)!important;border-color:rgba(0,200,120,0.07)!important}
-body.theme-mint .total-bar{background:linear-gradient(135deg,rgba(0,200,120,0.09),rgba(0,100,60,0.06))!important;border-color:rgba(0,200,120,0.15)!important}
-body.theme-mint .btn-primary{background:linear-gradient(135deg,#00c87a,#006640)!important;color:#000!important}
-body.theme-mint .fab,.theme-mint .bnav-fab{background:linear-gradient(135deg,#00c87a,#006640)!important;box-shadow:0 8px 28px rgba(0,180,100,0.4)!important}
-body.theme-mint .progress-fill{background:linear-gradient(90deg,#00c87a,#60f0a0,#00c87a)!important}
-body.theme-mint .filter-btn.filter-active{background:rgba(0,200,120,0.18)!important;border-color:rgba(0,200,120,0.45)!important;color:#00c87a!important}
-body.theme-mint #bottomNav{background:rgba(5,10,7,0.98)!important;border-top-color:rgba(0,200,120,0.06)!important}
-body.theme-mint .bnav-btn.active{color:#00c87a!important}
-body.theme-mint .bnav-btn.active::before{background:linear-gradient(90deg,#00c87a,#60f0a0)!important}
-body.theme-mint #calendarioOverlay,body.theme-mint #calTopbar,body.theme-mint #calScrollArea>div:first-child{background:#0a0f0c!important}
-
-/* ── CARAMEL LATTE ── */
-body.theme-caramel{background:#f2e8d8!important;color:#2a1800!important}
-body.theme-caramel .glass{background:rgba(255,255,255,0.96)!important;border-color:rgba(0,0,0,0.07)!important}
-body.theme-caramel .glass *{color:#1e293b!important}
-body.theme-caramel .glass-modal{background:#fff!important;border-color:rgba(0,0,0,0.1)!important}
-body.theme-caramel .glass-modal *{color:#2a1800!important}
-body.theme-caramel .item-row{background:#ffffff!important;border-color:rgba(0,0,0,0.06)!important;box-shadow:0 1px 4px rgba(0,0,0,0.05)!important}
-body.theme-caramel .item-row *{color:#2a1800!important}
-body.theme-caramel .total-bar{background:linear-gradient(135deg,rgba(107,58,26,0.08),rgba(50,24,8,0.06))!important;border-color:rgba(107,58,26,0.18)!important}
-body.theme-caramel .total-bar *{color:#4a2010!important}
-body.theme-caramel .btn-primary{background:linear-gradient(135deg,#6b3a1a,#321808)!important}
-body.theme-caramel .fab,.theme-caramel .bnav-fab{background:linear-gradient(135deg,#6b3a1a,#321808)!important;box-shadow:0 8px 28px rgba(80,40,10,0.3)!important}
-body.theme-caramel .progress-fill{background:linear-gradient(90deg,#d4a040,#f0c870,#d4a040)!important}
-body.theme-caramel .filter-btn{background:#fff!important;border-color:rgba(0,0,0,0.1)!important;color:#555!important}
-body.theme-caramel .filter-btn.filter-active{background:rgba(107,58,26,0.1)!important;border-color:rgba(107,58,26,0.35)!important;color:#6b3a1a!important}
-body.theme-caramel .nav-btn{background:#fff!important;border-color:rgba(0,0,0,0.1)!important;color:#555!important}
-body.theme-caramel #bottomNav{background:#fff!important;border-top-color:rgba(0,0,0,0.07)!important}
-body.theme-caramel .bnav-btn{color:#ccc!important}
-body.theme-caramel .bnav-btn.active{color:#6b3a1a!important}
-body.theme-caramel .bnav-btn.active::before{background:linear-gradient(90deg,#6b3a1a,#d4a040)!important}
-body.theme-caramel #calendarioOverlay,body.theme-caramel #calTopbar,body.theme-caramel #calScrollArea>div:first-child{background:#f2e8d8!important}
-body.theme-caramel .btn-secondary{background:#f5ead8!important;border-color:rgba(0,0,0,0.1)!important;color:#555!important}
-body.theme-caramel input:not([type=checkbox]),body.theme-caramel select,body.theme-caramel textarea{background:#fff!important;border-color:rgba(0,0,0,0.12)!important;color:#2a1800!important}
-
-/* ── STEEL NIGHT ── */
-body.theme-steel{background:#0c0e10!important;color:#e2e8f0!important}
-body.theme-steel .glass{background:rgba(14,18,24,0.9)!important;border-color:rgba(0,180,255,0.08)!important}
-body.theme-steel .glass-modal{background:rgba(8,10,12,0.98)!important;border-color:rgba(0,180,255,0.08)!important}
-body.theme-steel .item-row{background:rgba(255,255,255,0.02)!important;border-color:rgba(255,255,255,0.05)!important}
-body.theme-steel .total-bar{background:linear-gradient(135deg,rgba(0,180,255,0.07),rgba(0,80,140,0.05))!important;border-color:rgba(0,180,255,0.12)!important}
-body.theme-steel .btn-primary{background:linear-gradient(135deg,#00b4ff,#0077cc)!important}
-body.theme-steel .fab,.theme-steel .bnav-fab{background:linear-gradient(135deg,#00b4ff,#0077cc)!important;box-shadow:0 8px 28px rgba(0,160,255,0.35)!important}
-body.theme-steel .progress-fill{background:linear-gradient(90deg,#00b4ff,#60d8ff,#00b4ff)!important}
-body.theme-steel .filter-btn.filter-active{background:rgba(0,180,255,0.14)!important;border-color:rgba(0,180,255,0.4)!important;color:#00b4ff!important}
-body.theme-steel #bottomNav{background:rgba(8,10,12,0.98)!important;border-top-color:rgba(255,255,255,0.04)!important}
-body.theme-steel .bnav-btn.active{color:#00b4ff!important}
-body.theme-steel .bnav-btn.active::before{background:linear-gradient(90deg,#00b4ff,#60d8ff)!important}
-body.theme-steel #calendarioOverlay,body.theme-steel #calTopbar,body.theme-steel #calScrollArea>div:first-child{background:#0c0e10!important}
-
-/* ── CHALK & CHARCOAL ── */
-body.theme-chalk{background:#1c1c1e!important;color:#e2e8f0!important}
-body.theme-chalk .glass{background:rgba(28,28,30,0.9)!important;border-color:rgba(255,255,255,0.07)!important}
-body.theme-chalk .glass-modal{background:rgba(20,20,22,0.98)!important;border-color:rgba(255,255,255,0.07)!important}
-body.theme-chalk .item-row{background:rgba(255,255,255,0.04)!important;border-color:rgba(255,255,255,0.07)!important}
-body.theme-chalk .total-bar{background:linear-gradient(135deg,rgba(255,255,255,0.06),rgba(255,255,255,0.03))!important;border-color:rgba(255,255,255,0.1)!important}
-body.theme-chalk .btn-primary{background:#ffffff!important;color:#000!important}
-body.theme-chalk .fab,.theme-chalk .bnav-fab{background:#ffffff!important;color:#000!important;box-shadow:0 8px 28px rgba(255,255,255,0.15)!important}
-body.theme-chalk .progress-fill{background:linear-gradient(90deg,#666,#999,#666)!important}
-body.theme-chalk .filter-btn.filter-active{background:rgba(255,255,255,0.14)!important;border-color:rgba(255,255,255,0.4)!important;color:#fff!important}
-body.theme-chalk #bottomNav{background:rgba(14,14,16,0.98)!important;border-top-color:rgba(255,255,255,0.05)!important}
-body.theme-chalk .bnav-btn.active{color:#ffffff!important}
-body.theme-chalk .bnav-btn.active::before{background:#fff!important}
-body.theme-chalk #calendarioOverlay,body.theme-chalk #calTopbar,body.theme-chalk #calScrollArea>div:first-child{background:#1c1c1e!important}
-
 .btn-primary,.btn-danger{position:relative;overflow:hidden}
 .btn-primary .ripple,.btn-danger .ripple{position:absolute;border-radius:50%;background:rgba(255,255,255,0.25);width:60px;height:60px;margin-top:-30px;margin-left:-30px;animation:ripple .5s linear;pointer-events:none}
 
 /* ── Body scroll lock quando modal/menu aberto ── */
 body.modal-open{overflow:hidden;position:fixed;width:100%;left:0;right:0;}
 
-/* ── FONT SYSTEM ── */
-body.font-cormorant { font-family: 'Cormorant Garamond', Georgia, serif !important; }
-body.font-cormorant .item-row p:first-child,
-body.font-cormorant #pvAmount,
-body.font-cormorant .text-slate-100,
-body.font-cormorant h2 { font-family: 'Cormorant Garamond', Georgia, serif; font-size: 105%; }
-
-body.font-bricolage { font-family: 'Bricolage Grotesque', system-ui, sans-serif !important; }
-body.font-bricolage * { font-family: 'Bricolage Grotesque', system-ui, sans-serif; }
-
-body.font-anybody { font-family: 'Anybody', system-ui, sans-serif !important; }
-body.font-anybody * { font-family: 'Anybody', system-ui, sans-serif; }
+/* ── Splash Screen ── */
+#splashScreen{
+  position:fixed;inset:0;z-index:9999;
+  background:#0a0f1e;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  overflow:hidden;
+  transition:opacity .4s ease;
+}
+#splashScreen.fade-out{opacity:0;pointer-events:none;}
+#splashScreen::before{
+  content:'';position:absolute;inset:0;
+  background:
+    radial-gradient(ellipse 60% 50% at 30% 20%,rgba(79,142,255,0.18) 0%,transparent 60%),
+    radial-gradient(ellipse 50% 60% at 75% 80%,rgba(124,92,252,0.15) 0%,transparent 60%),
+    radial-gradient(ellipse 40% 40% at 80% 20%,rgba(34,211,160,0.08) 0%,transparent 55%);
+  animation:splashBgPulse 4s ease-in-out infinite alternate;
+}
+#splashScreen::after{
+  content:'';position:absolute;inset:0;
+  background-image:linear-gradient(rgba(79,142,255,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(79,142,255,0.04) 1px,transparent 1px);
+  background-size:32px 32px;
+  mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black,transparent);
+  -webkit-mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,black,transparent);
+}
+@keyframes splashBgPulse{from{opacity:.7}to{opacity:1}}
+.splash-logo-wrap{
+  position:relative;z-index:10;
+  display:flex;flex-direction:column;align-items:center;gap:20px;
+  animation:splashFadeUp .7s cubic-bezier(.22,1,.36,1) both;
+  animation-delay:.15s;
+}
+@keyframes splashFadeUp{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:translateY(0)}}
+.splash-ring{
+  width:80px;height:80px;border-radius:24px;
+  background:linear-gradient(135deg,#1a2a4a 0%,#0f1d35 100%);
+  border:1px solid rgba(79,142,255,0.25);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 8px rgba(79,142,255,0.06),0 0 0 16px rgba(79,142,255,0.03),0 16px 40px rgba(0,0,0,0.5);
+  animation:splashRingPulse 2.5s ease-in-out infinite;
+}
+@keyframes splashRingPulse{
+  0%,100%{box-shadow:0 0 0 8px rgba(79,142,255,0.06),0 0 0 16px rgba(79,142,255,0.03),0 16px 40px rgba(0,0,0,0.5)}
+  50%{box-shadow:0 0 0 10px rgba(79,142,255,0.10),0 0 0 20px rgba(79,142,255,0.05),0 16px 40px rgba(0,0,0,0.5)}
+}
+.splash-name{font-size:22px;font-weight:700;color:#f0f4ff;letter-spacing:-.5px;line-height:1;text-align:center;}
+.splash-sub{font-size:11px;color:#8892a4;letter-spacing:2px;text-transform:uppercase;font-weight:400;margin-top:4px;display:block;text-align:center;}
+.splash-progress-wrap{
+  position:absolute;bottom:72px;left:48px;right:48px;z-index:10;
+  animation:splashFadeUp .5s cubic-bezier(.22,1,.36,1) both;
+  animation-delay:.5s;
+}
+.splash-track{height:3px;background:rgba(255,255,255,0.06);border-radius:99px;overflow:hidden;}
+.splash-bar{
+  height:100%;
+  background:linear-gradient(90deg,#4f8eff,#7c5cfc);
+  border-radius:99px;
+  box-shadow:0 0 12px rgba(79,142,255,0.7);
+  animation:splashLoadBar 2.2s cubic-bezier(.4,0,.2,1) infinite;
+}
+@keyframes splashLoadBar{
+  0%{width:0%;margin-left:0%}
+  50%{width:70%;margin-left:10%}
+  100%{width:0%;margin-left:100%}
+}
+.splash-label{margin-top:10px;font-size:10px;color:#8892a4;text-align:center;letter-spacing:.5px;animation:splashBlink 1.8s ease-in-out infinite;}
+@keyframes splashBlink{0%,100%{opacity:.5}50%{opacity:1}}
 
 /* ── Calendário fullscreen ── */
 #calendarioOverlay{background:#050a0f;}
@@ -3483,6 +2968,23 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
 </head>
 <body>
 
+<!-- ══ SPLASH SCREEN ══ -->
+<div id="splashScreen">
+  <div class="splash-logo-wrap">
+    <div class="splash-ring">
+      <img src="icon-192.png" style="width:56px;height:56px;border-radius:16px;display:block;"/>
+    </div>
+    <div>
+      <div class="splash-name app-name">FinancesPro</div>
+      <span class="splash-sub">Meus Gastos</span>
+    </div>
+  </div>
+  <div class="splash-progress-wrap">
+    <div class="splash-track"><div class="splash-bar"></div></div>
+    <div class="splash-label">Carregando sua conta…</div>
+  </div>
+</div>
+
 <!-- ══ LOGIN ══ -->
 <div id="authScreen" style="display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px;background:radial-gradient(ellipse at 50% 0%,#1a1040 0%,#0f172a 55%)">
   <div style="width:100%;max-width:400px">
@@ -3558,110 +3060,16 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
     <button onclick="changeMonth(1)" class="nav-btn"><svg width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
   </div>
 
-  <!-- Cards — wrapper dinâmico (modo controlado por JS) -->
-  <div id="cardsWrapper" class="mb-3">
-    <!-- MODO PADRÃO: grade 2x2 (default) -->
-    <div id="cardsDefault" class="grid grid-cols-2 gap-2 px-3">
-      <div class="card-green p-3"><p class="text-green-400 text-xs font-semibold mb-0.5">✓ Pagas</p><p class="text-green-300 font-bold text-lg leading-tight" id="cardSaldo">R$ 0,00</p></div>
-      <div class="card-red p-3"><p class="text-red-400 text-xs font-semibold mb-0.5">💸 Total</p><p class="text-red-300 font-bold text-lg leading-tight" id="cardGastos">R$ 0,00</p></div>
-      <div class="card-yellow p-3"><p class="text-yellow-400 text-xs font-semibold mb-0.5">⏳ Pendentes</p><p class="text-yellow-300 font-bold text-lg leading-tight" id="cardPending">R$ 0,00</p></div>
-      <div class="card-blue p-3"><p class="text-blue-400 text-xs font-semibold mb-0.5">💳 Cartão Pend.</p><p class="text-blue-300 font-bold text-lg leading-tight" id="cardCartao">R$ 0,00</p></div>
-    </div>
-
-    <!-- MODO HERO: card grande + 2 mini -->
-    <div id="cardsHero" style="display:none;padding:0 12px">
-      <div style="border-radius:22px;padding:18px 20px 14px;margin-bottom:10px;position:relative;overflow:hidden" id="heroMainCard">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;opacity:.6;margin-bottom:3px" id="heroLabel">TOTAL DO MÊS</div>
-        <div style="font-size:28px;font-weight:800;line-height:1;margin-bottom:3px" id="heroAmount">R$ 0,00</div>
-        <div style="font-size:12px;opacity:.45;margin-bottom:10px" id="heroSub">0 de 0 contas pagas</div>
-        <div style="height:4px;border-radius:4px;overflow:hidden;margin-bottom:4px;background:rgba(255,255,255,0.12)" id="heroProgressBg">
-          <div id="heroProgressBar" style="height:100%;border-radius:4px;width:0%;transition:width .65s cubic-bezier(.34,1.2,.64,1)"></div>
-        </div>
-        <div style="font-size:10px;font-weight:700;text-align:right;opacity:.7" id="heroPct">0%</div>
-        <!-- gatinho dentro do hero -->
-        <div id="catPetHero" style="position:absolute;right:16px;top:16px;font-size:22px;opacity:.35">🐱</div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="card-green p-3" style="border-radius:16px"><p class="text-green-400 text-xs font-semibold mb-0.5">✓ Pagas</p><p class="text-green-300 font-bold text-lg leading-tight" id="cardSaldoH">R$ 0,00</p></div>
-        <div class="card-yellow p-3" style="border-radius:16px"><p class="text-yellow-400 text-xs font-semibold mb-0.5">⏳ Pendentes</p><p class="text-yellow-300 font-bold text-lg leading-tight" id="cardPendingH">R$ 0,00</p></div>
-      </div>
-    </div>
-
-    <!-- MODO SCROLL: cards horizontais deslizantes -->
-    <div id="cardsScroll" style="display:none">
-      <div style="display:flex;gap:10px;padding:0 12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch">
-        <div style="flex-shrink:0;width:200px;border-radius:20px;padding:16px 18px;scroll-snap-align:start;position:relative;overflow:hidden" id="scrollCard1">
-          <div style="position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;background:rgba(255,255,255,0.08)"></div>
-          <div style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.6;margin-bottom:3px">Total do Mês</div>
-          <div style="font-size:22px;font-weight:800;line-height:1.1;margin-bottom:6px" id="cardGastosS">R$ 0,00</div>
-          <div style="height:3px;border-radius:3px;background:rgba(255,255,255,0.15);overflow:hidden;margin-bottom:4px">
-            <div id="scrollProgress" style="height:100%;border-radius:3px;background:rgba(255,255,255,0.7);width:0%;transition:width .6s"></div>
-          </div>
-          <div style="font-size:10px;opacity:.5" id="scrollSub">0 / 0 pagas</div>
-        </div>
-        <div class="card-green" style="flex-shrink:0;width:160px;border-radius:20px;padding:16px 18px;scroll-snap-align:start">
-          <div style="font-size:20px;margin-bottom:6px">✅</div>
-          <div style="font-size:10px;font-weight:700;opacity:.6;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Pagas</div>
-          <div class="text-green-300 font-bold" style="font-size:18px" id="cardSaldoS">R$ 0,00</div>
-        </div>
-        <div class="card-yellow" style="flex-shrink:0;width:160px;border-radius:20px;padding:16px 18px;scroll-snap-align:start">
-          <div style="font-size:20px;margin-bottom:6px">⏳</div>
-          <div style="font-size:10px;font-weight:700;opacity:.6;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Pendentes</div>
-          <div class="text-yellow-300 font-bold" style="font-size:18px" id="cardPendingS">R$ 0,00</div>
-        </div>
-        <div class="card-blue" style="flex-shrink:0;width:160px;border-radius:20px;padding:16px 18px;scroll-snap-align:start;margin-right:12px">
-          <div style="font-size:20px;margin-bottom:6px">💳</div>
-          <div style="font-size:10px;font-weight:700;opacity:.6;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Cartão</div>
-          <div class="text-blue-300 font-bold" style="font-size:18px" id="cardCartaoS">R$ 0,00</div>
-        </div>
-      </div>
-      <!-- dots -->
-      <div style="display:flex;justify-content:center;gap:5px;margin-top:8px">
-        <div style="width:16px;height:4px;border-radius:2px;background:rgba(255,255,255,0.5)"></div>
-        <div style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.2)"></div>
-        <div style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.2)"></div>
-        <div style="width:6px;height:4px;border-radius:2px;background:rgba(255,255,255,0.2)"></div>
-      </div>
-    </div>
-
-    <!-- MODO BENTO: grid assimétrico -->
-    <div id="cardsBento" style="display:none;padding:0 12px">
-      <div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto auto;gap:8px">
-        <!-- Wide: Total -->
-        <div style="grid-column:1/3;border-radius:20px;padding:16px 18px;position:relative;overflow:hidden" id="bentoMainCard">
-          <div style="position:absolute;right:-10px;top:-10px;font-size:48px;opacity:.06;user-select:none;line-height:1">R$</div>
-          <div style="display:flex;align-items:flex-start;justify-content:space-between">
-            <div>
-              <div style="font-size:9px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;opacity:.5;margin-bottom:3px">Total do mês</div>
-              <div style="font-size:24px;font-weight:800;line-height:1" id="cardGastosB">R$ 0,00</div>
-            </div>
-            <div style="text-align:right">
-              <div style="font-size:9px;opacity:.5;margin-bottom:2px" id="bentoSub">0/0 pagas</div>
-              <div style="font-size:18px;font-weight:800;opacity:.8" id="bentoPct">0%</div>
-            </div>
-          </div>
-          <div style="margin-top:10px;height:4px;border-radius:4px;background:rgba(255,255,255,0.1);overflow:hidden">
-            <div id="bentoProgressBar" style="height:100%;border-radius:4px;background:rgba(255,255,255,0.5);width:0%;transition:width .65s"></div>
-          </div>
-        </div>
-        <!-- Small: Pagas -->
-        <div class="card-green" style="border-radius:16px;padding:13px 14px">
-          <div style="font-size:16px;margin-bottom:4px">✅</div>
-          <div style="font-size:9px;font-weight:700;opacity:.6;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Pagas</div>
-          <div class="text-green-300 font-bold" style="font-size:15px" id="cardSaldoB">R$ 0,00</div>
-        </div>
-        <!-- Small: Pendentes -->
-        <div class="card-yellow" style="border-radius:16px;padding:13px 14px">
-          <div style="font-size:16px;margin-bottom:4px">⏳</div>
-          <div style="font-size:9px;font-weight:700;opacity:.6;text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px">Pendentes</div>
-          <div class="text-yellow-300 font-bold" style="font-size:15px" id="cardPendingB">R$ 0,00</div>
-        </div>
-      </div>
-    </div>
+  <!-- Cards -->
+  <div class="grid grid-cols-2 gap-2 px-3 mb-3">
+    <div class="card-green p-3"><p class="text-green-400 text-xs font-semibold mb-0.5">✓ Pagas</p><p class="text-green-300 font-bold text-lg leading-tight" id="cardSaldo">R$ 0,00</p></div>
+    <div class="card-red p-3"><p class="text-red-400 text-xs font-semibold mb-0.5">💸 Total</p><p class="text-red-300 font-bold text-lg leading-tight" id="cardGastos">R$ 0,00</p></div>
+    <div class="card-yellow p-3"><p class="text-yellow-400 text-xs font-semibold mb-0.5">⏳ Pendentes</p><p class="text-yellow-300 font-bold text-lg leading-tight" id="cardPending">R$ 0,00</p></div>
+    <div class="card-blue p-3"><p class="text-blue-400 text-xs font-semibold mb-0.5">💳 Cartão Pend.</p><p class="text-blue-300 font-bold text-lg leading-tight" id="cardCartao">R$ 0,00</p></div>
   </div>
 
   <!-- Progress com gatinho -->
-  <div class="mx-3 mb-3 total-bar rounded-2xl px-4 py-3" id="totalBarWrap">
+  <div class="mx-3 mb-3 total-bar rounded-2xl px-4 py-3">
     <div class="flex items-center justify-between mb-2">
       <span class="text-slate-300 text-sm" id="progressLabel">0 de 0 pagas</span>
       <span class="text-blue-400 text-sm font-bold" id="progressPct">0%</span>
@@ -4184,200 +3592,11 @@ body.theme-light .bnav-btn.active{color:#2563eb!important}
     </div>
 
     <!-- Tema -->
-    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🎨 Tema</p>
-
-    <!-- Preview card -->
-    <div id="themePreviewWrap" style="margin-bottom:14px;border-radius:18px;overflow:hidden;border:2px solid rgba(37,99,235,0.4);transition:border-color .2s">
-      <div id="themePreviewCard" style="padding:16px 14px;transition:all .3s">
-        <!-- hero -->
-        <div id="pvHero" style="border-radius:14px;padding:14px 14px 11px;margin-bottom:10px;position:relative;overflow:hidden">
-          <div style="font-size:9px;font-weight:700;letter-spacing:.15em;text-transform:uppercase;margin-bottom:3px;opacity:.6" id="pvLabel">TOTAL DO MÊS</div>
-          <div style="font-size:22px;font-weight:800;line-height:1;margin-bottom:3px" id="pvAmount">R$ 2.224,89</div>
-          <div style="font-size:9px;opacity:.4;margin-bottom:8px" id="pvSub">16 de 18 contas pagas</div>
-          <div id="pvProgressBg" style="height:3px;border-radius:3px;overflow:hidden;margin-bottom:5px">
-            <div id="pvProgressBar" style="height:100%;width:89%;border-radius:3px"></div>
-          </div>
-          <div style="font-size:9px;font-weight:700;text-align:right" id="pvPct">89%</div>
-        </div>
-        <!-- mini cards -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-          <div id="pvMini1" style="border-radius:10px;padding:9px 10px">
-            <div style="font-size:8px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.4;margin-bottom:3px">PAGAS</div>
-            <div id="pvMini1Val" style="font-size:13px;font-weight:800">R$ 2.163</div>
-          </div>
-          <div id="pvMini2" style="border-radius:10px;padding:9px 10px">
-            <div style="font-size:8px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;opacity:.4;margin-bottom:3px">PENDENTES</div>
-            <div id="pvMini2Val" style="font-size:13px;font-weight:800">R$ 60,90</div>
-          </div>
-        </div>
-        <!-- item row -->
-        <div id="pvItem" style="display:flex;align-items:center;gap:8px;border-radius:10px;padding:8px 10px">
-          <div id="pvItemIcon" style="width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0">🛡️</div>
-          <div style="flex:1">
-            <div style="font-size:11px;font-weight:600" id="pvItemName">Netflix</div>
-            <div style="font-size:9px;opacity:.4" id="pvItemCat">Assinaturas · 29/05</div>
-          </div>
-          <div style="text-align:right">
-            <div style="font-size:11px;font-weight:700" id="pvItemAmt">R$ 20,90</div>
-            <div id="pvBadge" style="font-size:8px;font-weight:700;padding:1px 6px;border-radius:4px;display:inline-block;margin-top:2px">PENDENTE</div>
-          </div>
-        </div>
-      </div>
+    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🌗 Tema</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+      <button id="themeDarkBtn" onclick="selectTheme('dark')" style="padding:14px;border-radius:14px;border:2px solid rgba(37,99,235,0.5);background:rgba(5,10,15,0.8);color:#e2e8f0;cursor:pointer;font-weight:700;font-size:13px">🌙 Escuro</button>
+      <button id="themeLightBtn" onclick="selectTheme('light')" style="padding:14px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.15);color:#e2e8f0;cursor:pointer;font-weight:700;font-size:13px">☀️ Claro</button>
     </div>
-    <!-- Theme name indicator -->
-    <div style="text-align:center;margin-bottom:12px">
-      <span id="pvThemeName" style="font-size:11px;font-weight:700;color:#93c5fd;background:rgba(37,99,235,0.12);padding:4px 12px;border-radius:20px">Neon Glass Dark</span>
-    </div>
-
-    <!-- Theme grid -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:6px">
-      <!-- Row 1 -->
-      <div class="theme-swatch" data-theme="dark" onclick="previewTheme('dark')" title="Neon Glass Dark" style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#0f172a,#1e3a5f);border:2px solid rgba(37,99,235,0.6);cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#93c5fd;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Neon Glass</div>
-      </div>
-      <div class="theme-swatch" data-theme="light" onclick="previewTheme('light')" title="Clean & Minimal" style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#f5f5f0,#e8e4dc);border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#d4af37,#f0c866);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#5a3a1a;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Clean Minimal</div>
-      </div>
-      <div class="theme-swatch" data-theme="ocean" onclick="previewTheme('ocean')" title="Ocean Night" style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#050f18,#063a52);border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#00b4cc,#00e5ff);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#00d4e8;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ocean Night</div>
-      </div>
-      <div class="theme-swatch" data-theme="rose" onclick="previewTheme('rose')" title="Rose Dusk" style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#130a0e,#3d0f1f);border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#e05580,#ff80a0);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#e05580;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Rose Dusk</div>
-      </div>
-      <!-- Row 2 -->
-      <div class="theme-swatch" data-theme="forest" onclick="previewTheme('forest')" title="Forest Stone" style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#f5f2ee,#1e3d28);border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#3cb85a,#7de89a);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#3cb85a;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Forest Stone</div>
-      </div>
-      <div class="theme-swatch" data-theme="sand" onclick="previewTheme('sand')" title="Sand & Sky" style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#f0ece4,#1a6bb5);border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#80c8ff,#c0e4ff);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#1a6bb5;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Sand & Sky</div>
-      </div>
-      <div class="theme-swatch" data-theme="ember" onclick="previewTheme('ember')" title="Graphite Ember" style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#0c0c0c,#b82800);border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#ff6a30,#ffaa60);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#ff6a30;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Graphite Ember</div>
-      </div>
-      <div class="theme-swatch" data-theme="plum" onclick="previewTheme('plum')" title="Ivory & Plum" style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#f8f4f0,#3d1054);border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#c060e0,#e090ff);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#7a30a0;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Ivory & Plum</div>
-      </div>
-      <!-- Row 3 -->
-      <div class="theme-swatch" data-theme="arctic" onclick="previewTheme('arctic')" title="Arctic White" style="aspect-ratio:1;border-radius:12px;background:#fff;border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#60d0ff,#a0eaff);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#000;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Arctic White</div>
-      </div>
-      <div class="theme-swatch" data-theme="space" onclick="previewTheme('space')" title="Deep Space" style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#080810,#3b0f8a);border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#7c3aed,#c084fc);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#a78bfa;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Deep Space</div>
-      </div>
-      <div class="theme-swatch" data-theme="mint" onclick="previewTheme('mint')" title="Mint & Coal" style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#0a0f0c,#006640);border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#00c87a,#60f0a0);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#00c87a;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Mint & Coal</div>
-      </div>
-      <div class="theme-swatch" data-theme="caramel" onclick="previewTheme('caramel')" title="Caramel Latte" style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#f2e8d8,#4e2810);border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#d4a040,#f0c870);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#6b3a1a;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Caramel Latte</div>
-      </div>
-      <!-- Row 4 -->
-      <div class="theme-swatch" data-theme="steel" onclick="previewTheme('steel')" title="Steel Night" style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#0c0e10,#1c2028);border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#00b4ff,#60d8ff);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#00b4ff;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Steel Night</div>
-      </div>
-      <div class="theme-swatch" data-theme="chalk" onclick="previewTheme('chalk')" title="Chalk & Charcoal" style="aspect-ratio:1;border-radius:12px;background:linear-gradient(135deg,#1c1c1e,#f5f5f5);border:2px solid transparent;cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;justify-content:flex-end;padding:6px">
-        <div style="height:4px;background:linear-gradient(90deg,#555,#999);border-radius:2px;width:80%"></div>
-        <div style="font-size:8px;color:#fff;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Chalk & Charcoal</div>
-      </div>
-      <div style="aspect-ratio:1"></div>
-      <div style="aspect-ratio:1"></div>
-    </div>
-    <p style="font-size:10px;color:#475569;text-align:center;margin-bottom:20px">Toque para visualizar · salve para confirmar</p>
-
-    <!-- ══ FONTE DO APP ══ -->
-    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🔤 Fonte do app</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px" id="fontSelectorGrid">
-      <button class="font-opt-btn" data-font="default" onclick="previewFont('default')" style="padding:12px 10px;border-radius:14px;border:2px solid rgba(37,99,235,0.5);background:rgba(37,99,235,0.08);cursor:pointer;text-align:center">
-        <div style="font-size:16px;font-weight:700;color:#e2e8f0;margin-bottom:3px">Aa</div>
-        <div style="font-size:10px;color:#64748b;font-weight:600">Padrão</div>
-      </button>
-      <button class="font-opt-btn" data-font="cormorant" onclick="previewFont('cormorant')" style="padding:12px 10px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.04);cursor:pointer;text-align:center">
-        <div style="font-family:'Cormorant Garamond',serif;font-size:18px;font-weight:600;color:#e2e8f0;margin-bottom:3px;font-style:italic">Aa</div>
-        <div style="font-size:10px;color:#64748b;font-weight:600">Cormorant</div>
-        <div style="font-size:9px;color:#475569">Elegante · Serifada</div>
-      </button>
-      <button class="font-opt-btn" data-font="bricolage" onclick="previewFont('bricolage')" style="padding:12px 10px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.04);cursor:pointer;text-align:center">
-        <div style="font-family:'Bricolage Grotesque',sans-serif;font-size:16px;font-weight:800;color:#e2e8f0;margin-bottom:3px">Aa</div>
-        <div style="font-size:10px;color:#64748b;font-weight:600">Bricolage</div>
-        <div style="font-size:9px;color:#475569">Moderna · Arredondada</div>
-      </button>
-      <button class="font-opt-btn" data-font="anybody" onclick="previewFont('anybody')" style="padding:12px 10px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.04);cursor:pointer;text-align:center">
-        <div style="font-family:'Anybody',sans-serif;font-size:16px;font-weight:900;color:#e2e8f0;margin-bottom:3px">Aa</div>
-        <div style="font-size:10px;color:#64748b;font-weight:600">Anybody</div>
-        <div style="font-size:9px;color:#475569">Display · Bold</div>
-      </button>
-    </div>
-
-    <!-- ══ MODO DE EXIBIÇÃO DOS CARDS ══ -->
-    <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">🃏 Layout dos cards</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px">
-
-      <!-- Padrão: grade 2x2 -->
-      <button class="cardmode-btn" data-mode="default" onclick="previewCardMode('default')"
-        style="padding:12px 10px;border-radius:14px;border:2px solid rgba(37,99,235,0.5);background:rgba(37,99,235,0.08);cursor:pointer;text-align:left">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;margin-bottom:6px">
-          <div style="height:14px;border-radius:4px;background:rgba(52,211,153,0.4)"></div>
-          <div style="height:14px;border-radius:4px;background:rgba(248,113,113,0.4)"></div>
-          <div style="height:14px;border-radius:4px;background:rgba(251,191,36,0.4)"></div>
-          <div style="height:14px;border-radius:4px;background:rgba(96,165,250,0.4)"></div>
-        </div>
-        <div style="font-size:11px;font-weight:700;color:#e2e8f0">Grade 2×2</div>
-        <div style="font-size:9px;color:#64748b;margin-top:1px">Padrão atual</div>
-      </button>
-
-      <!-- Hero: card grande + 2 mini -->
-      <button class="cardmode-btn" data-mode="hero" onclick="previewCardMode('hero')"
-        style="padding:12px 10px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.04);cursor:pointer;text-align:left">
-        <div style="margin-bottom:6px">
-          <div style="height:24px;border-radius:6px;background:linear-gradient(135deg,rgba(37,99,235,0.5),rgba(139,92,246,0.4));margin-bottom:3px"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px">
-            <div style="height:12px;border-radius:4px;background:rgba(52,211,153,0.35)"></div>
-            <div style="height:12px;border-radius:4px;background:rgba(251,191,36,0.35)"></div>
-          </div>
-        </div>
-        <div style="font-size:11px;font-weight:700;color:#e2e8f0">Card Hero</div>
-        <div style="font-size:9px;color:#64748b;margin-top:1px">Total em destaque</div>
-      </button>
-
-      <!-- Scroll horizontal -->
-      <button class="cardmode-btn" data-mode="scroll" onclick="previewCardMode('scroll')"
-        style="padding:12px 10px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.04);cursor:pointer;text-align:left">
-        <div style="display:flex;gap:3px;margin-bottom:6px;overflow:hidden">
-          <div style="flex-shrink:0;width:52px;height:30px;border-radius:6px;background:linear-gradient(135deg,rgba(37,99,235,0.5),rgba(139,92,246,0.4))"></div>
-          <div style="flex-shrink:0;width:36px;height:30px;border-radius:6px;background:rgba(52,211,153,0.3)"></div>
-          <div style="flex-shrink:0;width:36px;height:30px;border-radius:6px;background:rgba(251,191,36,0.3)"></div>
-        </div>
-        <div style="font-size:11px;font-weight:700;color:#e2e8f0">Scroll</div>
-        <div style="font-size:9px;color:#64748b;margin-top:1px">Deslize ← →</div>
-      </button>
-
-      <!-- Bento grid -->
-      <button class="cardmode-btn" data-mode="bento" onclick="previewCardMode('bento')"
-        style="padding:12px 10px;border-radius:14px;border:2px solid rgba(148,163,184,0.15);background:rgba(241,245,249,0.04);cursor:pointer;text-align:left">
-        <div style="margin-bottom:6px">
-          <div style="height:18px;border-radius:6px;background:linear-gradient(135deg,rgba(37,99,235,0.5),rgba(139,92,246,0.4));margin-bottom:3px"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px">
-            <div style="height:12px;border-radius:4px;background:rgba(52,211,153,0.35)"></div>
-            <div style="height:12px;border-radius:4px;background:rgba(251,191,36,0.35)"></div>
-          </div>
-        </div>
-        <div style="font-size:11px;font-weight:700;color:#e2e8f0">Bento</div>
-        <div style="font-size:9px;color:#64748b;margin-top:1px">Grid assimétrico</div>
-      </button>
-    </div>
-
     <!-- Nome do app -->
     <p style="color:#475569;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Nome do app</p>
     <div style="margin-bottom:20px">
