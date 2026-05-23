@@ -1,11 +1,11 @@
-const CACHE='fpro-20260506000000';
+const CACHE='fpro-20260523232440';
 const FILES=['/','/index.html','/manifest.json'];
 
 self.addEventListener('install',e=>{
   e.waitUntil(
     caches.open(CACHE)
-      .then(c=>Promise.allSettled(FILES.map(f=>c.add(f))))
-      .then(()=>self.skipWaiting())
+      .then(c=>Promise.allSettled(FILES.map(f=>c.add(f).catch(()=>{}))))
+      .finally(()=>self.skipWaiting())
   );
 });
 
@@ -19,17 +19,16 @@ self.addEventListener('activate',e=>{
 
 self.addEventListener('fetch',e=>{
   const url=new URL(e.request.url);
-  // HTML e raiz: sempre da rede (nunca do cache) para evitar tela preta pós-login
-  if(url.pathname.endsWith('/')||url.pathname.endsWith('.html')||url.pathname==='/'){
+  if(url.pathname.endsWith('/')||url.pathname.endsWith('.html')){
     e.respondWith(
-      fetch(e.request,{cache:'no-store'})
-        .catch(()=>caches.match('/index.html'))
+      fetch(e.request)
+        .then(r=>{ const c=r.clone(); caches.open(CACHE).then(cache=>cache.put(e.request,c)); return r; })
+        .catch(()=>caches.match(e.request))
     );
     return;
   }
-  // Outros assets: cache-first
   e.respondWith(
-    caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>caches.match('/index.html')))
+    caches.match(e.request).then(r=>r||fetch(e.request))
   );
 });
 
