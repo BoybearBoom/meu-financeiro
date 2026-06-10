@@ -985,8 +985,9 @@ function render(){
     const vencBg=isOverdue?'rgba(239,68,68,0.12)':isDueSoon?'rgba(251,191,36,0.1)':'rgba(148,163,184,0.07)';
     const vencBorder=isOverdue?'rgba(239,68,68,0.3)':isDueSoon?'rgba(251,191,36,0.25)':'rgba(148,163,184,0.12)';
     const statusBadge=isOverdue?'<span style="font-size:9px;background:rgba(239,68,68,0.15);color:#f87171;padding:1px 6px;border-radius:6px;font-weight:700;border:1px solid rgba(239,68,68,0.25)">VENCIDA</span>':isDueSoon?'<span style="font-size:9px;background:rgba(251,191,36,0.13);color:#fbbf24;padding:1px 6px;border-radius:6px;font-weight:700;border:1px solid rgba(251,191,36,0.2)">EM BREVE</span>':'';
+    const lateralColor=item.pago?'rgba(34,197,94,0.6)':isOverdue?'rgba(239,68,68,0.6)':isDueSoon?'rgba(251,191,36,0.6)':'rgba(99,102,241,0.4)';
     return`<div class="item-row px-3 py-3${isSel?' selected':''}${isOverdue?' overdue':''}${isDueSoon?' due-soon':''}" ${clickable}>
-      <div style="display:flex;align-items:center;gap:10px">
+      <div style="display:flex;align-items:center;gap:10px;border-left:3px solid ${lateralColor};padding-left:10px;margin-left:-4px;border-radius:2px">
         ${selectMode?`<div class="checkbox-item${isSel?' checked':''}" onclick="event.stopPropagation();toggleSelect('${item.id}')">
           ${isSel?'<svg width="11" height="11" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>':''}
         </div>`:''}
@@ -997,19 +998,19 @@ function render(){
             <div style="display:flex;align-items:center;gap:5px;min-width:0;flex:1">
               <p style="color:#f1f5f9;font-size:14px;font-weight:700;margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${nomeBase(item.nome)}</p>
               ${item.totalParcelas?`<span style="font-size:11px;color:#f1f5f9;font-weight:700;background:rgba(37,99,235,0.25);border:1px solid rgba(37,99,235,0.35);padding:1px 7px;border-radius:8px;flex-shrink:0;white-space:nowrap">${item.parcelNum}/${item.totalParcelas}</span>`:''}
-              ${item.recorrente?'<span style="font-size:10px;background:rgba(37,99,235,0.2);color:#93c5fd;padding:1px 6px;border-radius:7px;font-weight:700;border:1px solid rgba(37,99,235,0.3);flex-shrink:0">↻</span>':''}
+              ${item.recorrente?'<span style="font-size:9px;background:rgba(99,102,241,0.2);color:#a5b4fc;padding:1px 7px;border-radius:6px;font-weight:700;border:1px solid rgba(99,102,241,0.3);flex-shrink:0;letter-spacing:0.3px">↻ recorrente</span>':''}
             </div>
             <p style="color:#f1f5f9;font-size:15px;font-weight:800;margin:0;flex-shrink:0">${fmt(item.valor)}</p>
           </div>
           <!-- Linha 2: data adicionada -->
-          <div style="display:flex;align-items:center;gap:4px">
-            <svg width="12" height="12" fill="none" stroke="#cbd5e1" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;opacity:0.6"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-            <span style="font-size:12px;color:#cbd5e1;white-space:nowrap">Adicionado em ${fmtDate(item.data)}</span>
+          <div style="display:flex;align-items:center;gap:5px">
+            <svg width="13" height="13" fill="none" stroke="#94a3b8" stroke-width="2" viewBox="0 0 24 24" style="flex-shrink:0;opacity:0.7"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+            <span style="font-size:13px;color:#cbd5e1;font-weight:500;white-space:nowrap">Adicionado em ${fmtDate(item.data)}</span>
           </div>
           <!-- Linha 3: vencimento + badge pago -->
           <div style="display:flex;align-items:center;justify-content:space-between;gap:6px">
             <div style="display:flex;align-items:center;gap:5px;min-width:0">
-              ${item.vencimento?`<span style="display:inline-flex;align-items:center;gap:4px;background:${vencBg};border:1px solid ${vencBorder};border-radius:8px;padding:2px 8px;font-size:11px;font-weight:600;color:${vencColor};white-space:nowrap">VENC ${fmtDate(item.vencimento)}</span>${statusBadge}`:''}
+              ${item.vencimento?`<span style="display:inline-flex;align-items:center;gap:4px;background:${vencBg};border:1px solid ${vencBorder};border-radius:8px;padding:3px 10px;font-size:13px;font-weight:600;color:${vencColor};white-space:nowrap">Venc. ${fmtDate(item.vencimento)}</span>${statusBadge}`:''}
             </div>
             <button onclick="event.stopPropagation();togglePago('${item.id}')" class="badge cursor-pointer shrink-0${item.pago?' status-paid':' status-pending'}" style="font-size:11px;padding:4px 12px;border-radius:20px;font-weight:700">
               ${item.pago?'✓ Pago':'Pendente'}
@@ -2669,7 +2670,7 @@ function unlockBody(){
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{background:#000000;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;overscroll-behavior:none}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#1e293b}::-webkit-scrollbar-thumb{background:#334155;border-radius:2px}
-.glass{background:rgba(8,8,10,0.82);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(148,163,184,0.08)}
+.glass{background:rgba(30,41,59,0.72);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);border:1px solid rgba(148,163,184,0.1)}
 .glass-modal{background:rgba(8,14,28,0.97);backdrop-filter:blur(30px);-webkit-backdrop-filter:blur(30px);border:1px solid rgba(148,163,184,0.12)}
 .card-green{background:linear-gradient(135deg,rgba(34,197,94,0.12),rgba(21,128,61,0.07));border:1px solid rgba(34,197,94,0.16);border-radius:16px;transition:transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s}
 .card-green:active{transform:scale(0.96)}
@@ -2706,7 +2707,7 @@ body{background:#000000;color:#e2e8f0;font-family:'Segoe UI',system-ui,sans-seri
 .menu-sheet{width:100%;max-width:560px;border-radius:24px 24px 0 0;padding:20px;overflow:hidden}
 .modal-handle{width:40px;height:4px;background:rgba(148,163,184,0.2);border-radius:2px;margin:0 auto 20px}
 /* ── Cards de despesa ── */
-.item-row{background:rgba(12,12,16,0.85);border:1px solid rgba(148,163,184,0.07);border-radius:16px;margin:0 12px 8px;transition:background .18s,transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s;will-change:transform;cursor:pointer}
+.item-row{background:rgba(30,41,59,0.6);border:1px solid rgba(148,163,184,0.09);border-radius:16px;margin:0 12px 8px;transition:background .18s,transform .18s cubic-bezier(.34,1.56,.64,1),box-shadow .18s;will-change:transform;cursor:pointer}
 .item-row:last-child{margin-bottom:4px}
 .item-row:active{transform:scale(0.982);background:rgba(30,41,59,0.9)!important;box-shadow:0 4px 20px rgba(0,0,0,0.25)}
 .item-row.selected{background:rgba(37,99,235,0.12)!important;border:1px solid rgba(37,99,235,0.3);box-shadow:0 0 0 1px rgba(37,99,235,0.15)}
